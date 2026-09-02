@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Visita | Realty ONE Group Bolivia</title>
+    <link rel="icon" type="image/png" href="assets/logo_one_circle.png">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b141a;
+            --card-bg: #111b21;
+            --card-border: #222e35;
+            --gold: #c5a560;
+            --gold-hover: #dfbc6e;
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --accent-green: #00a884;
+            --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-main);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 15px;
+        }
+
+        .form-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            padding: 30px 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .brand-header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .brand-header img {
+            height: 48px;
+            object-fit: contain;
+            margin-bottom: 12px;
+        }
+
+        .brand-header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        .brand-header p {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .f-group {
+            margin-bottom: 16px;
+        }
+
+        .f-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gold);
+            margin-bottom: 6px;
+        }
+
+        .f-input {
+            width: 100%;
+            background: #202c33;
+            border: 1px solid #2a3942;
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .f-input:focus {
+            border-color: var(--gold);
+        }
+
+        .quick-pills {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pill-btn {
+            background: rgba(197, 165, 96, 0.12);
+            border: 1px solid rgba(197, 165, 96, 0.3);
+            color: var(--gold);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .pill-btn:hover, .pill-btn.active {
+            background: var(--gold);
+            color: #000;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: linear-gradient(135deg, var(--gold), #a3823c);
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.95;
+            transform: translateY(-1px);
+        }
+
+        .success-box {
+            display: none;
+            text-align: center;
+            padding: 20px 10px;
+        }
+
+        .success-box.active {
+            display: block;
+        }
+
+        .success-icon {
+            font-size: 48px;
+            color: var(--accent-green);
+            margin-bottom: 12px;
+        }
+
+        .btn-wa-direct {
+            display: inline-block;
+            background: #25d366;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 700;
+            text-decoration: none;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-card">
+        <div class="brand-header">
+            <!-- Logo Oficial Realty ONE Group Bolivia con Círculo Dorado Incrustado Directamente -->
+            <div style="max-width: 320px; margin: 0 auto 16px auto;">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 220" width="100%" height="52" style="display: block; margin: 0 auto;">
+                  <!-- Círculo Dorado ONE -->
+                  <g transform="translate(10, 10)">
+                    <circle cx="100" cy="100" r="100" fill="#C5A560" />
+                    <!-- ONE en Blanco dentro del círculo -->
+                    <g fill="#FFFFFF">
+                      <!-- O -->
+                      <path d="M 48,72 C 63,72 74,83 74,100 C 74,117 63,128 48,128 C 33,128 22,117 22,100 C 22,83 33,72 48,72 Z M 48,87 C 41,87 36,92 36,100 C 36,108 41,113 48,113 C 55,113 60,108 60,100 C 60,92 55,87 48,87 Z" />
+                      <!-- N -->
+                      <path d="M 88,72 L 101,72 L 123,108 L 123,72 L 136,72 L 136,128 L 123,128 L 101,92 L 101,128 L 88,128 Z" />
+                      <polygon points="123,72 136,72 123,90" fill="#C5A560" />
+                      <!-- E -->
+                      <path d="M 148,72 L 180,72 L 180,86 L 162,86 L 162,93 L 178,93 L 178,106 L 162,106 L 162,114 L 180,114 L 180,128 L 148,128 Z" />
+                    </g>
+                  </g>
+
+                  <!-- Texto REALTY ONE GROUP -->
+                  <g transform="translate(240, 45)" font-family="'Plus Jakarta Sans', 'Montserrat', Arial, sans-serif" font-weight="800" font-size="58" letter-spacing="1">
+                    <!-- REALTY (Blanco) -->
+                    <text x="0" y="70" fill="#FFFFFF">REALTY</text>
+                    
+                    <!-- ONE (Dorado #C5A560) -->
+                    <text x="250" y="70" fill="#C5A560">ONE</text>
+                    
+                    <!-- GROUP (Blanco) -->
+                    <text x="400" y="70" fill="#FFFFFF">GROUP</text>
+                  </g>
+
+                  <!-- Texto BOLIVIA (Dorado #C5A560, espaciado) -->
+                  <g transform="translate(640, 160)" font-family="'Plus Jakarta Sans', 'Montserrat', Arial, sans-serif" font-weight="600" font-size="34" letter-spacing="8" fill="#C5A560">
+                    <text x="0" y="25">BOLIVIA</text>
+                  </g>
+                </svg>
+            </div>
+            <h1>Coordinar Visita Presencial</h1>
+            <p>Completa tus datos para agendar con un asesor de Realty ONE</p>
+        </div>
+
+        <form id="visitaForm">
+            <div class="f-group">
+                <label>👤 Nombre y Apellido</label>
+                <input type="text" id="nombre" class="f-input" placeholder="ej. Marcos Antezana" required>
+            </div>
+
+            <div class="f-group">
+                <label>📱 Número de Celular / WhatsApp</label>
+                <input type="tel" id="telefono" class="f-input" placeholder="ej. 77012345 o +591 60937050" required>
+            </div>
+
+            <div class="f-group">
+                <label>✉️ Correo Electrónico</label>
+                <input type="email" id="email" class="f-input" placeholder="ej. marcos@gmail.com" required>
+            </div>
+
+            <div class="f-group">
+                <label>📅 Fecha de la Visita</label>
+                <input type="date" id="fechaVisita" class="f-input" required>
+                <div class="quick-pills">
+                    <button type="button" class="pill-btn" onclick="setQuickDate('Hoy')">⚡ Hoy</button>
+                    <button type="button" class="pill-btn active" onclick="setQuickDate('Mañana')">📅 Mañana</button>
+                    <button type="button" class="pill-btn" onclick="setQuickDate('Sábado')">🏖️ Sábado</button>
+                    <button type="button" class="pill-btn" onclick="setQuickDate('Domingo')">🗓️ Domingo</button>
+                </div>
+            </div>
+
+            <div class="f-group">
+                <label>⏰ Horario de Preferencia</label>
+                <select id="horaVisita" class="f-input">
+                    <optgroup label="🌅 Mañana">
+                        <option value="08:30 AM">08:30 AM</option>
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="09:30 AM">09:30 AM</option>
+                        <option value="10:00 AM" selected>10:00 AM</option>
+                        <option value="10:30 AM">10:30 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="11:30 AM">11:30 AM</option>
+                        <option value="12:00 PM">12:00 PM</option>
+                    </optgroup>
+                    <optgroup label="☀️ Tarde / Noche">
+                        <option value="02:00 PM">02:00 PM</option>
+                        <option value="02:30 PM">02:30 PM</option>
+                        <option value="03:00 PM">03:00 PM</option>
+                        <option value="03:30 PM">03:30 PM</option>
+                        <option value="04:00 PM">04:00 PM</option>
+                        <option value="04:30 PM">04:30 PM</option>
+                        <option value="05:00 PM">05:00 PM</option>
+                        <option value="05:30 PM">05:30 PM</option>
+                        <option value="06:00 PM">06:00 PM</option>
+                        <option value="06:30 PM">06:30 PM</option>
+                        <option value="07:00 PM">07:00 PM</option>
+                        <option value="08:00 PM">08:00 PM</option>
+                    </optgroup>
+                    <optgroup label="💬 Flexibilidad">
+                        <option value="A convenir por WhatsApp">A convenir por WhatsApp</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-submit">✅ Confirmar y Agendar Visita</button>
+        </form>
+
+        <div id="successBox" class="success-box">
+            <div class="success-icon">✅</div>
+            <h2 style="font-size: 18px; margin-bottom: 8px;">¡Visita Registrada con Éxito!</h2>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;" id="successMsg">
+                Tus datos han sido enviados y tu asesor asignado (+591 60937050) se comunicará contigo de inmediato.
+            </p>
+            <a id="btnWaRedirect" href="#" class="btn-wa-direct">📲 Volver a WhatsApp</a>
+        </div>
+    </div>
+
+    <script>
+        function getFormattedDate(daysOffset = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + daysOffset);
+            return d.toISOString().split('T')[0];
+        }
+
+        const dateInput = document.getElementById('fechaVisita');
+        dateInput.min = getFormattedDate(0);
+        dateInput.value = getFormattedDate(1); // Mañana
+
+        function setQuickDate(type) {
+            const now = new Date();
+            document.querySelectorAll('.quick-pills .pill-btn').forEach(b => b.classList.remove('active'));
+            if (event?.target) event.target.classList.add('active');
+
+            if (type === 'Hoy') dateInput.value = getFormattedDate(0);
+            if (type === 'Mañana') dateInput.value = getFormattedDate(1);
+            if (type === 'Sábado') {
+                const dayOfWeek = now.getDay();
+                const daysUntilSat = (6 - dayOfWeek + 7) % 7 || 7;
+                dateInput.value = getFormattedDate(daysUntilSat);
+            }
+            if (type === 'Domingo') {
+                const dayOfWeek = now.getDay();
+                const daysUntilSun = (7 - dayOfWeek) % 7 || 7;
+                dateInput.value = getFormattedDate(daysUntilSun);
+            }
+        }
+
+        document.getElementById('visitaForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nombre = document.getElementById('nombre').value.trim();
+            const telefono = document.getElementById('telefono').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const fecha = dateInput.value;
+            const hora = document.getElementById('horaVisita').value;
+
+            // Guardar en backend
+            fetch('save_leads_sync.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nombre, telefono, email, fecha_visita: fecha, hora_visita: hora
+                })
+            }).catch(() => {});
+
+            // Ocultar form y mostrar éxito
+            document.getElementById('visitaForm').style.display = 'none';
+            const sBox = document.getElementById('successBox');
+            sBox.classList.add('active');
+
+            const waMsg = encodeURIComponent(`Formulario completado: ${nombre}, ${telefono}, ${email}, Visita: ${fecha} ${hora}`);
+            document.getElementById('btnWaRedirect').href = `https://wa.me/59160937050?text=${waMsg}`;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vincular WhatsApp Business - Realty ONE Group Bolivia</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="shortcut icon" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- QRCode.js para renderizar el código QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg-color: #0c1317;
+      --card-bg: #111b21;
+      --accent-color: #00a884;
+      --gold-color: #c69214;
+      --text-main: #e9edef;
+      --text-sub: #8696a0;
+      --border-color: #222d34;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      max-width: 880px;
+      width: 100%;
+      padding: 36px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 18px;
+      margin-bottom: 26px;
+    }
+
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo-icon {
+      font-size: 2.2rem;
+      color: #25d366;
+    }
+
+    .title {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+    }
+
+    .grid-content {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 32px;
+      align-items: center;
+    }
+
+    .instructions {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step-item {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-number {
+      background: rgba(0, 168, 132, 0.15);
+      color: var(--accent-color);
+      border: 1px solid rgba(0, 168, 132, 0.4);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+
+    .step-text h4 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 2px;
+      color: #fff;
+    }
+
+    .step-text p {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      line-height: 1.35;
+    }
+
+    /* QR Box */
+    .qr-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+      min-height: 320px;
+      position: relative;
+    }
+
+    #qrcode {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 230px;
+      min-width: 230px;
+    }
+
+    .qr-status {
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #111;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffaa00;
+      display: inline-block;
+      animation: pulse 1.5s infinite;
+    }
+
+    .status-dot.connected {
+      background: #00a884;
+      animation: none;
+    }
+
+    .status-dot.disconnected {
+      background: #ff4444;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .terminal-tip {
+      background: #070a0d;
+      border: 1px solid #1c2730;
+      border-radius: 10px;
+      padding: 14px 18px;
+      margin-top: 20px;
+      font-size: 0.82rem;
+      color: #8da2b3;
+    }
+
+    .terminal-tip code {
+      background: #18222a;
+      color: #25d366;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    .footer-actions {
+      margin-top: 24px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .btn {
+      background: #202c33;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: #2a3942;
+      border-color: var(--accent-color);
+    }
+
+    @media (max-width: 768px) {
+      .grid-content {
+        grid-template-columns: 1fr;
+      }
+      .qr-card {
+        margin: 0 auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <div class="logo-box">
+        <img src="assets/logo_one_circle.png" alt="ONE" style="height:46px; width:46px; border-radius:50%; box-shadow:0 0 16px rgba(198,146,20,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+        <div>
+          <div class="title">Vincular Chatbot a WhatsApp Business</div>
+          <div class="subtitle">Realty ONE Group Bolivia • Conexión Directa por Código QR</div>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <a href="ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
+        <a href="publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
+        <a href="whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
+      </div>
+    </div>
+
+    <div class="grid-content">
+      <!-- Instrucciones -->
+      <div class="instructions">
+        <div class="step-item">
+          <div class="step-number">1</div>
+          <div class="step-text">
+            <h4>Abre WhatsApp en tu teléfono</h4>
+            <p>Abre WhatsApp en tu celular corporativo (<strong>+591 60937050</strong> o tu línea oficial).</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">2</div>
+          <div class="step-text">
+            <h4>Ve a Dispositivos Vinculados</h4>
+            <p>En Android toca los <strong>tres puntos (⋮)</strong> arriba a la derecha. En iPhone ve a <strong>Ajustes</strong> y selecciona <strong>Dispositivos vinculados</strong>.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">3</div>
+          <div class="step-text">
+            <h4>Toca en "Vincular un dispositivo"</h4>
+            <p>Apunta la cámara de tu teléfono hacia el código QR a la derecha para escanearlo.</p>
+          </div>
+        </div>
+
+        <div class="step-item">
+          <div class="step-number">4</div>
+          <div class="step-text">
+            <h4>¡Listo! Tu Bot estará 100% activo en tu celular</h4>
+            <p>Cualquier persona que te escriba por la publicidad del terreno en Parque Industrial recibirá las respuestas automáticas al instante.</p>
+          </div>
+        </div>
+
+        <div class="terminal-tip">
+          <p><i class="fas fa-terminal"></i> <strong>Para iniciar el servidor conector en tu computadora:</strong></p>
+          <p style="margin-top:4px;">Abre tu terminal y ejecuta: <code>node backend/whatsapp_baileys.js</code> o haz doble clic en <code>iniciar_bot.bat</code></p>
+        </div>
+      </div>
+
+      <!-- Cuadro de Código QR -->
+      <div class="qr-card">
+        <div id="qrcode">
+          <div style="color:#666; text-align:center; font-size:0.85rem; padding:20px;">
+            <i class="fas fa-spinner fa-spin" style="font-size:2rem; color:var(--accent-color); margin-bottom:10px;"></i>
+            <p>Cargando código QR oficial...</p>
+          </div>
+        </div>
+        <div class="qr-status" id="qrStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Esperando conexión del servidor...</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-actions">
+      <span style="font-size: 0.8rem; color: var(--text-sub);">
+        <i class="fas fa-shield-alt" style="color: var(--accent-color);"></i> Sesión oficial y cifrada con WhatsApp Multi-Device
+      </span>
+      <button class="btn" onclick="checkQRStatus()"><i class="fas fa-sync-alt"></i> Comprobar Estado</button>
+    </div>
+  </div>
+
+  <script>
+    let qrInstance = null;
+    let lastQR = '';
+
+    function renderQR(codeData) {
+      if (lastQR === codeData) return;
+      lastQR = codeData;
+
+      const qrContainer = document.getElementById("qrcode");
+      qrContainer.innerHTML = "";
+      qrInstance = new QRCode(qrContainer, {
+        text: codeData,
+        width: 220,
+        height: 220,
+        colorDark: "#111b21",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    async function checkQRStatus() {
+      try {
+        const res = await fetch('/api/whatsapp/qr-real');
+        if (res.ok) {
+          const data = await res.json();
+          const statusText = document.getElementById("statusText");
+          const statusDot = document.getElementById("statusDot");
+
+          if (data.status === 'conectado') {
+            document.getElementById("qrcode").innerHTML = `
+              <div style="text-align:center; color:#00a884; padding:20px;">
+                <i class="fas fa-check-circle" style="font-size:3.5rem; margin-bottom:12px;"></i>
+                <h3 style="color:#111b21; font-size:1.1rem; margin-bottom:4px;">¡Bot Conectado!</h3>
+                <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '60937050'}</p>
+                <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real</p>
+                <button onclick="desconectarNumero()" class="btn" style="margin-top:14px; background:#dc3545; color:#fff; border:none; padding:6px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;">
+                  <i class="fas fa-sign-out-alt"></i> Desconectar para vincular otro número
+                </button>
+              </div>
+            `;
+            statusDot.className = "status-dot connected";
+            statusText.innerText = "Conectado y Activo";
+            return;
+          }
+
+          if (data.qr) {
+            renderQR(data.qr);
+            statusDot.className = "status-dot";
+            statusText.innerText = "Escanea el código QR con tu WhatsApp";
+          }
+        }
+      } catch (err) {
+        document.getElementById("statusText").innerText = "Ejecuta: vincular_nuevo_numero.bat o iniciar_bot.bat";
+        document.getElementById("statusDot").className = "status-dot disconnected";
+      }
+    }
+
+    async function desconectarNumero() {
+      if (!confirm('¿Deseas desconectar esta sesión para escanear un nuevo código QR con otro número?')) return;
+      try {
+        await fetch('/api/whatsapp/desconectar', { method: 'POST' });
+        document.getElementById("qrcode").innerHTML = '<div style="padding:40px 20px; color:#c69214;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Reiniciando generador de QR...</div>';
+        setTimeout(checkQRStatus, 2000);
+      } catch(e) {
+        alert('Error al desconectar: ' + e.message);
+      }
+    }
+
+    // Consultar cada 3 segundos
+    setInterval(checkQRStatus, 3000);
+    checkQRStatus();
+  </script>
+</body>
+</html>

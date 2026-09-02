@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestor de Campañas Facebook Ads & WhatsApp - Realty ONE Group Bolivia</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="shortcut icon" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-main: #0b0f12;
+      --bg-card: #12191f;
+      --bg-card-header: #18222a;
+      --gold-primary: #D4AF37;
+      --gold-hover: #f3cf55;
+      --gold-gradient: linear-gradient(135deg, #f3cf55 0%, #D4AF37 50%, #aa820a 100%);
+      --text-main: #f0f4f8;
+      --text-muted: #8a9ba8;
+      --border-color: #22303c;
+      --wa-green: #25D366;
+      --fb-blue: #1877F2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-badge {
+      background: var(--gold-gradient);
+      color: #000;
+      font-weight: 800;
+      font-size: 0.85rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 1px;
+    }
+
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-title span {
+      color: var(--gold-primary);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.25s ease;
+      border: none;
+    }
+
+    .btn-gold {
+      background: var(--gold-gradient);
+      color: #000;
+      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn-secondary {
+      background: #1c2730;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: #25333f;
+      color: #fff;
+    }
+
+    .btn-wa {
+      background: #005c4b;
+      color: #fff;
+    }
+    .btn-wa:hover {
+      background: #007a63;
+    }
+
+    /* Main Content */
+    main {
+      flex: 1;
+      padding: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .hero-section {
+      margin-bottom: 24px;
+      background: linear-gradient(180deg, rgba(212,175,55,0.08) 0%, rgba(18,25,31,0.6) 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .hero-info h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    .hero-info p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+
+    .badge-status {
+      background: rgba(37, 211, 102, 0.15);
+      color: var(--wa-green);
+      border: 1px solid rgba(37, 211, 102, 0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 950px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--gold-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    /* Card de Campaña */
+    .campaign-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+    .campaign-card:hover {
+      border-color: var(--gold-primary);
+    }
+
+    .campaign-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--gold-primary);
+    }
+
+    .campaign-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .campaign-title {
+      font-size: 1.12rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+
+    .campaign-meta {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .campaign-details-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+      background: rgba(0,0,0,0.3);
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .detail-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .detail-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .detail-val {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .detail-val.gold {
+      color: var(--gold-primary);
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .link-box {
+      background: #0d1419;
+      border: 1px solid #1c2730;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .link-text {
+      font-family: monospace;
+      font-size: 0.78rem;
+      color: #8da2b3;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    /* Simulator Panel */
+    .simulator-card {
+      background: #0d1419;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 670px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .sim-header {
+      background: #18222a;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .sim-header-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sim-avatar {
+      width: 38px;
+      height: 38px;
+      background: var(--gold-gradient);
+      color: #000;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.85rem;
+    }
+
+    .sim-selector {
+      background: #12191f;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sim-selector select {
+      background: #0b0f12;
+      border: 1px solid var(--gold-primary);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      outline: none;
+      flex: 1;
+      font-weight: 600;
+    }
+
+    .sim-messages {
+      flex: 1;
+      padding: 18px;
+      overflow-y: auto;
+      background: #0a0f12;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .bubble {
+      max-width: 88%;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .bubble-user {
+      align-self: flex-end;
+      background: #005c4b;
+      color: #fff;
+      border-bottom-right-radius: 2px;
+    }
+
+    .bubble-bot {
+      align-self: flex-start;
+      background: #18222a;
+      color: #e9edef;
+      border-left: 3px solid var(--gold-primary);
+      border-bottom-left-radius: 2px;
+    }
+
+    .quick-actions {
+      padding: 10px 14px;
+      background: #12191f;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .quick-chip {
+      background: #1a242d;
+      border: 1px solid #2d3e4d;
+      color: #c2d1dd;
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .quick-chip:hover {
+      background: var(--gold-primary);
+      color: #000;
+      font-weight: 600;
+    }
+
+    .sim-input-area {
+      padding: 12px 16px;
+      background: #18222a;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .sim-input {
+      flex: 1;
+      background: #0b0f12;
+      border: 1px solid #283743;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    .sim-input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--gold-primary);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 600px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    .form-input, .form-textarea {
+      width: 100%;
+      background: #0a0f12;
+      border: 1px solid var(--border-color);
+      color: #fff;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+    .form-input:focus, .form-textarea:focus {
+      border-color: var(--gold-primary);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <img src="assets/logo_one_circle.png" alt="ONE" style="height:42px; width:42px; border-radius:50%; box-shadow:0 0 14px rgba(212,175,55,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+      <div>
+        <div style="font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:0.5px; line-height:1.2;">REALTY <span style="color:var(--gold-primary);">ONE</span> GROUP ITAICHA / ITAGUAZÚ</div>
+        <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.5px;">MARKETING & META ADS HUB</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <a href="index.html" class="btn btn-secondary"><i class="fa-solid fa-globe"></i> Portal Web</a>
+      <a href="ingreso_leads.html" class="btn btn-secondary" style="border-color:var(--gold-primary); color:var(--gold-primary);"><i class="fa-solid fa-users"></i> Ingreso Leads & Excel</a>
+      <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-solid fa-qrcode"></i> Conector QR</a>
+      <button class="btn btn-gold" onclick="openNewCampaignModal()"><i class="fa-solid fa-plus"></i> Nueva Publicidad</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero-section">
+      <div class="hero-info">
+        <h1>Gestor de Publicaciones de Facebook & Respuestas del Chatbot</h1>
+        <p>Cada publicación de Facebook tiene su propio enlace Click-to-WhatsApp y respuestas expertas personalizadas (Precio, Medidas, Laguna, Servicios, Documentos y Visitas).</p>
+      </div>
+      <div>
+        <span class="badge-status"><i class="fa-solid fa-circle-check"></i> Bot Activo y Autónomo</span>
+      </div>
+    </section>
+
+    <div class="grid-container">
+      <!-- Columna Izquierda: Lista de Publicaciones Activas -->
+      <div>
+        <div class="section-title">
+          <i class="fa-solid fa-bullhorn"></i> Publicaciones de Facebook Activas
+        </div>
+
+        <div id="campaignsList">
+          <!-- Se llena dinámicamente -->
+        </div>
+      </div>
+
+      <!-- Columna Derecha: Simulador de WhatsApp en Vivo -->
+      <div>
+        <div class="section-title">
+          <i class="fa-solid fa-robot"></i> Simulador WhatsApp Business en Tiempo Real
+        </div>
+
+        <div class="simulator-card">
+          <div class="sim-header">
+            <div class="sim-header-info">
+              <div class="sim-avatar">ONE</div>
+              <div>
+                <div style="font-weight:700; font-size:0.92rem;">Realty ONE Group Itaguazu</div>
+                <div style="font-size:0.75rem; color:#25d366;"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Chatbot Inteligente Conectado</div>
+              </div>
+            </div>
+            <button class="btn btn-secondary" style="padding:4px 10px; font-size:0.75rem;" onclick="resetChat()">
+              <i class="fa-solid fa-arrow-rotate-right"></i> Reiniciar
+            </button>
+          </div>
+
+          <div class="sim-selector">
+            <span style="font-size:0.8rem; color:var(--text-muted);"><i class="fa-solid fa-filter"></i> Probar Publicación:</span>
+            <select id="campaignSelector" onchange="switchCampaignSimulator()">
+              <!-- Se llena dinámicamente -->
+            </select>
+          </div>
+
+          <div class="sim-messages" id="simMessages">
+            <div class="bubble bubble-bot">¡Hola! 👋 Haz clic en los botones rápidos de abajo o escribe un mensaje para probar cómo responde el bot a esta publicación de Facebook.</div>
+          </div>
+
+          <!-- Botones de prueba rápida -->
+          <div class="quick-actions" id="quickChipsContainer">
+            <!-- Se actualiza según la campaña seleccionada -->
+          </div>
+
+          <!-- Recuadro para escribir mensajes -->
+          <div class="sim-input-area">
+            <input type="text" id="simInput" class="sim-input" placeholder="Escribe tu consulta aquí..." onkeypress="if(event.key==='Enter') sendMessage()">
+            <button class="btn btn-gold" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal para Crear Nueva Publicidad -->
+  <div class="modal-overlay" id="campaignModal">
+    <div class="modal-box">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+        <h3 style="color:var(--gold-primary); font-size:1.2rem;"><i class="fa-solid fa-plus-circle"></i> Registrar Nueva Publicidad de Facebook</h3>
+        <button onclick="closeNewCampaignModal()" style="background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <form id="newCampaignForm" onsubmit="saveNewCampaign(event)">
+        <div class="form-group">
+          <label>Identificador Único (ID):</label>
+          <input type="text" id="campId" class="form-input" placeholder="ej: campana-penthouse-sirari" required>
+        </div>
+
+        <div class="form-group">
+          <label>Título de la Publicación de Facebook:</label>
+          <input type="text" id="campTitulo" class="form-input" placeholder="ej: Penthouse de Lujo 3 Dormitorios - Sirari" required>
+        </div>
+
+        <div class="form-group">
+          <label>Precio y Superficie:</label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <input type="text" id="campPrecio" class="form-input" placeholder="ej: $185,000 USD o Bs 1.280.000" required>
+            <input type="text" id="campSuperficie" class="form-input" placeholder="ej: 180 m²" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Ubicación y Referencias:</label>
+          <input type="text" id="campUbicacion" class="form-input" placeholder="ej: Sirari, Calle Los Claveles" required>
+        </div>
+
+        <div class="form-group">
+          <label>Teléfono de WhatsApp del Asesor:</label>
+          <input type="text" id="campTelefono" class="form-input" placeholder="ej: +591 79878853" value="+591 79878853" required>
+        </div>
+
+        <div class="form-group">
+          <label>Detalles Clave / Amenidades:</label>
+          <textarea id="campDetalles" class="form-textarea" rows="3" placeholder="Piscina, churrasquera, terraza privada, 2 parqueos, seguridad 24/7..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>Palabras Clave para detección (separadas por comas):</label>
+          <input type="text" id="campKeywords" class="form-input" placeholder="sirari, penthouse, 185000, 180m2">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:18px;">
+          <button type="button" class="btn btn-secondary" onclick="closeNewCampaignModal()">Cancelar</button>
+          <button type="submit" class="btn btn-gold"><i class="fa-solid fa-save"></i> Guardar Publicidad</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_CAMPAIGNS = [
+      {
+        "id": "campana-lote-mar-adentro-450m2",
+        "activo": true,
+        "titulo_campana": "Lote de 450 m² en Condominio Mar Adentro (A 300 m de la Laguna)",
+        "origen": "Facebook Ads - Realty ONE Group Itaguazú",
+        "oficina": {
+          "nombre": "Realty ONE Group Itaguazú",
+          "direccion": "Santa Cruz de la Sierra / Urubó, Bolivia",
+          "telefono": "+591 60937050",
+          "email": "info@realtyonegroup.com.bo",
+          "sitio_web": "realtyonegroup.com.bo",
+          "asesor_a_cargo": "Robert Oliva (Realty ONE)"
+        },
+        "datos_inmueble": {
+          "tipo": "Lote en Condominio Cerrado de Lujo",
+          "operacion": "Venta",
+          "ubicacion": "Condominio Mar Adentro, Urubó / Santa Cruz de la Sierra",
+          "referencia_acceso": "A solo 300 metros de la laguna cristalina, vías pavimentadas y portería 24/7",
+          "superficie_total": "450 m²",
+          "dimensiones": "15 m de frente × 30 m de fondo (terreno plano)",
+          "precio_usd": "$112,500 USD",
+          "precio_bs": "Bs 782.000",
+          "amenidades": "Laguna cristalina navegable estilo Crystal Lagoons con playas de arena blanca, Club House de lujo, canchas de tenis y fútbol, gimnasio y seguridad 24h",
+          "servicios_basicos": "Agua potable, energía subterránea, alcantarillado, gas domiciliario y fibra óptica",
+          "estado_legal": "Documentación 100% al día con Folio Real individualizado libre de gravamen, listo para transferencia inmediata",
+          "publico_objetivo": "Familias e inversionistas que buscan alta plusvalía y calidad de vida resort"
+        },
+        "palabras_clave": [
+          "mar adentro",
+          "condominio mar adentro",
+          "laguna",
+          "112500",
+          "112.500",
+          "450",
+          "450m2",
+          "450 m2",
+          "300m",
+          "300 m",
+          "60937050",
+          "lote mar adentro",
+          "playa"
+        ],
+        "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20vi%20la%20publicidad%20en%20Facebook%20del%20Lote%20de%20450%20m2%20en%20Condominio%20Mar%20Adentro%20(%24112.500)%20y%20deseo%20m%C3%A1s%20informaci%C3%B3n."
+      },
+      {
+        "id": "campana-terreno-industrial-g77",
+        "activo": true,
+        "titulo_campana": "Terreno Industrial 7.000 m² - Parque Industrial (Salida G77)",
+        "origen": "Facebook Ads - Realty ONE Group Itaguazú",
+        "oficina": {
+          "nombre": "Realty ONE Group Itaguazú",
+          "direccion": "Parque Industrial / Santa Cruz de la Sierra",
+          "telefono": "+591 60937050",
+          "email": "info@realtyonegroup.com.bo",
+          "sitio_web": "realtyonegroup.com.bo",
+          "asesor_a_cargo": "Robert Oliva (Realty ONE)"
+        },
+        "datos_inmueble": {
+          "tipo": "Terreno Industrial y Comercial",
+          "operacion": "Venta",
+          "ubicacion": "Parque Industrial, Santa Cruz de la Sierra (Salida directa a la Av. G77)",
+          "referencia_acceso": "Salida directa a la Av. G77 (vía pavimentada para camiones de alto tonelaje)",
+          "colindancias": "Norte: 1ra Transversal Norte | Sur: Parque Industrial",
+          "superficie_total": "7.000 m²",
+          "dimensiones": "185 m de frente × 150 m de fondo",
+          "precio_bs": "Bs 16.800.000",
+          "precio_usd": "A convenir / Tipo de cambio acordado",
+          "uso_suelo": "Industrial y Comercial (operaciones de alto impacto, galpones y almacenes)",
+          "servicios_basicos": "Factibilidad inmediata de Energía Trifásica y Agua Industrial",
+          "estado_legal": "Documentación 100% regularizada con Folio Real vigente, listo para transferencia a empresas SRL / SA",
+          "publico_objetivo": "Empresas industriales, centros logísticos, distribuidoras e inversionistas"
+        },
+        "palabras_clave": [
+          "terreno industrial",
+          "parque industrial",
+          "g77",
+          "16800000",
+          "16.800.000",
+          "7000",
+          "7.000",
+          "185",
+          "60937050",
+          "pi-46",
+          "transversal norte",
+          "trifasica",
+          "agua industrial"
+        ],
+        "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20vi%20la%20publicidad%20del%20Terreno%20Industrial%20de%207.000%20m2%20en%20Parque%20Industrial%20(G77)%20y%20deseo%20m%C3%A1s%20informaci%C3%B3n."
+      },
+      {
+        "id": "campana-ficha-tecnica-industrial",
+        "activo": true,
+        "titulo_campana": "Ficha Técnica Terreno Industrial 7.000 m² (Patio de Maniobras & Logística)",
+        "origen": "Facebook Ads - Realty ONE Group Itaguazú",
+        "oficina": {
+          "nombre": "Realty ONE Group Itaguazú",
+          "direccion": "Parque Industrial / Santa Cruz de la Sierra",
+          "telefono": "+591 60937050",
+          "email": "info@realtyonegroup.com.bo",
+          "sitio_web": "realtyonegroup.com.bo",
+          "asesor_a_cargo": "Robert Oliva (Realty ONE)"
+        },
+        "datos_inmueble": {
+          "tipo": "Área Operativa / Galpones & Patio de Maniobras",
+          "operacion": "Venta",
+          "ubicacion": "Parque Industrial, Av. G77, Santa Cruz de la Sierra",
+          "referencia_acceso": "Acceso pesado de doble carril pavimentado con radio de giro para trailers",
+          "superficie_total": "7.000 m²",
+          "dimensiones": "185 m de frente × 150 m de fondo",
+          "precio_bs": "Bs 16.800.000",
+          "uso_suelo": "Uso industrial de alto impacto, compatible con almacenes y manufactura",
+          "servicios_basicos": "Red de alta tensión, subestación cercana y conexión hídrica industrial",
+          "estado_legal": "Folio Real saneado, plano aprobado y catastro vigente en DDRR",
+          "publico_objetivo": "Directorio de empresas, gerentes de logística y corporaciones"
+        },
+        "palabras_clave": [
+          "ficha tecnica",
+          "patio de maniobras",
+          "logistica",
+          "area operativa",
+          "galpon industrial",
+          "srl",
+          "sa",
+          "60937050"
+        ],
+        "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20solicito%20la%20Ficha%20T%C3%A9cnica%20y%20Folio%20Real%20del%20Terreno%20Industrial%20de%207.000%20m2%20en%20Parque%20Industrial."
+      },
+      {
+        "id": "campana-departamento-4d-segundo-anillo",
+        "activo": true,
+        "titulo_campana": "Departamento de 4 Dormitorios (119 m²) - Entre 2do y 3er Anillo ($120.000 USD)",
+        "origen": "Facebook Ads - Realty ONE Group Itaguazú",
+        "oficina": {
+          "nombre": "Realty ONE Group Itaguazú",
+          "direccion": "Entre 2do y 3er Anillo, Santa Cruz de la Sierra",
+          "telefono": "+591 60937050",
+          "email": "info@realtyonegroup.com.bo",
+          "sitio_web": "realtyonegroup.com.bo",
+          "asesor_a_cargo": "Robert Oliva (Realty ONE)"
+        },
+        "datos_inmueble": {
+          "tipo": "Departamento Residencial de Lujo",
+          "operacion": "Venta",
+          "ubicacion": "Entre 2do y 3er Anillo, Santa Cruz de la Sierra (cerca de todo)",
+          "referencia_acceso": "Zona residencial céntrica con acceso rápido a avenidas principales y transporte",
+          "superficie_total": "119 m² construidos",
+          "distribucion": "4 dormitorios (1 suite principal con balcón privado y roperos), 3 baños completos, sala-comedor amplia e iluminada, cocina independiente con mesón",
+          "precio_usd": "$120,000 USD",
+          "precio_bs": "Bs 840.000",
+          "servicios_basicos": "Agua, energía eléctrica, gas domiciliario instalado, ascensor y seguridad",
+          "estado_legal": "Folio Real individualizado al día, impuestos al día, libre de gravamen, apto para crédito bancario de vivienda",
+          "publico_objetivo": "Familias e inversionistas que buscan departamento amplio de 4 dormitorios por debajo del precio de mercado"
+        },
+        "palabras_clave": [
+          "departamento",
+          "120000",
+          "120.000",
+          "119",
+          "119m2",
+          "119 m2",
+          "4 dormitorios",
+          "4 dorms",
+          "segundo anillo",
+          "2do anillo",
+          "3er anillo",
+          "entre 2do y 3er anillo",
+          "60937050"
+        ],
+        "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20vi%20la%20publicidad%20en%20Facebook%20del%20Departamento%20de%204%20dormitorios%20de%20119%20m2%20(%24120.000)%20y%20deseo%20m%C3%A1s%20informaci%C3%B3n."
+      }
+    ];
+
+    let campaignsData = DEFAULT_CAMPAIGNS;
+    let selectedCampaignId = DEFAULT_CAMPAIGNS[0].id;
+
+    async function loadCampaigns() {
+      try {
+        const res = await fetch('/api/whatsapp/campaigns');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            campaignsData = data;
+          }
+        }
+      } catch (err) {
+        // Usa DEFAULT_CAMPAIGNS
+      }
+      renderCampaigns();
+      renderCampaignSelector();
+      updateQuickChips();
+    }
+
+    function renderCampaigns() {
+      const container = document.getElementById('campaignsList');
+      container.innerHTML = '';
+
+      campaignsData.forEach(c => {
+        const d = c.datos_inmueble || {};
+        const ofi = c.oficina || {};
+        const precio = d.precio_usd || d.precio_bs || 'A consultar';
+        const html = `
+          <div class="campaign-card">
+            <div class="campaign-header">
+              <div>
+                <div class="campaign-title">${c.titulo_campana}</div>
+                <div class="campaign-meta">
+                  <span><i class="fa-solid fa-building"></i> ${ofi.nombre || 'Realty ONE Group'}</span>
+                  <span><i class="fa-solid fa-user-tie"></i> ${ofi.asesor_a_cargo || 'Asesor'}</span>
+                  <span><i class="fa-solid fa-phone"></i> ${ofi.telefono || '+591 60937050'}</span>
+                </div>
+              </div>
+              <span class="badge-status"><i class="fa-solid fa-check"></i> Activa</span>
+            </div>
+
+            <div class="campaign-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Inversión / Precio</span>
+                <span class="detail-val gold">${precio}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Superficie / Medidas</span>
+                <span class="detail-val">${d.superficie_total || ''} ${d.dimensiones ? `(${d.dimensiones})` : ''}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Ubicación</span>
+                <span class="detail-val">${d.ubicacion || ''}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Accesos / Detalles</span>
+                <span class="detail-val">${d.referencia_acceso || d.distribucion || d.servicios_basicos || ''}</span>
+              </div>
+            </div>
+
+            <div style="font-size:0.84rem; color:#8da2b3; margin-bottom:10px;">
+              <strong>📋 Documentación:</strong> ${d.estado_legal || 'Folio Real vigente al día'}
+            </div>
+
+            <div class="link-box">
+              <div style="font-size:0.75rem; color:var(--gold-primary); font-weight:600;">
+                <i class="fa-brands fa-facebook"></i> Enlace Click-to-WhatsApp para el Botón de tu Anuncio en Facebook:
+              </div>
+              <div class="link-text" id="link-${c.id}">${c.link_whatsapp_anuncio || ''}</div>
+              <button class="btn btn-wa" style="padding:6px 12px; font-size:0.8rem; width:100%; justify-content:center;" onclick="copyLink('${c.id}')">
+                <i class="fa-solid fa-copy"></i> Copiar Enlace para Facebook Ads
+              </button>
+            </div>
+          </div>
+        `;
+        container.innerHTML += html;
+      });
+    }
+
+    function renderCampaignSelector() {
+      const select = document.getElementById('campaignSelector');
+      select.innerHTML = '';
+      campaignsData.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = c.titulo_campana;
+        if (c.id === selectedCampaignId) opt.selected = true;
+        select.appendChild(opt);
+      });
+    }
+
+    function switchCampaignSimulator() {
+      const select = document.getElementById('campaignSelector');
+      selectedCampaignId = select.value;
+      updateQuickChips();
+      resetChat();
+    }
+
+    function updateQuickChips() {
+      const container = document.getElementById('quickChipsContainer');
+      const camp = campaignsData.find(c => c.id === selectedCampaignId) || campaignsData[0];
+      const id = (camp.id || '').toLowerCase();
+      const title = (camp.titulo_campana || '').toLowerCase();
+
+      if (id.includes('mar-adentro') || title.includes('mar adentro')) {
+        container.innerHTML = `
+          <button class="quick-chip" onclick="sendQuickMessage('Hola, vi la publicidad en Facebook del Lote en Condominio Mar Adentro ($112.500) y deseo más información.')">
+            📲 1. Clic Anuncio Facebook
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cuál es el precio exacto y se puede pagar con crédito bancario?')">
+            💰 2. Precio ($112,500)
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿A cuántos metros queda de la laguna cristalina y qué amenidades tiene?')">
+            🏄‍♂️ 3. Laguna y Playa
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cuáles son las medidas y dimensiones del frente y fondo?')">
+            📐 4. Medidas (450 m²)
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Tiene Folio Real al día para transferir inmediatamente?')">
+            📑 5. Folio Real / Papeles
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('Quiero agendar una visita al condominio para este sábado en la mañana')">
+            🤝 6. Agendar Visita (+591 60937050)
+          </button>
+        `;
+      } else if (id.includes('departamento') || title.includes('departamento')) {
+        container.innerHTML = `
+          <button class="quick-chip" onclick="sendQuickMessage('Hola, vi la publicidad en Facebook del Departamento de 4 dormitorios de 119 m2 ($120.000) y deseo más información.')">
+            📲 1. Clic Anuncio Facebook
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cuál es el precio exacto y qué formas de pago aceptan?')">
+            💰 2. Precio ($120.000 USD)
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cómo es la distribución de los 4 dormitorios y cuántos baños tiene?')">
+            🛏️ 3. Distribución & Baños
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Dónde queda ubicado exactamente entre 2do y 3er anillo?')">
+            📍 4. Ubicación Exacta
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Me puedes enviar fotos de la cocina y los dormitorios?')">
+            📸 5. Enviar Fotos
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Tiene Folio Real individualizado para crédito de vivienda bancaria?')">
+            📑 6. Folio Real / Crédito
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('Quiero agendar una visita presencial al departamento')">
+            🤝 7. Agendar Visita (+591 60937050)
+          </button>
+        `;
+      } else if (id.includes('ficha-tecnica') || title.includes('ficha tecnica')) {
+        container.innerHTML = `
+          <button class="quick-chip" onclick="sendQuickMessage('Hola, solicito la Ficha Técnica y Folio Real del Terreno Industrial de 7.000 m2 en Parque Industrial.')">
+            📲 1. Solicitar Ficha Técnica
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cómo es el acceso para trailers y camiones de alto tonelaje?')">
+            🚛 2. Patio de Maniobras
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Tiene red de alta tensión y agua industrial disponible?')">
+            ⚡ 3. Energía & Agua
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Está listo para transferencia a una empresa SRL / SA?')">
+            📑 4. Documentación SRL
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('Quiero coordinar una reunión técnica con el asesor')">
+            🤝 5. Contactar Asesor (+591 60937050)
+          </button>
+        `;
+      } else {
+        container.innerHTML = `
+          <button class="quick-chip" onclick="sendQuickMessage('Hola, vi la publicidad del Terreno Industrial de 7.000 m2 en Parque Industrial (G77) y deseo más información.')">
+            📲 1. Clic Anuncio Facebook
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cuáles son las medidas exactas del frente y fondo del terreno?')">
+            📐 2. Medidas (185m x 150m)
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cuál es el precio exacto en Bs y aceptan financiamiento bancario?')">
+            💰 3. Precio (Bs 16.800.000)
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Cómo es el acceso a la Av. G77 y entran camiones de alto tonelaje?')">
+            🚛 4. Acceso Av. G77
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Tiene luz trifásica y agua industrial inmediata?')">
+            ⚡ 5. Luz Trifásica y Agua
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('¿Tiene el Folio Real al día para transferir a una empresa?')">
+            📑 6. Folio Real / DDRR
+          </button>
+          <button class="quick-chip" onclick="sendQuickMessage('Quiero agendar una visita técnica al terreno')">
+            🤝 7. Agendar Visita (+591 60937050)
+          </button>
+        `;
+      }
+    }
+
+    function copyLink(id) {
+      const camp = campaignsData.find(c => c.id === id);
+      if (camp && camp.link_whatsapp_anuncio) {
+        navigator.clipboard.writeText(camp.link_whatsapp_anuncio);
+        alert('✅ ¡Enlace copiado! Puedes pegarlo directamente en el botón "Enviar mensaje a WhatsApp" de tu anuncio en Facebook Ads.');
+      }
+    }
+
+    function normalizeText(str = '') {
+      return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    }
+
+    // Motor Autónomo Local de Respuestas
+    function generateLocalReply(userMessage) {
+      const msg = normalizeText(userMessage);
+      const c = campaignsData.find(camp => camp.id === selectedCampaignId) || campaignsData[0];
+      const d = c.datos_inmueble || {};
+      const ofi = c.oficina || {};
+      const id = (c.id || '').toLowerCase();
+      const title = (c.titulo_campana || '').toLowerCase();
+
+      const isMarAdentro = id.includes('mar-adentro') || title.includes('mar adentro');
+      const isDpto = id.includes('departamento') || title.includes('departamento');
+      const isFicha = id.includes('ficha-tecnica') || title.includes('ficha tecnica');
+
+      // 1. Fotos
+      if (msg.includes('foto') || msg.includes('imagen') || msg.includes('galeria') || msg.includes('ver fotos')) {
+        if (isDpto) {
+          return `📸 *Fotografías del Departamento de 4 Dormitorios (119 m²):*\n\n` +
+            `🏢 *Fachada:* Edificio residencial moderno con ascensor y seguridad.\n` +
+            `🍳 *Cocina:* Cocina independiente con mesón de granito y cajonería empotrada.\n` +
+            `🛏️ *Dormitorios:* 4 dormitorios iluminados con roperos (1 suite con balcón privado).\n` +
+            `🚿 *Baños:* 3 baños completos con revestimiento de primera.\n\n` +
+            `👉 ¿Te gustaría coordinar una visita presencial para conocer el departamento?`;
+        }
+        if (isMarAdentro) {
+          return `📸 *Fotografías de Condominio Mar Adentro:*\n\n` +
+            `🌊 *Laguna:* Laguna cristalina estilo Crystal Lagoons con playa de arena blanca.\n` +
+            `🏖️ *Lote:* Terreno plano de 450 m² ubicado a solo 300 m de la orilla.\n` +
+            `🏰 *Club House:* Áreas de recreación, restaurante y canchas deportivas.\n\n` +
+            `👉 ¿Te gustaría agendar una visita al condominio para conocer la laguna?`;
+        }
+        return `📸 *Fotografías del Terreno Industrial 7.000 m² (G77):*\n\n` +
+          `🛫 *Vista Aérea:* Terreno plano de 7.000 m² con 185 m de frente sobre vía pavimentada.\n` +
+          `🚛 *Accesos:* Conexión inmediata a la Av. G77 apta para transporte pesado.\n\n` +
+          `👉 ¿Desea coordinar una visita técnica al predio?`;
+      }
+
+      // 2. Medidas & Distribución
+      if (msg.includes('medida') || msg.includes('dimension') || msg.includes('cuanto mide') || msg.includes('superficie') || msg.includes('tamano') || msg.includes('distribucion') || msg.includes('dormitorio') || msg.includes('bano') || msg.includes('m2')) {
+        if (isDpto) {
+          return `📐 *Superficie y Distribución del Departamento:*\n\n` +
+            `*Superficie Construida:* *${d.superficie_total}*\n` +
+            `*Distribución Interior:*\n` +
+            `🛏️ *4 Dormitorios:* 1 Master Suite con balcón privado + 3 dormitorios amplios con roperos empotrados.\n` +
+            `🚿 *3 Baños:* Baño privado en suite, baño compartido y baño de visitas.\n` +
+            `🛋️ *Sala-Comedor:* Espaciosa, ventilada y con excelente iluminación natural.\n` +
+            `🍳 *Cocina:* Cocina independiente equipada con mesón y cajonería.\n\n` +
+            `👉 ¿Deseas coordinar una visita para ver la distribución en persona?`;
+        }
+        if (isMarAdentro) {
+          return `📐 *Dimensiones y Superficie del Lote en Condominio Mar Adentro:*\n\n` +
+            `*Superficie Total:* *${d.superficie_total || '450 m²'}*\n` +
+            `*Dimensiones:* *${d.dimensiones || '15 m de frente × 30 m de fondo'}*\n` +
+            `*Topografía:* Terreno plano, regular y listo para edificar.\n` +
+            `📍 *Ubicación:* A solo *300 metros* de la laguna cristalina.\n\n` +
+            `👉 ¿Deseas construir una casa vacacional o tu residencia permanente?`;
+        }
+        return `📐 *Dimensiones y Superficie del Terreno Industrial:*\n\n` +
+          `*Superficie Total:* *${d.superficie_total}* (7.000 metros cuadrados)\n` +
+          `*Frente (Norte):* *185 metros* sobre vía pavimentada\n` +
+          `*Fondo:* *150 metros*\n` +
+          `*Topografía:* Terreno plano, nivelado y listo para construcción industrial de gran envergadura.\n\n` +
+          `👉 ¿Requiere este metraje para almacenamiento, logística o planta de producción?`;
+      }
+
+      // 3. Precio
+      if (msg.includes('precio') || msg.includes('cuanto cuesta') || msg.includes('cuanto piden') || msg.includes('valor') || msg.includes('costo') || msg.includes('bolivianos') || msg.includes('dolar') || msg.includes('bs') || msg.includes('usd') || msg.includes('pago') || msg.includes('tc') || msg.includes('credito')) {
+        if (isDpto) {
+          return `💰 *Precio y Condiciones del Departamento:*\n\n` +
+            `*Precio de Venta:* *${d.precio_usd}* (${d.precio_bs})\n` +
+            `*Superficie:* ${d.superficie_total} (Excelente precio por debajo del mercado en la zona central)\n\n` +
+            `*Modalidades de Adquisición:*\n` +
+            `✅ Pago al contado mediante transferencia bancaria.\n` +
+            `✅ Apto para Crédito Bancario de Vivienda.\n\n` +
+            `👉 ¿Deseas conocer las opciones de crédito o agendamos una visita?`;
+        }
+        if (isMarAdentro) {
+          return `💰 *Precio y Formas de Pago (Mar Adentro):*\n\n` +
+            `*Precio de Venta:* *${d.precio_usd}* (${d.precio_bs})\n` +
+            `*Superficie:* ${d.superficie_total}\n\n` +
+            `*Modalidades Aceptadas:*\n` +
+            `✅ Pago al contado o financiamiento bancario.\n\n` +
+            `👉 ¿Deseas coordinar una visita al condominio?`;
+        }
+        return `💰 *Inversión Terreno Industrial:*\n\n` +
+          `*Precio de Venta:* *${d.precio_bs}* (Dieciséis Millones Ochocientos Mil Bolivianos)\n` +
+          `*Superficie:* ${d.superficie_total} (Bs 2.400 / m²)\n\n` +
+          `*Modalidades:*\n` +
+          `✅ Pago al contado empresarial o carta de crédito bancaria.\n\n` +
+          `👉 ¿Desea que le facilitemos la proforma comercial o coordinamos una reunión?`;
+      }
+
+      // 4. Ubicación
+      if (msg.includes('ubicacion') || msg.includes('donde queda') || msg.includes('donde esta') || msg.includes('direccion') || msg.includes('anillo')) {
+        if (isDpto) {
+          return `📍 *Ubicación del Departamento:*\n\n` +
+            `🏢 *Ubicación:* ${d.ubicacion}\n` +
+            `🚗 *Accesos:* A minutos de supermercados, farmacias, colegios y transporte público.\n\n` +
+            `👉 ¿Deseas agendar una visita para conocerlo?`;
+        }
+        if (isMarAdentro) {
+          return `📍 *Ubicación en Mar Adentro:*\n\n` +
+            `🏡 *Condominio:* ${d.ubicacion}\n` +
+            `🏄‍♂️ *Distancia:* A solo *300 metros caminando* del espejo de agua cristalina.\n\n` +
+            `👉 ¿Deseas que coordinemos un pase de visita?`;
+        }
+        return `📍 *Ubicación Terreno Industrial:*\n\n` +
+          `🏢 *Dirección:* ${d.ubicacion}\n` +
+          `🛣️ *Acceso:* Salida directa a la *Av. G77* (apto para transporte pesado).\n\n` +
+          `👉 ¿Desea coordinar una inspección en el terreno?`;
+      }
+
+      // 5. Visita
+      if (msg.includes('visita') || msg.includes('agendar') || msg.includes('ir a ver') || msg.includes('cita') || msg.includes('horario')) {
+        return `📅 *Coordinación de Visita Presencial:*\n\n` +
+          `Con mucho gusto coordinamos tu visita para que conozcas *${c.titulo_campana}*.\n\n` +
+          `Por favor indícanos:\n` +
+          `1. 👤 *Nombre completo:*\n` +
+          `2. ⏰ *Día y hora de tu preferencia:* (Lunes a Domingo)\n` +
+          `3. 📱 *Número de WhatsApp de contacto:*\n\n` +
+          `Nuestro asesor *${ofi.asesor_a_cargo}* (*${ofi.telefono}*) te recibirá en el lugar. ✨`;
+      }
+
+      // Saludo Inicial / Primer contacto: Solicitar Formulario de Datos
+      const hasEmail = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(userMessage);
+      const hasCommaData = userMessage.split(',').length >= 2;
+
+      if (hasEmail || hasCommaData) {
+        return `¡Muchas gracias! 🦁✨ Hemos registrado tus datos con éxito.\n\n` +
+          `Aquí tienes los detalles del *${c.titulo_campana}*:\n\n` +
+          `📍 *Ubicación:* ${d.ubicacion}\n` +
+          `📐 *Superficie:* *${d.superficie_total}*\n` +
+          `💰 *Precio:* *${d.precio_usd || d.precio_bs}*\n` +
+          (d.distribucion ? `🛏️ *Distribución:* ${d.distribucion}\n` : '') +
+          `📑 *Estado Legal:* ${d.estado_legal}\n\n` +
+          `👤 *Asesor:* ${ofi.asesor_a_cargo} (Tel: ${ofi.telefono})\n\n` +
+          `👉 *¿Te gustaría conocer las facilidades de pago o coordinar una visita presencial para conocer la propiedad este fin de semana?*`;
+      }
+
+      return `¡Hola! 👋 Gracias por comunicarte con *${ofi.nombre}* 🌊✨\n\n` +
+        `Nos alegra mucho tu interés en el *${c.titulo_campana}*.\n\n` +
+        `Para brindarte la ficha técnica detallada, planos y asignarte atención prioritaria con nuestro asesor especialista, por favor compártenos tus datos en un solo mensaje:\n\n` +
+        `1. 👤 *Nombre y Apellido completo:*\n` +
+        `2. 📱 *Número de Celular o WhatsApp:*\n` +
+        `3. ✉️ *Correo Electrónico:*\n\n` +
+        `✍️ _Ejemplo: Marcos Pérez, 60937050, correo@gmail.com_`;
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('simInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMessage(text, 'user');
+      input.value = '';
+
+      let botReply = '';
+      try {
+        const res = await fetch('/api/whatsapp/simular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mensaje: text, usuarioId: `simulador-${selectedCampaignId}` })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          botReply = data.respuestaBot;
+        }
+      } catch (err) {
+        // Fallback local
+      }
+
+      if (!botReply) {
+        botReply = generateLocalReply(text);
+      }
+
+      setTimeout(() => {
+        appendMessage(botReply, 'bot');
+      }, 300);
+    }
+
+    function sendQuickMessage(text) {
+      document.getElementById('simInput').value = text;
+      sendMessage();
+    }
+
+    function appendMessage(text, sender) {
+      const container = document.getElementById('simMessages');
+      const bubble = document.createElement('div');
+      bubble.className = `bubble bubble-${sender}`;
+      bubble.innerText = text;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function resetChat() {
+      const camp = campaignsData.find(c => c.id === selectedCampaignId) || campaignsData[0];
+      document.getElementById('simMessages').innerHTML = `
+        <div class="bubble bubble-bot">¡Chat reiniciado para: <strong>${camp.titulo_campana}</strong>! Haz clic en los botones rápidos de abajo o escribe un mensaje.</div>
+      `;
+    }
+
+    function openNewCampaignModal() {
+      document.getElementById('campaignModal').classList.add('active');
+    }
+    function closeNewCampaignModal() {
+      document.getElementById('campaignModal').classList.remove('active');
+    }
+
+    async function saveNewCampaign(e) {
+      e.preventDefault();
+      const id = document.getElementById('campId').value.trim();
+      const titulo = document.getElementById('campTitulo').value.trim();
+      const precio = document.getElementById('campPrecio').value.trim();
+      const superficie = document.getElementById('campSuperficie').value.trim();
+      const ubicacion = document.getElementById('campUbicacion').value.trim();
+      const telefono = document.getElementById('campTelefono').value.trim();
+      const detalles = document.getElementById('campDetalles').value.trim();
+      const keywords = document.getElementById('campKeywords').value.split(',').map(k => k.trim().toLowerCase()).filter(Boolean);
+
+      const newCamp = {
+        id,
+        activo: true,
+        titulo_campana: titulo,
+        origen: 'Facebook Ads',
+        oficina: {
+          nombre: 'Realty ONE Group Itaguazú',
+          direccion: 'Santa Cruz de la Sierra, Bolivia',
+          telefono: telefono || '+591 79878853',
+          email: 'info@realtyonegroup.com.bo',
+          sitio_web: 'realtyonegroup.com.bo',
+          asesor_a_cargo: 'Asesor Especialista'
+        },
+        datos_inmueble: {
+          tipo: 'Propiedad en Venta',
+          ubicacion,
+          superficie_total: superficie,
+          precio_usd: precio,
+          servicios_basicos: detalles,
+          estado_legal: 'Documentación 100% al día con Folio Real vigente'
+        },
+        palabras_clave: [id, ...keywords],
+        link_whatsapp_anuncio: `https://wa.me/${(telefono || '59179878853').replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hola, vi la publicidad de ' + titulo + ' y deseo más información.')}`
+      };
+
+      campaignsData.push(newCamp);
+      renderCampaigns();
+      renderCampaignSelector();
+      alert('🎉 ¡Nueva publicidad registrada exitosamente!');
+      closeNewCampaignModal();
+
+      try {
+        await fetch('/api/whatsapp/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newCamp)
+        });
+      } catch (err) {
+        // Ok en local
+      }
+    }
+
+    loadCampaigns();
+  </script>
+</body>
+</html>

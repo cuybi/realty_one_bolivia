@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ingreso de Leads & Atención de e-Realtors - Realty ONE Group Bolivia</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="shortcut icon" href="assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-main: #0b0f12;
+      --bg-card: #12191f;
+      --bg-card-header: #18222a;
+      --gold-primary: #D4AF37;
+      --gold-hover: #f3cf55;
+      --gold-gradient: linear-gradient(135deg, #f3cf55 0%, #D4AF37 50%, #aa820a 100%);
+      --text-main: #f0f4f8;
+      --text-muted: #8a9ba8;
+      --border-color: #22303c;
+      --wa-green: #25D366;
+      --color-potencial: #ff4d4f;
+      --color-indeciso: #faad14;
+      --color-pasivo: #1890ff;
+      --color-propietario: #52c41a;
+      --color-realtor: #D4AF37;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    body {
+      background: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Header */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.5px;
+      line-height: 1.2;
+    }
+
+    .brand-title span {
+      color: var(--gold-primary);
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .live-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(37, 211, 102, 0.12);
+      border: 1px solid rgba(37, 211, 102, 0.35);
+      color: #25d366;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.84rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .btn-gold {
+      background: var(--gold-gradient);
+      color: #000;
+      box-shadow: 0 4px 14px rgba(212, 175, 55, 0.25);
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+    }
+
+    .btn-excel {
+      background: linear-gradient(135deg, #107c41 0%, #1f8f50 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(16, 124, 65, 0.3);
+    }
+    .btn-excel:hover {
+      background: #169b59;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(16, 124, 65, 0.45);
+    }
+
+    .btn-secondary {
+      background: #1c2730;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+    .btn-secondary:hover {
+      background: #25333f;
+      color: #fff;
+      border-color: var(--gold-primary);
+    }
+
+    /* Pipeline Banner */
+    .pipeline-banner {
+      background: #0f171d;
+      border-bottom: 1px solid var(--border-color);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      overflow-x: auto;
+      white-space: nowrap;
+      gap: 15px;
+    }
+
+    .pipeline-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--gold-primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .pipeline-steps {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.74rem;
+    }
+
+    .pipeline-step {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid transparent;
+    }
+
+    .pipeline-step.active {
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--gold-primary);
+      border-color: rgba(212, 175, 55, 0.4);
+      font-weight: 700;
+    }
+
+    .pipeline-arrow {
+      color: #3e5060;
+      font-size: 0.65rem;
+    }
+
+    /* Main Layout */
+    main {
+      padding: 16px 24px;
+      flex: 1;
+      max-width: 1700px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .app-layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 18px;
+    }
+
+    @media (max-width: 1200px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* KPIs */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--gold-primary);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 4px;
+    }
+
+    .kpi-card.total::before { background: #8a9ba8; }
+    .kpi-card.potencial::before { background: var(--color-potencial); }
+    .kpi-card.indeciso::before { background: var(--color-indeciso); }
+    .kpi-card.pasivo::before { background: var(--color-pasivo); }
+    .kpi-card.propietario::before { background: var(--color-propietario); }
+    .kpi-card.visitas::before { background: #9254de; }
+
+    .kpi-data {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .kpi-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .kpi-number {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1.1;
+      margin-top: 3px;
+    }
+
+    .kpi-icon {
+      font-size: 1.35rem;
+      opacity: 0.35;
+    }
+
+    /* Toolbar */
+    .toolbar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .search-box {
+      position: relative;
+      min-width: 240px;
+      flex: 1;
+    }
+
+    .search-box i {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .search-input {
+      width: 100%;
+      background: #0d1318;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 7px 10px 7px 30px;
+      color: #fff;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .search-input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    .filter-select {
+      background: #0d1318;
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.8rem;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-select:focus {
+      border-color: var(--gold-primary);
+    }
+
+    /* Leads Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow-x: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .leads-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.82rem;
+    }
+
+    .leads-table th {
+      background: var(--bg-card-header);
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.6px;
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border-color);
+      white-space: nowrap;
+    }
+
+    .leads-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(34, 48, 60, 0.6);
+      vertical-align: middle;
+    }
+
+    .leads-table tr:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .badge-potencial { background: rgba(255, 77, 79, 0.15); color: #ff4d4f; border: 1px solid rgba(255, 77, 79, 0.4); }
+    .badge-indeciso { background: rgba(250, 173, 20, 0.15); color: #faad14; border: 1px solid rgba(250, 173, 20, 0.4); }
+    .badge-pasivo { background: rgba(24, 144, 255, 0.15); color: #1890ff; border: 1px solid rgba(24, 144, 255, 0.4); }
+    .badge-propietario { background: rgba(82, 196, 26, 0.15); color: #52c41a; border: 1px solid rgba(82, 196, 26, 0.4); }
+
+    .badge-embudo {
+      display: inline-block;
+      font-size: 0.68rem;
+      color: var(--gold-primary);
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-weight: 700;
+      margin-top: 3px;
+    }
+
+    .time-badge {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .visita-highlight {
+      font-size: 0.73rem;
+      color: #ffd700;
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.35);
+      padding: 3px 6px;
+      border-radius: 4px;
+      margin-top: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 700;
+    }
+
+    .checklist-form {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      font-size: 0.68rem;
+    }
+
+    .check-item {
+      color: #55697a;
+    }
+    .check-item.ok {
+      color: #25d366;
+      font-weight: 700;
+    }
+
+    .btn-wa-action {
+      background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-wa-action:hover {
+      transform: scale(1.03);
+      box-shadow: 0 2px 10px rgba(37, 211, 102, 0.4);
+    }
+
+    .action-btn {
+      background: #1c2730;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      border-radius: 5px;
+      padding: 4px 7px;
+      cursor: pointer;
+      font-size: 0.74rem;
+      transition: all 0.15s;
+    }
+    .action-btn:hover {
+      color: #fff;
+      border-color: var(--gold-primary);
+    }
+
+    /* Simulator Panel (Right) */
+    .simulator-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      height: 680px;
+      position: sticky;
+      top: 75px;
+    }
+
+    .sim-header {
+      background: var(--bg-card-header);
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      border-radius: 10px 10px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .sim-header-info {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .sim-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gold-gradient);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 0.75rem;
+    }
+
+    .sim-messages {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background: #090e12;
+    }
+
+    .bubble {
+      max-width: 88%;
+      padding: 8px 11px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    .bubble-user {
+      align-self: flex-end;
+      background: #005c4b;
+      color: #e9edef;
+      border-bottom-right-radius: 2px;
+    }
+
+    .bubble-bot {
+      align-self: flex-start;
+      background: #202c33;
+      color: #e9edef;
+      border-bottom-left-radius: 2px;
+    }
+
+    .sim-quick-chips {
+      padding: 7px 10px;
+      background: #11181f;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 5px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .quick-chip {
+      background: #1c2730;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quick-chip:hover {
+      background: #25333f;
+      color: var(--gold-primary);
+      border-color: var(--gold-primary);
+    }
+
+    .sim-input-area {
+      padding: 8px 10px;
+      background: var(--bg-card-header);
+      border-top: 1px solid var(--border-color);
+      border-radius: 0 0 10px 10px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .sim-input {
+      flex: 1;
+      background: #0b0f12;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #fff;
+      font-size: 0.8rem;
+      outline: none;
+    }
+    .sim-input:focus {
+      border-color: var(--gold-primary);
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 15px;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-box {
+      background: #12191f;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 580px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #18222a;
+    }
+
+    .modal-body {
+      padding: 14px 16px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 10px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: #0b0f12;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: #fff;
+      font-size: 0.82rem;
+      outline: none;
+    }
+    .form-input:focus { border-color: var(--gold-primary); }
+
+    .chat-history-box {
+      background: #090e12;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 10px;
+      max-height: 180px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chat-msg {
+      padding: 5px 8px;
+      border-radius: 5px;
+      font-size: 0.75rem;
+      line-height: 1.3;
+    }
+    .chat-msg.user { background: #005c4b; color: #fff; align-self: flex-end; }
+    .chat-msg.bot { background: #1c2730; color: #e9edef; align-self: flex-start; }
+
+    /* Drawer */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      z-index: 998;
+    }
+    .drawer-overlay.active { display: block; }
+
+    .drawer-panel {
+      position: fixed;
+      top: 0;
+      right: -360px;
+      bottom: 0;
+      width: 350px;
+      background: #12191f;
+      border-left: 1px solid var(--border-color);
+      z-index: 999;
+      transition: right 0.25s ease;
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer-panel.open { right: 0; }
+
+    .template-card {
+      background: #18222a;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .template-title {
+      font-weight: 700;
+      font-size: 0.8rem;
+      color: var(--gold-primary);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .template-text {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    /* Toast */
+    .toast-notify {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #18222a;
+      border: 1px solid var(--gold-primary);
+      border-radius: 8px;
+      padding: 10px 16px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #fff;
+      font-size: 0.82rem;
+      z-index: 2000;
+      opacity: 0;
+      transform: translateY(15px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+    }
+    .toast-notify.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-container">
+      <img src="assets/logo_one_circle.png" alt="ONE" style="height:42px; width:42px; border-radius:50%; box-shadow:0 0 14px rgba(212,175,55,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+      <div>
+        <div class="brand-title">REALTY <span>ONE</span> GROUP</div>
+        <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.2px;">BOLIVIA • INGRESO DE LEADS</div>
+      </div>
+    </div>
+    <div class="nav-actions">
+      <span class="live-pill" id="liveStatusPill"><i class="fa-solid fa-circle" style="color:#25d366; font-size:0.6rem; animation: pulse 1.5s infinite;"></i> <span>En Vivo (3s)</span></span>
+      <button class="btn btn-secondary" onclick="toggleTemplateDrawer()" style="border-color: rgba(212,175,55,0.4); color:var(--gold-primary);" title="Plantillas de Respuestas Rápidas"><i class="fa-solid fa-bolt-lightning"></i> Plantillas 1-Clic</button>
+      <button class="btn btn-secondary" onclick="manualRefresh()" style="border-color: rgba(212,175,55,0.4); color:#D4AF37;" title="Recargar lista de prospectos"><i class="fa-solid fa-rotate" id="refreshIcon"></i> Actualizar</button>
+      <a href="index.html" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
+      <a href="publicidades.html" class="btn btn-secondary"><i class="fa-solid fa-bullhorn"></i> Campañas Ads</a>
+      <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-brands fa-whatsapp"></i> Conectar QR</a>
+      <button class="btn btn-excel" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> Exportar a Excel (.xlsx)</button>
+      <button class="btn btn-gold" onclick="exportToCSV()"><i class="fa-solid fa-file-csv"></i> Descargar CSV</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Pipeline Visual Bar -->
+    <div class="pipeline-banner">
+      <div class="pipeline-title">
+        <i class="fa-solid fa-network-wired"></i> Embudo Inmobiliario One Comsys ➔ Atención de Leads
+      </div>
+      <div class="pipeline-steps">
+        <div class="pipeline-step"><i class="fa-solid fa-database" style="color:var(--gold-primary);"></i> 1. One Comsys</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-building"></i> 2. Publicación</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-bullhorn" style="color:#1890ff;"></i> 3. Impulsar (Ads)</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-user-clock"></i> 4. Solicitar Info</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-robot" style="color:var(--wa-green);"></i> 5. IA Responde</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-list-check" style="color:#faad14;"></i> 6. Formulario Datos</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-fire" style="color:#ff4d4f;"></i> 7. Prospecto Potencial</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step active"><i class="fa-solid fa-calendar-check" style="color:var(--gold-primary);"></i> 8. Visita Agendada</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step" style="background:#25D366; color:#000; font-weight:800;"><i class="fa-brands fa-whatsapp"></i> 9. Cierre & Atención</div>
+      </div>
+    </div>
+
+    <!-- Main Split Layout -->
+    <div class="app-layout" style="margin-top:14px;">
+      <!-- Left Column: KPIs & Leads Table -->
+      <div>
+        <!-- KPIs -->
+        <div class="kpi-grid">
+          <div class="kpi-card total" onclick="filterByPriority('TODAS')">
+            <div class="kpi-data">
+              <span class="kpi-title">Total Leads</span>
+              <span class="kpi-number" id="kpiTotal">0</span>
+            </div>
+            <i class="fa-solid fa-users kpi-icon"></i>
+          </div>
+
+          <div class="kpi-card potencial" onclick="filterByPriority('POTENCIAL')">
+            <div class="kpi-data">
+              <span class="kpi-title">🔥 Potenciales</span>
+              <span class="kpi-number" id="kpiPotencial">0</span>
+            </div>
+            <i class="fa-solid fa-fire kpi-icon"></i>
+          </div>
+
+          <div class="kpi-card indeciso" onclick="filterByPriority('INDECISO')">
+            <div class="kpi-data">
+              <span class="kpi-title">⚡ Indecisos</span>
+              <span class="kpi-number" id="kpiIndeciso">0</span>
+            </div>
+            <i class="fa-solid fa-bolt kpi-icon"></i>
+          </div>
+
+          <div class="kpi-card pasivo" onclick="filterByPriority('PASIVO')">
+            <div class="kpi-data">
+              <span class="kpi-title">❄️ Pasivos</span>
+              <span class="kpi-number" id="kpiPasivo">0</span>
+            </div>
+            <i class="fa-solid fa-snowflake kpi-icon"></i>
+          </div>
+
+          <div class="kpi-card propietario" onclick="filterByPriority('PROPIETARIO')">
+            <div class="kpi-data">
+              <span class="kpi-title">💼 Propietarios</span>
+              <span class="kpi-number" id="kpiPropietario">0</span>
+            </div>
+            <i class="fa-solid fa-handshake kpi-icon"></i>
+          </div>
+
+          <div class="kpi-card visitas" onclick="filterByVisitsOnly()">
+            <div class="kpi-data">
+              <span class="kpi-title">📅 Citas Visita</span>
+              <span class="kpi-number" id="kpiVisitas">0</span>
+            </div>
+            <i class="fa-regular fa-calendar-check kpi-icon"></i>
+          </div>
+        </div>
+
+        <!-- Toolbar & Filters -->
+        <div class="toolbar-card">
+          <div class="filter-group">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="searchInput" class="search-input" placeholder="Buscar por cliente, celular, zona o interés..." onkeyup="applyFilters()">
+            </div>
+
+            <select id="priorityFilter" class="filter-select" onchange="applyFilters()">
+              <option value="TODAS">🔥 Todas las Prioridades</option>
+              <option value="POTENCIAL">🔥 Potenciales (Alta)</option>
+              <option value="INDECISO">⚡ Indecisos (Media)</option>
+              <option value="PASIVO">❄️ Pasivos (Baja)</option>
+              <option value="PROPIETARIO">💼 Propietarios (Consignación)</option>
+            </select>
+
+            <select id="stageFilter" class="filter-select" onchange="applyFilters()">
+              <option value="TODAS">📊 Todas las Etapas</option>
+              <option value="SOLICITUD">1. Solicitud Inicial</option>
+              <option value="FORMULARIO_EN_PROGRESO">2. Formulario en Progreso</option>
+              <option value="VISITA_AGENDADA">3. Visita Agendada</option>
+              <option value="EN_NEGOCIACION">4. En Negociación</option>
+              <option value="CERRADO">5. Cerrado / Ganado</option>
+              <option value="DESCARTADO">6. Descartado / Frío</option>
+            </select>
+
+            <select id="monthFilter" class="filter-select" onchange="applyFilters()">
+              <option value="">📅 Todos los Meses</option>
+              <option value="Enero">Enero</option>
+              <option value="Febrero">Febrero</option>
+              <option value="Marzo">Marzo</option>
+              <option value="Abril">Abril</option>
+              <option value="Mayo">Mayo</option>
+              <option value="Junio">Junio</option>
+              <option value="Julio">Julio</option>
+              <option value="Agosto">Agosto</option>
+              <option value="Septiembre">Septiembre</option>
+              <option value="Octubre">Octubre</option>
+              <option value="Noviembre">Noviembre</option>
+              <option value="Diciembre">Diciembre</option>
+            </select>
+          </div>
+
+          <div style="font-size:0.82rem; color:var(--text-muted);">
+            Mostrando <strong id="leadCountLabel" style="color:var(--gold-primary);">0</strong> prospectos
+          </div>
+        </div>
+
+        <!-- Table View -->
+        <div class="table-container" id="tableContainer">
+          <table class="leads-table">
+            <thead>
+              <tr>
+                <th>Prioridad & Score</th>
+                <th>Cliente & Formulario</th>
+                <th>Interés & Zona</th>
+                <th>Fecha & Horario Visita</th>
+                <th>Acción & Último Mensaje</th>
+                <th>Atención</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTableBody">
+              <!-- Dinámico -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Testing Console -->
+      <div>
+        <div class="simulator-panel">
+          <div class="sim-header">
+            <div class="sim-header-info">
+              <div class="sim-avatar">ONE</div>
+              <div>
+                <div style="font-weight:700; font-size:0.86rem; color:#fff;">ONEBot en Vivo & Asignación</div>
+                <div style="font-size:0.7rem; color:#25d366;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Motor IA Conectado</div>
+              </div>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:6px;">
+              <select id="simPhoneSelect" class="filter-select" style="padding:4px 6px; font-size:0.75rem;" onchange="changeSimUser()">
+                <option value="+59177012345">📱 +591 77012345 (Marcos A.)</option>
+                <option value="+59170234567">📱 +591 70234567 (Elena R.)</option>
+                <option value="+59170345678">📱 +591 70345678 (Ing. Mario)</option>
+                <option value="+59170099887" selected>📱 +591 70099887 (Nuevo)</option>
+              </select>
+              <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="resetSimChat()" title="Reiniciar chat">
+                <i class="fa-solid fa-arrow-rotate-right"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="sim-messages" id="simChatBox">
+            <div class="bubble bubble-bot">🦁 ¡Hola! Soy ONEBot, asistente virtual de Realty ONE Group Bolivia. Escribe un mensaje o prueba los botones rápidos para ver cómo la IA perfila y registra en tiempo real. ✨</div>
+          </div>
+
+          <!-- Quick Test Chips -->
+          <div class="sim-quick-chips">
+            <button class="quick-chip" onclick="quickSend('Hola, vi la publicidad en Facebook del Lote de 450 m2 en Condominio Mar Adentro ($112.500).')">
+              🏖️ Mar Adentro ($112.500)
+            </button>
+            <button class="quick-chip" onclick="quickSend('Hola, vi el anuncio en Facebook del Terreno Industrial de 7.000 m2 sobre la G77 (Bs 16.800.000).')">
+              🏭 Terreno G77 7.000 m²
+            </button>
+            <button class="quick-chip" onclick="quickSend('Formulario completado: Carlos Mendoza, 77012345, cmendoza@gmail.com, Visita: 2026-09-10 10:00 AM')">
+              📝 Formulario Visita
+            </button>
+            <button class="quick-chip" onclick="quickSend('Tengo un inmueble en Santa Cruz y quiero consignarlo para venta.')">
+              💼 Propietario
+            </button>
+          </div>
+
+          <!-- Input Area -->
+          <div class="sim-input-area">
+            <input type="text" id="simUserInput" class="sim-input" placeholder="Escribe un mensaje aquí..." onkeypress="if(event.key==='Enter') sendSimMessage()">
+            <button class="btn btn-gold" style="padding:6px 12px; font-size:0.8rem;" onclick="sendSimMessage()">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal Detalle / Edición Lead -->
+  <div class="modal-overlay" id="leadModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="color:var(--gold-primary); font-size:1.05rem;" id="modalTitle"><i class="fa-solid fa-id-card"></i> Ficha del Prospecto</h3>
+        <button onclick="closeLeadModal()" style="background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Nombre del Cliente:</label>
+            <input type="text" id="editName" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Número WhatsApp:</label>
+            <input type="text" id="editPhone" class="form-input" readonly>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Correo Electrónico:</label>
+            <input type="text" id="editEmail" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Prioridad Asignada:</label>
+            <select id="editPriority" class="form-input">
+              <option value="POTENCIAL">🔥 Potencial (Alta)</option>
+              <option value="INDECISO">⚡ Indeciso (Media)</option>
+              <option value="PASIVO">❄️ Pasivo (Baja)</option>
+              <option value="PROPIETARIO">💼 Propietario (Captación)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>Etapa del Embudo:</label>
+            <select id="editStage" class="form-input">
+              <option value="SOLICITUD">1. Solicitud Inicial</option>
+              <option value="FORMULARIO_EN_PROGRESO">2. Formulario en Progreso</option>
+              <option value="VISITA_AGENDADA">3. Visita Agendada</option>
+              <option value="EN_NEGOCIACION">4. En Negociación</option>
+              <option value="CERRADO">5. Cerrado / Ganado</option>
+              <option value="DESCARTADO">6. Descartado / Frío</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Estado Comercial:</label>
+            <select id="editStatus" class="form-input">
+              <option value="Nuevo">Nuevo</option>
+              <option value="En Seguimiento">En Seguimiento</option>
+              <option value="Visita Agendada">Visita Agendada</option>
+              <option value="Propuesta Enviada">Propuesta Enviada</option>
+              <option value="Cerrado / Ganado">Cerrado / Ganado</option>
+              <option value="Descartado">Descartado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Interés & Presupuesto:</label>
+          <input type="text" id="editBudget" class="form-input" readonly>
+        </div>
+
+        <div class="form-group">
+          <label>Horario de Visita:</label>
+          <input type="text" id="editVisitSchedule" class="form-input" placeholder="Ej: Visita: 2026-09-10 03:00 PM">
+        </div>
+
+        <div class="form-group">
+          <label>Notas Internas & Seguimiento:</label>
+          <textarea id="editNotes" class="form-input" rows="2" placeholder="Añade observaciones o acuerdos..."></textarea>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:0.72rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; margin-bottom:4px;">
+            Historial de Conversación:
+          </label>
+          <div class="chat-history-box" id="modalChatHistory">
+            <!-- Mensajes -->
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:12px 16px; background:#18222a; display:flex; justify-content:space-between; border-top:1px solid var(--border-color);">
+        <button type="button" class="btn btn-secondary" onclick="deleteCurrentLead()" style="color:#ff4d4f; border-color:rgba(255,77,79,0.4);"><i class="fa-solid fa-trash"></i> Eliminar</button>
+        <div style="display:flex; gap:8px;">
+          <button type="button" class="btn btn-secondary" onclick="closeLeadModal()">Cerrar</button>
+          <button type="button" class="btn btn-gold" onclick="saveLeadChanges()"><i class="fa-solid fa-save"></i> Guardar Cambios</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer Lateral: Plantillas 1-Clic -->
+  <div class="drawer-overlay" id="templateDrawerOverlay" onclick="toggleTemplateDrawer()"></div>
+  <div class="drawer-panel" id="templateDrawer">
+    <div class="modal-header">
+      <h3 style="color:var(--gold-primary); font-size:1rem;"><i class="fa-solid fa-bolt-lightning"></i> Plantillas de 1-Clic</h3>
+      <button onclick="toggleTemplateDrawer()" style="background:none; border:none; color:#fff; font-size:1.2rem; cursor:pointer;">&times;</button>
+    </div>
+    <div style="padding:14px; overflow-y:auto; flex:1;" id="crmTemplatesList">
+      <!-- Tarjetas de Plantillas -->
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-notify" id="toast">
+    <i class="fa-solid fa-circle-check" style="color:#25d366; font-size:1.2rem;"></i>
+    <div id="toastMessage">Prospecto actualizado en tiempo real.</div>
+  </div>
+
+  <script>
+    // Días y meses en español
+    const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+    const CRM_TEMPLATES = [
+      {
+        titulo: '🦁 1. Saludo & Presentación',
+        texto: '¡Hola! 👋 Te saluda el equipo de Realty ONE Group Bolivia. Con gusto te comparto los detalles del inmueble. ¿En qué horario te queda mejor coordinar una llamada o visita?'
+      },
+      {
+        titulo: '📅 2. Coordinar Visita Presencial',
+        texto: 'Estimado/a cliente, para coordinar tu visita presencial, por favor indícanos qué día y hora te conviene (Mañana o Tarde) para registrar tu pase de ingreso autorizado.'
+      },
+      {
+        titulo: '📑 3. Ficha Técnica & Folio Real',
+        texto: 'Hola, te comparto la ficha técnica completa con precio oficial y documentación 100% al día con Folio Real en Derechos Reales.'
+      },
+      {
+        titulo: '🏦 4. Requisitos de Crédito & Bancos',
+        texto: '¡Hola! Trabajamos con todos los bancos en Bolivia (BNB, BCP, Mercantil, Bisa, Banco Unión) para el financiamiento. ¿Deseas que te enviemos una simulación de cuotas?'
+      },
+      {
+        titulo: '🤝 5. Propietario / Consignación',
+        texto: '¡Hola! Recibimos tu interés para consignar tu propiedad en Realty ONE Group Bolivia. Te ofrecemos avalúo, sesión fotográfica y promoción 360° sin costo inicial.'
+      }
+    ];
+
+    let allLeads = [];
+    let activeLeadId = null;
+    let isPolling = false;
+    let isDeleting = false;
+
+    // Blacklist persistente en localStorage
+    function getDeletedBlacklist() {
+      try {
+        const raw = localStorage.getItem('crm_deleted_leads_v3');
+        if (raw) return JSON.parse(raw);
+      } catch(e) {}
+      return { ids: [], phones: [] };
+    }
+
+    function addToDeletedBlacklist(id, phone) {
+      const bl = getDeletedBlacklist();
+      if (id && !bl.ids.includes(id)) bl.ids.push(id);
+      const cleanP = String(phone || '').replace(/\D/g, '');
+      if (cleanP) {
+        const shortP = cleanP.length >= 8 ? cleanP.slice(-8) : cleanP;
+        if (!bl.phones.includes(cleanP)) bl.phones.push(cleanP);
+        if (shortP && !bl.phones.includes(shortP)) bl.phones.push(shortP);
+      }
+      localStorage.setItem('crm_deleted_leads_v3', JSON.stringify(bl));
+    }
+
+    // Helper: detectar si un lead tiene visita válida agendada
+    function leadHasVisit(l) {
+      if (!l) return false;
+      const raw = l.horario_visita_solicitado || l.horario_visita_solicitada || l.formulario_datos?.horario_visita || '';
+      const text = String(raw).trim();
+      if (text.length > 0 && text.length <= 60 && !text.includes('Bienvenido') && !text.includes('Realty ONE') && !text.includes('Menu')) {
+        return true;
+      }
+      return l.etapa_embudo === 'VISITA_AGENDADA' || l.estado_comercial === 'Visita Agendada';
+    }
+
+    // Cargar leads en tiempo real con sincronización
+    async function loadLeads(isManual = false) {
+      if ((isPolling || isDeleting) && !isManual) return;
+      isPolling = true;
+
+      const refreshIcon = document.getElementById('refreshIcon');
+      if (refreshIcon && isManual) refreshIcon.classList.add('fa-spin');
+
+      try {
+        const cacheBuster = `t=${Date.now()}`;
+        let data = null;
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+        // 1. En la nube (SiteGround) cargar directo de leads.json / save_leads_sync.php
+        if (!isLocalhost) {
+          try {
+            const res = await fetch(`leads.json?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+            if (res.ok) {
+              const d = await res.json();
+              if (d && Array.isArray(d)) data = d;
+            }
+          } catch(e) {}
+
+          if (!data || data.length === 0) {
+            try {
+              const res = await fetch(`save_leads_sync.php?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+              if (res.ok) {
+                const d = await res.json();
+                if (d && Array.isArray(d)) data = d;
+              }
+            } catch(e) {}
+          }
+        } else {
+          // En entorno de desarrollo local (localhost)
+          try {
+            const nodeUrl = window.location.port === '3000' ? `/api/whatsapp/leads?${cacheBuster}` : `http://localhost:3000/api/whatsapp/leads?${cacheBuster}`;
+            const res = await fetch(nodeUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+            if (res.ok) {
+              const d = await res.json();
+              data = d.leads || d;
+            }
+          } catch(e) {}
+
+          if (!data || data.length === 0) {
+            try {
+              const res = await fetch(`leads.json?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+              if (res.ok) {
+                const d = await res.json();
+                if (d && Array.isArray(d)) data = d;
+              }
+            } catch(e) {}
+          }
+        }
+
+        let rawLeads = [];
+        if (data && Array.isArray(data)) {
+          rawLeads = data;
+        } else if (data && data.leads && Array.isArray(data.leads)) {
+          rawLeads = data.leads;
+        }
+
+        // Filtrar eliminados
+        const blacklist = getDeletedBlacklist();
+        const newLeads = rawLeads.filter(l => {
+          if (!l || !l.id) return false;
+          if (blacklist.ids.includes(l.id)) return false;
+          const p1 = String(l.numero_celular || '').replace(/\D/g, '');
+          const p2 = String(l.formulario_datos?.telefono || '').replace(/\D/g, '');
+          if (p1 && blacklist.phones.some(bp => p1 === bp || (bp.length >= 8 && p1.includes(bp)))) return false;
+          if (p2 && blacklist.phones.some(bp => p2 === bp || (bp.length >= 8 && p2.includes(bp)))) return false;
+          return true;
+        });
+
+        // Asegurar que leads con visita tengan su etapa_embudo alineada si tienen visita
+        newLeads.forEach(l => {
+          if (leadHasVisit(l) && (!l.etapa_embudo || l.etapa_embudo === 'SOLICITUD' || l.etapa_embudo === 'FORMULARIO_EN_PROGRESO')) {
+            l.etapa_embudo = 'VISITA_AGENDADA';
+          }
+        });
+
+        const prevCount = allLeads.length;
+        const prevSnapshot = JSON.stringify(allLeads.map(l => ({ id: l.id, msg: l.ultimo_mensaje, count: (l.historial || []).length, stage: l.etapa_embudo })));
+        const newSnapshot  = JSON.stringify(newLeads.map(l => ({ id: l.id, msg: l.ultimo_mensaje, count: (l.historial || []).length, stage: l.etapa_embudo })));
+        const hasChanged = prevSnapshot !== newSnapshot;
+
+        if (hasChanged || isManual) {
+          allLeads = newLeads;
+          updateKPIs();
+          applyFilters();
+
+          if (isManual) {
+            showToast('🔄 Lista actualizada en tiempo real.');
+          } else if (prevCount > 0 && newLeads.length > prevCount) {
+            showToast(`💬 Nuevo prospecto: ${newLeads[0].cliente_nombre || newLeads[0].numero_celular}`);
+          }
+        }
+      } catch (err) {
+        console.warn('Polling error:', err);
+      } finally {
+        isPolling = false;
+        if (refreshIcon) refreshIcon.classList.remove('fa-spin');
+      }
+    }
+
+    function manualRefresh() {
+      loadLeads(true);
+    }
+
+    function updateKPIs() {
+      const total = allLeads.length;
+      const potencial = allLeads.filter(l => l.prioridad === 'POTENCIAL').length;
+      const indeciso = allLeads.filter(l => l.prioridad === 'INDECISO').length;
+      const pasivo = allLeads.filter(l => l.prioridad === 'PASIVO').length;
+      const propietario = allLeads.filter(l => l.prioridad === 'PROPIETARIO').length;
+      const visitas = allLeads.filter(l => leadHasVisit(l)).length;
+
+      document.getElementById('kpiTotal').innerText = total;
+      document.getElementById('kpiPotencial').innerText = potencial;
+      document.getElementById('kpiIndeciso').innerText = indeciso;
+      document.getElementById('kpiPasivo').innerText = pasivo;
+      document.getElementById('kpiPropietario').innerText = propietario;
+      document.getElementById('kpiVisitas').innerText = visitas;
+    }
+
+    function filterByPriority(prio) {
+      document.getElementById('priorityFilter').value = prio;
+      document.getElementById('stageFilter').value = 'TODAS';
+      applyFilters();
+    }
+
+    function filterByVisitsOnly() {
+      document.getElementById('priorityFilter').value = 'TODAS';
+      document.getElementById('stageFilter').value = 'VISITA_AGENDADA';
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const prio = document.getElementById('priorityFilter').value;
+      const stage = document.getElementById('stageFilter').value;
+      const month = document.getElementById('monthFilter').value.toLowerCase();
+      const search = document.getElementById('searchInput').value.toLowerCase();
+
+      const filtered = allLeads.filter(l => {
+        if (prio !== 'TODAS' && l.prioridad !== prio) return false;
+        
+        // Filtro por etapa: si seleccionan VISITA_AGENDADA, verificar si tiene visita agendada
+        if (stage !== 'TODAS') {
+          if (stage === 'VISITA_AGENDADA') {
+            if (!leadHasVisit(l)) return false;
+          } else {
+            if (l.etapa_embudo !== stage) return false;
+          }
+        }
+
+        if (month && !(l.mes || '').toLowerCase().includes(month)) return false;
+        if (search) {
+          const match = (
+            (l.cliente_nombre || '').toLowerCase().includes(search) ||
+            (l.numero_celular || '').includes(search) ||
+            (l.email || '').toLowerCase().includes(search) ||
+            (l.zona_interes || '').toLowerCase().includes(search) ||
+            (l.tipo_interes || '').toLowerCase().includes(search) ||
+            (l.presupuesto || '').toLowerCase().includes(search) ||
+            (l.ultimo_mensaje || '').toLowerCase().includes(search) ||
+            (l.resumen || '').toLowerCase().includes(search)
+          );
+          if (!match) return false;
+        }
+        return true;
+      });
+
+      renderTable(filtered);
+    }
+
+    function renderTable(leads, highlightId = null) {
+      const tbody = document.getElementById('leadsTableBody');
+      document.getElementById('leadCountLabel').innerText = leads.length;
+      tbody.innerHTML = '';
+
+      if (leads.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:40px 20px; text-align:center; color:var(--text-muted);"><i class="fa-solid fa-inbox" style="font-size:2rem; margin-bottom:8px; display:block; opacity:0.4;"></i>No se encontraron prospectos con los filtros seleccionados.</td></tr>`;
+        return;
+      }
+
+      leads.forEach(l => {
+        let badgeClass = 'badge-pasivo';
+        if (l.prioridad === 'POTENCIAL') badgeClass = 'badge-potencial';
+        else if (l.prioridad === 'INDECISO') badgeClass = 'badge-indeciso';
+        else if (l.prioridad === 'PROPIETARIO') badgeClass = 'badge-propietario';
+
+        const cleanPhone = (l.numero_celular || '').replace(/\D/g, '');
+        const clientName = l.cliente_nombre && l.cliente_nombre !== 'Por identificar' ? l.cliente_nombre : 'Estimado/a';
+        const waMsg = encodeURIComponent(`Hola ${clientName}, te escribo de Realty ONE Group Bolivia sobre tu consulta de ${l.tipo_interes || 'propiedades'} en ${l.zona_interes || 'Santa Cruz'}. ✨`);
+        const waLink = `https://wa.me/${cleanPhone}?text=${waMsg}`;
+
+        // Checklist de datos
+        const hasName = l.cliente_nombre && l.cliente_nombre !== 'Por identificar';
+        const hasEmail = l.email && l.email !== 'Pendiente';
+        const hasPhone = Boolean(cleanPhone.length >= 8);
+        const hasVisit = leadHasVisit(l);
+        const rawVisita = l.horario_visita_solicitado || l.horario_visita_solicitada || l.formulario_datos?.horario_visita || '';
+
+        const tr = document.createElement('tr');
+        if (highlightId && l.id === highlightId) {
+          tr.style.background = 'rgba(212,175,55,0.15)';
+        }
+
+        tr.innerHTML = `
+          <td>
+            <span class="badge ${badgeClass}">${l.prioridad_label || l.prioridad}</span>
+            <div style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Score: <strong>${l.score || 0}/100</strong></div>
+            <div class="badge-embudo"><i class="fa-solid fa-layer-group"></i> ${l.etapa_embudo || 'NUEVO'}</div>
+          </td>
+          <td>
+            <div style="font-weight:700; color:#fff; font-size:0.86rem;">${l.cliente_nombre || 'Por identificar'}</div>
+            <div style="font-family:monospace; font-size:0.78rem; color:var(--gold-primary);">${l.numero_celular}</div>
+            <div style="font-size:0.74rem; color:${hasEmail ? '#69c0ff' : 'var(--text-muted)'};">${l.email || 'Pendiente'}</div>
+            <div class="checklist-form">
+              <span class="check-item ${hasName ? 'ok' : ''}" title="Nombre">👤 ${hasName ? '✓' : '...'}</span>
+              <span class="check-item ${hasPhone ? 'ok' : ''}" title="Teléfono">📱 ${hasPhone ? '✓' : '...'}</span>
+              <span class="check-item ${hasEmail ? 'ok' : ''}" title="Email">✉️ ${hasEmail ? '✓' : '...'}</span>
+              <span class="check-item ${hasVisit ? 'ok' : ''}" title="Visita">📅 ${hasVisit ? '✓' : '...'}</span>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:700; font-size:0.84rem; color:#fff;">${l.tipo_interes || 'General'}</div>
+            <div style="font-size:0.74rem; color:var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:var(--gold-primary);"></i> ${l.zona_interes || 'Santa Cruz'}</div>
+            <div style="font-size:0.78rem; color:var(--gold-primary); font-weight:600; margin-top:2px;">${l.presupuesto || 'Por definir'}</div>
+          </td>
+          <td>
+            <div class="time-badge">
+              <span><i class="fa-regular fa-calendar"></i> <strong>${l.dia || ''} ${l.mes || ''} ${l.anio || ''}</strong></span>
+              <span><i class="fa-regular fa-clock"></i> ${l.hora || ''} (${l.dia_semana || ''})</span>
+            </div>
+            ${hasVisit && rawVisita ? `
+              <div class="visita-highlight">
+                <i class="fa-regular fa-calendar-check"></i> <strong>${rawVisita.startsWith('Visita:') ? rawVisita : 'Visita: ' + rawVisita}</strong>
+              </div>
+            ` : ''}
+          </td>
+          <td style="max-width:220px;">
+            <div style="font-size:0.76rem; color:#e0e0e0; margin-bottom:2px;"><strong>${l.accion_sugerida || ''}</strong></div>
+            <div style="font-size:0.7rem; color:var(--text-muted); text-overflow:ellipsis; overflow:hidden; white-space:nowrap;" title="${l.ultimo_mensaje || ''}">"${l.ultimo_mensaje || ''}"</div>
+          </td>
+          <td>
+            <div style="display:flex; flex-direction:column; gap:5px;">
+              <a href="${waLink}" target="_blank" class="btn-wa-action" title="Atender cliente vía WhatsApp">
+                <i class="fa-brands fa-whatsapp"></i> Atender
+              </a>
+              <div style="display:flex; gap:4px;">
+                <button class="action-btn" onclick="openLeadModal('${l.id}')" style="background:#1c2730; font-size:0.74rem; padding:4px 8px; flex:1;" title="Ver Ficha">
+                  <i class="fa-solid fa-pen-to-square"></i> Ficha
+                </button>
+                <button class="action-btn" onclick="deleteLeadById('${l.id}')" style="background:rgba(255,77,79,0.15); color:#ff4d4f; border:1px solid rgba(255,77,79,0.3); font-size:0.74rem; padding:4px 8px;" title="Eliminar">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Modal
+    function openLeadModal(id) {
+      const lead = allLeads.find(l => l.id === id);
+      if (!lead) return;
+      activeLeadId = id;
+
+      document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-id-card"></i> Ficha: ${lead.cliente_nombre} (${lead.numero_celular})`;
+      document.getElementById('editName').value = lead.cliente_nombre || '';
+      document.getElementById('editPhone').value = lead.numero_celular || '';
+      document.getElementById('editEmail').value = lead.email !== 'Pendiente' ? lead.email : '';
+      document.getElementById('editPriority').value = lead.prioridad || 'PASIVO';
+      document.getElementById('editStage').value = lead.etapa_embudo || 'SOLICITUD';
+      document.getElementById('editStatus').value = lead.estado_comercial || 'Nuevo';
+      document.getElementById('editBudget').value = `${lead.tipo_interes || ''} | ${lead.presupuesto || ''} | ${lead.zona_interes || ''}`;
+      document.getElementById('editVisitSchedule').value = lead.horario_visita_solicitado || lead.horario_visita_solicitada || lead.formulario_datos?.horario_visita || '';
+      document.getElementById('editNotes').value = lead.notas_asesor || '';
+
+      const chatContainer = document.getElementById('modalChatHistory');
+      chatContainer.innerHTML = '';
+
+      const history = lead.historial || [{ rol: 'usuario', texto: lead.ultimo_mensaje, hora: lead.hora }];
+      history.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = `chat-msg ${msg.rol === 'usuario' ? 'user' : 'bot'}`;
+        div.innerHTML = `<div>${msg.texto}</div><div style="font-size:0.68rem; opacity:0.7; text-align:right; margin-top:2px;">${msg.hora || ''}</div>`;
+        chatContainer.appendChild(div);
+      });
+
+      document.getElementById('leadModal').classList.add('active');
+    }
+
+    function closeLeadModal() {
+      document.getElementById('leadModal').classList.remove('active');
+      activeLeadId = null;
+    }
+
+    async function saveLeadChanges() {
+      if (!activeLeadId) return;
+      const lead = allLeads.find(l => l.id === activeLeadId);
+      if (!lead) return;
+
+      const visitSchedule = document.getElementById('editVisitSchedule').value.trim();
+
+      const updatedData = {
+        cliente_nombre: document.getElementById('editName').value.trim() || 'Por identificar',
+        email: document.getElementById('editEmail').value.trim() || 'Pendiente',
+        prioridad: document.getElementById('editPriority').value,
+        etapa_embudo: document.getElementById('editStage').value,
+        estado_comercial: document.getElementById('editStatus').value,
+        horario_visita_solicitado: visitSchedule,
+        notas_asesor: document.getElementById('editNotes').value.trim()
+      };
+
+      if (visitSchedule && updatedData.etapa_embudo === 'SOLICITUD') {
+        updatedData.etapa_embudo = 'VISITA_AGENDADA';
+      }
+
+      Object.assign(lead, updatedData);
+      
+      // Actualizar en backend Node si está activo
+      try {
+        await fetch(`/api/whatsapp/leads/${activeLeadId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedData)
+        });
+      } catch(e) {}
+
+      // Sincronizar en SiteGround
+      try {
+        const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
+        const syncUrl = isSiteGround ? 'save_leads_sync.php' : 'https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php';
+        fetch(syncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allLeads)
+        }).catch(() => {});
+      } catch(e) {}
+
+      updateKPIs();
+      applyFilters();
+      closeLeadModal();
+      showToast('✅ ¡Ficha del prospecto actualizada con éxito!');
+    }
+
+    async function deleteLeadById(id) {
+      const lead = allLeads.find(l => l.id === id);
+      const name = lead ? (lead.cliente_nombre || lead.numero_celular) : 'este prospecto';
+      const rawPhone = lead ? (lead.numero_celular || '') : '';
+      const cleanPhone = String(rawPhone).replace(/\D/g, '');
+      const shortPhone = cleanPhone.length >= 8 ? cleanPhone.slice(-8) : cleanPhone;
+
+      if (!confirm(`¿Estás seguro de eliminar a "${name}" de la lista?`)) return;
+
+      isDeleting = true;
+
+      // Guardar en Blacklist
+      addToDeletedBlacklist(id, cleanPhone);
+
+      // Eliminar de memoria
+      allLeads = allLeads.filter(l => {
+        if (l.id === id) return false;
+        if (cleanPhone) {
+          const p1 = String(l.numero_celular || '').replace(/\D/g, '');
+          const p2 = String(l.formulario_datos?.telefono || '').replace(/\D/g, '');
+          if (p1 && (p1 === cleanPhone || (shortPhone && p1.includes(shortPhone)))) return false;
+          if (p2 && (p2 === cleanPhone || (shortPhone && p2.includes(shortPhone)))) return false;
+        }
+        return true;
+      });
+
+      updateKPIs();
+      applyFilters();
+      showToast(`🗑️ Prospecto "${name}" eliminado.`);
+
+      // Sincronización en paralelo
+      const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
+      const baseDelUrl = isSiteGround ? `delete_lead.php` : `https://realyonegroupbolivia.e-techgroupbolivia.com/delete_lead.php`;
+      const baseSyncUrl = isSiteGround ? `save_leads_sync.php` : `https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php`;
+
+      const payload = { id: id, phone: cleanPhone, all_leads: allLeads };
+
+      const syncPromises = [
+        fetch(`${baseDelUrl}?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(() => {}),
+        fetch(`${baseSyncUrl}?t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allLeads)
+        }).catch(() => {})
+      ];
+
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        syncPromises.push(fetch(`http://localhost:3000/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {}));
+      }
+
+      await Promise.allSettled(syncPromises);
+
+      setTimeout(() => {
+        isDeleting = false;
+      }, 2500);
+    }
+
+    function deleteCurrentLead() {
+      if (!activeLeadId) return;
+      const idToDelete = activeLeadId;
+      closeLeadModal();
+      deleteLeadById(idToDelete);
+    }
+
+    // Drawer de Plantillas
+    function toggleTemplateDrawer() {
+      const overlay = document.getElementById('templateDrawerOverlay');
+      const drawer = document.getElementById('templateDrawer');
+      const isOpen = drawer.classList.contains('open');
+
+      if (isOpen) {
+        drawer.classList.remove('open');
+        overlay.classList.remove('active');
+      } else {
+        renderCRMTemplates();
+        drawer.classList.add('open');
+        overlay.classList.add('active');
+      }
+    }
+
+    function renderCRMTemplates() {
+      const box = document.getElementById('crmTemplatesList');
+      if (!box) return;
+      box.innerHTML = '';
+
+      CRM_TEMPLATES.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'template-card';
+        div.innerHTML = `
+          <div class="template-title">
+            <span>${t.titulo}</span>
+            <button class="btn btn-gold" style="padding:2px 8px; font-size:0.72rem;" onclick="copyTemplateText('${encodeURIComponent(t.texto)}')">
+              <i class="fa-regular fa-copy"></i> Copiar
+            </button>
+          </div>
+          <div class="template-text">${t.texto}</div>
+        `;
+        box.appendChild(div);
+      });
+    }
+
+    function copyTemplateText(encoded) {
+      const text = decodeURIComponent(encoded);
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 ¡Plantilla copiada al portapapeles!');
+      }).catch(() => {
+        alert(text);
+      });
+    }
+
+    // Simulador
+    function changeSimUser() {
+      const selectedPhone = document.getElementById('simPhoneSelect').value;
+      const lead = allLeads.find(l => l.numero_celular === selectedPhone);
+      const chatBox = document.getElementById('simChatBox');
+      chatBox.innerHTML = '';
+
+      if (lead && lead.historial && lead.historial.length > 0) {
+        lead.historial.forEach(m => {
+          const div = document.createElement('div');
+          div.className = `bubble ${m.rol === 'usuario' ? 'bubble-user' : 'bubble-bot'}`;
+          div.innerText = m.texto;
+          chatBox.appendChild(div);
+        });
+      } else {
+        chatBox.innerHTML = `<div class="bubble bubble-bot">✨ ¡Hola! Conversación para ${selectedPhone}. Escribe un mensaje o usa las fichas rápidas.</div>`;
+      }
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function resetSimChat() {
+      const chatBox = document.getElementById('simChatBox');
+      chatBox.innerHTML = `<div class="bubble bubble-bot">✨ ¡Chat reiniciado! Escribe un mensaje para activar el embudo.</div>`;
+    }
+
+    function quickSend(text) {
+      document.getElementById('simUserInput').value = text;
+      sendSimMessage();
+    }
+
+    async function sendSimMessage() {
+      const input = document.getElementById('simUserInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+
+      const phone = document.getElementById('simPhoneSelect').value;
+      const chatBox = document.getElementById('simChatBox');
+
+      const userBubble = document.createElement('div');
+      userBubble.className = 'bubble bubble-user';
+      userBubble.innerText = text;
+      chatBox.appendChild(userBubble);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      let botReply = '';
+      try {
+        const res = await fetch('/api/whatsapp/simular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mensaje: text, usuarioId: phone })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          botReply = data.respuestaBot;
+        }
+      } catch (e) {}
+
+      if (!botReply) {
+        botReply = generateLocalBotReply(text);
+      }
+
+      const botBubble = document.createElement('div');
+      botBubble.className = 'bubble bubble-bot';
+      botBubble.innerText = botReply;
+      chatBox.appendChild(botBubble);
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      const classifiedLead = processAndClassifyLiveLead(phone, text, botReply);
+      
+      updateKPIs();
+      applyFilters();
+      renderTable(allLeads, classifiedLead.id);
+
+      showToast(`⚡ Lead ${classifiedLead.cliente_nombre} registrado en tiempo real.`);
+    }
+
+    function generateLocalBotReply(msg) {
+      const m = msg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (m.includes('formulario completado') || (m.includes('@') && /\d/.test(m))) {
+        return `🎉 *¡FORMULARIO Y VISITA REGISTRADOS CON ÉXITO!* ✨\n\nTus datos han sido registrados en *Realty ONE Group*.\n\n👤 *Asesor Asignado:* Robert Oliva (+591 60937050)\nTe contactaremos para confirmar el ingreso autorizado.`;
+      }
+      if (m.includes('mar adentro') || m.includes('112.500') || m.includes('450')) {
+        return `¡Hola! 👋 Gracias por comunicarte con *Realty ONE Group* 🌊✨\n\nDetalles del *Lote de 450 m² en Condominio Mar Adentro ($112.500 USD)* a 300m de la laguna cristalina.\n\nPor favor compártenos tus datos:\n1. 👤 *Nombre completo*\n2. 📱 *WhatsApp*\n3. ✉️ *Correo Electrónico*`;
+      }
+      if (m.includes('g77') || m.includes('parque industrial') || m.includes('16.800.000') || m.includes('7.000')) {
+        return `¡Hola! 🏗️ *Terreno Industrial 7.000 m² - Parque Industrial (Salida G77)*\n💰 Precio: *Bs 16.800.000*\n⚡ Factibilidad trifásica y agua industrial.\n\nAsesor asignado: Andrés Montaño (+591 70345678).`;
+      }
+      return `👋 ¡Hola! Bienvenido a *Realty ONE Group Bolivia* ✨.\n\nPara asignarte atención con un asesor especializado (+591 60937050), compártenos tu Nombre, Celular y Correo.`;
+    }
+
+    function processAndClassifyLiveLead(phone, userMsg, botReply) {
+      const now = new Date();
+      const anio = now.getFullYear().toString();
+      const mesNum = String(now.getMonth() + 1).padStart(2, '0');
+      const mesNombre = MESES[now.getMonth()];
+      const diaNum = String(now.getDate()).padStart(2, '0');
+      const diaSemana = DIAS_SEMANA[now.getDay()];
+      const horas = String(now.getHours()).padStart(2, '0');
+      const minutos = String(now.getMinutes()).padStart(2, '0');
+      const segundos = String(now.getSeconds()).padStart(2, '0');
+      const hora = `${horas}:${minutos}:${segundos}`;
+      const fechaCompleta = `${anio}-${mesNum}-${diaNum}`;
+
+      let lead = allLeads.find(l => l.numero_celular === phone);
+      if (lead) {
+        lead.historial = lead.historial || [];
+        lead.historial.push({ rol: 'usuario', texto: userMsg, hora });
+        lead.historial.push({ rol: 'bot', texto: botReply, hora });
+        lead.ultimo_mensaje = userMsg;
+        lead.fecha_completa = fechaCompleta;
+        lead.hora = hora;
+      } else {
+        lead = {
+          id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          numero_celular: phone,
+          cliente_nombre: 'Por identificar',
+          email: 'Pendiente',
+          fecha_completa: fechaCompleta,
+          hora: hora,
+          dia: diaNum,
+          dia_semana: diaSemana,
+          mes: mesNombre,
+          mes_numero: mesNum,
+          anio: anio,
+          canal_origen: 'WhatsApp Web',
+          campana: 'Flujo Oficial WhatsApp',
+          estado_comercial: 'Nuevo',
+          etapa_embudo: 'SOLICITUD',
+          notas_asesor: '',
+          ultimo_mensaje: userMsg,
+          historial: [
+            { rol: 'usuario', texto: userMsg, hora },
+            { rol: 'bot', texto: botReply, hora }
+          ]
+        };
+        allLeads.unshift(lead);
+      }
+
+      const allText = (lead.historial || []).filter(h => h.rol === 'usuario').map(h => h.texto).join(' ');
+      const n = allText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      // Extraer datos si viene formato "Formulario completado: Nombre, cel, email, Visita: ..."
+      if (userMsg.includes('Formulario completado:') || userMsg.includes(',')) {
+        const cleanMsg = userMsg.replace(/^Formulario completado:\s*/i, '').trim();
+        const parts = cleanMsg.split(',').map(s => s.trim());
+        if (parts.length >= 2) {
+          if (!parts[0].includes('@') && !/\d/.test(parts[0])) {
+            lead.cliente_nombre = parts[0].replace(/\b\w/g, l => l.toUpperCase());
+          }
+          parts.forEach(p => {
+            const lowerP = p.toLowerCase();
+            if (p.includes('@')) {
+              lead.email = p.toLowerCase();
+            } else if (lowerP.includes('visita:') || lowerP.includes('202') || lowerP.includes('am') || lowerP.includes('pm')) {
+              lead.horario_visita_solicitado = p.startsWith('Visita:') ? p : 'Visita: ' + p;
+              lead.etapa_embudo = 'VISITA_AGENDADA';
+            } else {
+              const cleanDigits = p.replace(/\D/g, '');
+              if (/^(?:591)?[6734]\d{7}$/.test(cleanDigits) || cleanDigits.length === 8) {
+                lead.numero_celular = cleanDigits.length === 8 ? '+591' + cleanDigits : '+' + cleanDigits;
+              }
+            }
+          });
+        }
+      }
+
+      if (lead.horario_visita_solicitado || n.includes('visita') || n.includes('agendar')) {
+        lead.etapa_embudo = 'VISITA_AGENDADA';
+        lead.prioridad = 'POTENCIAL';
+        lead.prioridad_label = '🔥 Potencial (Alta)';
+        lead.score = 100;
+      }
+
+      // Sincronizar con backend
+      try {
+        const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
+        const syncUrl = isSiteGround ? 'save_leads_sync.php' : 'https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php';
+        fetch(syncUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allLeads)
+        }).catch(() => {});
+      } catch(e) {}
+
+      return lead;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // Exportaciones
+    function escapeXml(str = '') {
+      if (str === null || str === undefined) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    }
+
+    function exportToExcel() {
+      const prio = document.getElementById('priorityFilter') ? document.getElementById('priorityFilter').value : 'TODAS';
+      const month = document.getElementById('monthFilter') ? document.getElementById('monthFilter').value : '';
+
+      const filtered = allLeads.filter(l => {
+        if (prio !== 'TODAS' && l.prioridad !== prio) return false;
+        if (month && !(l.mes || '').toLowerCase().includes(month.toLowerCase())) return false;
+        return true;
+      });
+
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<?mso-application progid="Excel.Sheet"?>\n<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet" xmlns:html="http://www.w3.org/TR/REC-html40">\n<Styles>\n<Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="11"/></Style>\n<Style ss:ID="HeaderTitle"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="14" ss:Color="#D4AF37" ss:Bold="1"/><Interior ss:Color="#0B0F12" ss:Pattern="Solid"/></Style>\n<Style ss:ID="ColHeader"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/><Font ss:FontName="Calibri" ss:Size="11" ss:Color="#000000" ss:Bold="1"/><Interior ss:Color="#D4AF37" ss:Pattern="Solid"/></Style>\n<Style ss:ID="CellCenter"><Alignment ss:Horizontal="Center" ss:Vertical="Center"/></Style>\n</Styles>\n<Worksheet ss:Name="Prospectos">\n<Table>\n<Column ss:Width="130"/><Column ss:Width="120"/><Column ss:Width="60"/><Column ss:Width="160"/><Column ss:Width="120"/><Column ss:Width="160"/><Column ss:Width="140"/><Column ss:Width="140"/><Column ss:Width="130"/><Column ss:Width="100"/><Column ss:Width="60"/><Column ss:Width="80"/><Column ss:Width="40"/><Column ss:Width="80"/><Column ss:Width="70"/><Column ss:Width="110"/><Column ss:Width="130"/><Column ss:Width="160"/><Column ss:Width="240"/><Column ss:Width="240"/>\n<Row ss:Height="30"><Cell ss:MergeAcross="19" ss:StyleID="HeaderTitle"><Data ss:Type="String">🦁 REALTY ONE GROUP BOLIVIA - REPORTE DE PROSPECTOS</Data></Cell></Row>\n<Row ss:Height="24">\n<Cell ss:StyleID="ColHeader"><Data ss:Type="String">ID Prospecto</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Prioridad</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Score</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Nombre Cliente</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Número Celular</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">E-mail</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Tipo Interés</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Zona Interés</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Presupuesto</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Fecha</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Año</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Mes</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Día</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Día Semana</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Hora</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Etapa Embudo</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Estado Comercial</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Campaña / Origen</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Acción Sugerida</Data></Cell><Cell ss:StyleID="ColHeader"><Data ss:Type="String">Último Mensaje</Data></Cell>\n</Row>';
+
+      filtered.forEach(l => {
+        xml += `\n<Row ss:Height="22">` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.id)}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.prioridad_label || l.prioridad)}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="Number">${l.score || 0}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.cliente_nombre || 'Por identificar')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.numero_celular || '')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.email || 'Pendiente')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.tipo_interes || 'General')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.zona_interes || 'Santa Cruz')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.presupuesto || 'Por definir')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.fecha_completa || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.anio || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.mes || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.dia || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.dia_semana || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.hora || '')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.etapa_embudo || 'NUEVO')}</Data></Cell>` +
+          `<Cell ss:StyleID="CellCenter"><Data ss:Type="String">${escapeXml(l.estado_comercial || 'Nuevo')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.campana || l.canal_origen || 'WhatsApp')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.accion_sugerida || '')}</Data></Cell>` +
+          `<Cell><Data ss:Type="String">${escapeXml(l.ultimo_mensaje || '')}</Data></Cell>` +
+          `</Row>`;
+      });
+
+      xml += `\n</Table>\n</Worksheet>\n</Workbook>`;
+
+      const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `RealtyONE_Leads_${new Date().toISOString().split('T')[0]}.xls`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📊 Descargando reporte en Excel...');
+    }
+
+    function exportToCSV() {
+      const prio = document.getElementById('priorityFilter') ? document.getElementById('priorityFilter').value : 'TODAS';
+      const month = document.getElementById('monthFilter') ? document.getElementById('monthFilter').value : '';
+
+      const filtered = allLeads.filter(l => {
+        if (prio !== 'TODAS' && l.prioridad !== prio) return false;
+        if (month && !(l.mes || '').toLowerCase().includes(month.toLowerCase())) return false;
+        return true;
+      });
+
+      const headers = ['ID Prospecto', 'Prioridad', 'Score', 'Nombre Cliente', 'Celular', 'Email', 'Tipo Interes', 'Zona Interes', 'Presupuesto', 'Fecha Completa', 'Año', 'Mes', 'Día', 'Día Semana', 'Hora', 'Etapa Embudo', 'Estado Comercial', 'Campaña', 'Acción Sugerida', 'Último Mensaje'];
+      
+      function esc(v) {
+        return `"${String(v || '').replace(/"/g, '""')}"`;
+      }
+
+      const rows = [headers.map(esc).join(',')];
+      filtered.forEach(l => {
+        rows.push([
+          l.id, l.prioridad_label || l.prioridad, l.score, l.cliente_nombre, l.numero_celular, l.email,
+          l.tipo_interes, l.zona_interes, l.presupuesto, l.fecha_completa, l.anio, l.mes, l.dia, l.dia_semana, l.hora,
+          l.etapa_embudo || 'NUEVO', l.estado_comercial, l.campana || 'WhatsApp', l.accion_sugerida, l.ultimo_mensaje
+        ].map(esc).join(','));
+      });
+
+      const csvContent = '\uFEFF' + rows.join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `RealtyONE_Leads_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📄 Descargando archivo CSV...');
+    }
+
+    // Inicialización con polling en tiempo real (cada 2.5s)
+    document.addEventListener('DOMContentLoaded', () => {
+      loadLeads(false);
+      setInterval(() => {
+        loadLeads(false);
+      }, 2500);
+    });
+  </script>
+</body>
+</html>

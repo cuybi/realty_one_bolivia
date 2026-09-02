@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: realty-one-whatsapp-bot
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_KEY
+        value: ONE2026
+      - key: WHATSAPP_VERIFY_TOKEN
+        value: realty_one_whatsapp_verify_token_2026
+      # Las siguientes variables se configuran manualmente en el Dashboard de Render
+      # NO las pongas en este archivo para no exponer tokens secretos
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
