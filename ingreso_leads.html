@@ -1172,25 +1172,19 @@
     let isPolling = false;
     let isDeleting = false;
 
-    // Blacklist persistente en localStorage
+    // Blacklist persistente en localStorage (solo IDs exactos borrados, sin bloquear números de teléfono)
     function getDeletedBlacklist() {
       try {
-        const raw = localStorage.getItem('crm_deleted_leads_v3');
+        const raw = localStorage.getItem('crm_deleted_leads_v4');
         if (raw) return JSON.parse(raw);
       } catch(e) {}
-      return { ids: [], phones: [] };
+      return { ids: [] };
     }
 
-    function addToDeletedBlacklist(id, phone) {
+    function addToDeletedBlacklist(id) {
       const bl = getDeletedBlacklist();
       if (id && !bl.ids.includes(id)) bl.ids.push(id);
-      const cleanP = String(phone || '').replace(/\D/g, '');
-      if (cleanP) {
-        const shortP = cleanP.length >= 8 ? cleanP.slice(-8) : cleanP;
-        if (!bl.phones.includes(cleanP)) bl.phones.push(cleanP);
-        if (shortP && !bl.phones.includes(shortP)) bl.phones.push(shortP);
-      }
-      localStorage.setItem('crm_deleted_leads_v3', JSON.stringify(bl));
+      localStorage.setItem('crm_deleted_leads_v4', JSON.stringify(bl));
     }
 
     // Helper: detectar si un lead tiene visita válida agendada
@@ -1265,15 +1259,11 @@
           rawLeads = data.leads;
         }
 
-        // Filtrar eliminados
+        // Filtrar eliminados solo por ID puntual borrado
         const blacklist = getDeletedBlacklist();
         const newLeads = rawLeads.filter(l => {
           if (!l || !l.id) return false;
-          if (blacklist.ids.includes(l.id)) return false;
-          const p1 = String(l.numero_celular || '').replace(/\D/g, '');
-          const p2 = String(l.formulario_datos?.telefono || '').replace(/\D/g, '');
-          if (p1 && blacklist.phones.some(bp => p1 === bp || (bp.length >= 8 && p1.includes(bp)))) return false;
-          if (p2 && blacklist.phones.some(bp => p2 === bp || (bp.length >= 8 && p2.includes(bp)))) return false;
+          if (blacklist.ids && blacklist.ids.includes(l.id)) return false;
           return true;
         });
 
