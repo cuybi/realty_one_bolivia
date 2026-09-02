@@ -248,16 +248,16 @@
   <div class="container">
     <div class="header">
       <div class="logo-box">
-        <img src="assets/logo_one_circle.png" alt="ONE" style="height:46px; width:46px; border-radius:50%; box-shadow:0 0 16px rgba(198,146,20,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+        <img src="https://realyonegroupbolivia.e-techgroupbolivia.com/assets/logo_one_circle.png" alt="ONE" style="height:48px; width:48px; border-radius:50%; box-shadow:0 0 16px rgba(198,146,20,0.6); object-fit:cover; border:2px solid #D4AF37;" onerror="this.src='assets/logo_one_circle.png'">
         <div>
-          <div class="title">Vincular Chatbot a WhatsApp Business</div>
-          <div class="subtitle">Realty ONE Group Bolivia • Conexión Directa por Código QR</div>
+          <div class="title" style="color:#D4AF37; font-weight:700;">Vincular Chatbot a WhatsApp Business</div>
+          <div class="subtitle">Realty ONE Group Bolivia • Conexión Directa en la Nube 24/7</div>
         </div>
       </div>
       <div style="display:flex; gap:10px;">
-        <a href="ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
-        <a href="publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
-        <a href="whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
+        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
+        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
+        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
       </div>
     </div>
 
@@ -334,15 +334,23 @@
       lastQR = codeData;
 
       const qrContainer = document.getElementById("qrcode");
-      qrContainer.innerHTML = "";
-      qrInstance = new QRCode(qrContainer, {
-        text: codeData,
-        width: 220,
-        height: 220,
-        colorDark: "#111b21",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      if (typeof codeData === 'string' && (codeData.startsWith('data:image') || codeData.startsWith('http'))) {
+        qrContainer.innerHTML = `<img src="${codeData}" style="width:230px; height:230px; border-radius:10px; display:block; box-shadow:0 4px 12px rgba(0,0,0,0.15);" alt="WhatsApp QR">`;
+      } else {
+        qrContainer.innerHTML = "";
+        try {
+          qrInstance = new QRCode(qrContainer, {
+            text: codeData,
+            width: 220,
+            height: 220,
+            colorDark: "#111b21",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        } catch(e) {
+          qrContainer.innerHTML = `<p style="color:#666;">Código QR: ${codeData.substring(0, 30)}...</p>`;
+        }
+      }
     }
 
     async function checkQRStatus() {
@@ -359,14 +367,14 @@
                 <i class="fas fa-check-circle" style="font-size:3.5rem; margin-bottom:12px;"></i>
                 <h3 style="color:#111b21; font-size:1.1rem; margin-bottom:4px;">¡Bot Conectado!</h3>
                 <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '60937050'}</p>
-                <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real</p>
+                <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real 24/7</p>
                 <button onclick="desconectarNumero()" class="btn" style="margin-top:14px; background:#dc3545; color:#fff; border:none; padding:6px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;">
                   <i class="fas fa-sign-out-alt"></i> Desconectar para vincular otro número
                 </button>
               </div>
             `;
             statusDot.className = "status-dot connected";
-            statusText.innerText = "Conectado y Activo";
+            statusText.innerText = "Conectado y Activo en la Nube 24/7";
             return;
           }
 
@@ -377,7 +385,7 @@
           }
         }
       } catch (err) {
-        document.getElementById("statusText").innerText = "Ejecuta: vincular_nuevo_numero.bat o iniciar_bot.bat";
+        document.getElementById("statusText").innerText = "Conectando con el servidor en la nube...";
         document.getElementById("statusDot").className = "status-dot disconnected";
       }
     }
