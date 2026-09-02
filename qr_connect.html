@@ -248,16 +248,22 @@
   <div class="container">
     <div class="header">
       <div class="logo-box">
-        <img src="https://realyonegroupbolivia.e-techgroupbolivia.com/assets/logo_one_circle.png" alt="ONE" style="height:48px; width:48px; border-radius:50%; box-shadow:0 0 16px rgba(198,146,20,0.6); object-fit:cover; border:2px solid #D4AF37;" onerror="this.src='assets/logo_one_circle.png'">
+        <div style="position:relative; width:48px; height:48px; border-radius:50%; flex-shrink:0; box-shadow:0 0 18px rgba(212,175,55,0.7);">
+          <img src="assets/logo_one_circle.png" alt="ONE" style="width:48px; height:48px; border-radius:50%; object-fit:cover; display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <svg width="48" height="48" viewBox="0 0 100 100" style="display:none; border-radius:50%;">
+            <circle cx="50" cy="50" r="50" fill="#D4AF37"/>
+            <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="'Outfit', sans-serif" font-weight="900" font-size="34" fill="#000000" letter-spacing="-1">ONE</text>
+          </svg>
+        </div>
         <div>
           <div class="title" style="color:#D4AF37; font-weight:700;">Vincular Chatbot a WhatsApp Business</div>
           <div class="subtitle">Realty ONE Group Bolivia • Conexión Directa en la Nube 24/7</div>
         </div>
       </div>
       <div style="display:flex; gap:10px;">
-        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
-        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
-        <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
+        <a href="ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
+        <a href="publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
+        <a href="whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
       </div>
     </div>
 

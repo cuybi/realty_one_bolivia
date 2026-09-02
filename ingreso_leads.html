@@ -794,7 +794,13 @@
 
   <header>
     <div class="logo-container">
-      <img src="assets/logo_one_circle.png" alt="ONE" style="height:42px; width:42px; border-radius:50%; box-shadow:0 0 14px rgba(212,175,55,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+      <div style="position:relative; width:42px; height:42px; border-radius:50%; flex-shrink:0; box-shadow:0 0 16px rgba(212,175,55,0.65);">
+        <img src="assets/logo_one_circle.png" alt="ONE" style="width:42px; height:42px; border-radius:50%; object-fit:cover; display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+        <svg width="42" height="42" viewBox="0 0 100 100" style="display:none; border-radius:50%;">
+          <circle cx="50" cy="50" r="50" fill="#D4AF37"/>
+          <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="'Outfit', sans-serif" font-weight="900" font-size="34" fill="#000000" letter-spacing="-1">ONE</text>
+        </svg>
+      </div>
       <div>
         <div class="brand-title">REALTY <span>ONE</span> GROUP</div>
         <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.2px;">BOLIVIA • INGRESO DE LEADS</div>
