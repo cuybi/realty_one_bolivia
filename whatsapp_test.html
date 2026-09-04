@@ -1,733 +1,372 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simulador de WhatsApp Business - Realty ONE Group Bolivia</title>
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <link rel="shortcut icon" href="assets/favicon.png">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <style>
-    :root {
-      --wa-dark-bg: #0c1317;
-      --wa-chat-bg: #0b141a;
-      --wa-panel-bg: #111b21;
-      --wa-header-bg: #202c33;
-      --wa-outgoing-bubble: #005c4b;
-      --wa-incoming-bubble: #202c33;
-      --wa-text-primary: #e9edef;
-      --wa-text-secondary: #8696a0;
-      --wa-accent: #00a884;
-      --wa-gold: #c69214;
-      --border-color: #222d34;
-    }
+/**
+ * Conector Real de WhatsApp Web (Multi-Device) para Realty ONE Group Bolivia
+ * Permite vincular cualquier celular escaneando el código QR oficial de WhatsApp.
+ */
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
+// ponytail: crash guards — sin esto, un error no manejado mata todo el proceso
+process.on('uncaughtException', (err) => {
+  console.error('💀 [uncaughtException]', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💀 [unhandledRejection]', reason);
+});
 
-    body {
-      background-color: var(--wa-dark-bg);
-      color: var(--wa-text-primary);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
+const fs = require('fs');
+const path = require('path');
+const express = require('express');
+const cors = require('cors');
 
-    /* Top bar */
-    .top-header {
-      background: #111b21;
-      border-bottom: 1px solid var(--border-color);
-      padding: 12px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 10;
-    }
-
-    .brand-title {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 1.15rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-
-    .brand-title i {
-      color: #25d366;
-      font-size: 1.6rem;
-    }
-
-    .brand-badge {
-      background: rgba(0, 168, 132, 0.2);
-      color: #00d287;
-      border: 1px solid rgba(0, 168, 132, 0.4);
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 16px;
-    }
-
-    .nav-links a {
-      color: var(--wa-text-secondary);
-      text-decoration: none;
-      font-size: 0.9rem;
-      transition: color 0.2s;
-    }
-
-    .nav-links a:hover {
-      color: #fff;
-    }
-
-    /* Main Container */
-    .app-container {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      flex: 1;
-      height: calc(100vh - 60px);
-      overflow: hidden;
-    }
-
-    /* Left Sidebar: Controls & Quick Prompts */
-    .sidebar {
-      background: var(--wa-panel-bg);
-      border-right: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      padding: 20px;
-    }
-
-    .section-title {
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--wa-text-secondary);
-      margin-bottom: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .quick-chips {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 24px;
-    }
-
-    .quick-chip {
-      background: #202c33;
-      border: 1px solid var(--border-color);
-      color: var(--wa-text-primary);
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      cursor: pointer;
-      text-align: left;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .quick-chip:hover {
-      background: #2a3942;
-      border-color: var(--wa-accent);
-      transform: translateX(4px);
-    }
-
-    .quick-chip i {
-      color: var(--wa-accent);
-      width: 16px;
-    }
-
-    .config-card {
-      background: #182229;
-      border-radius: 10px;
-      border: 1px solid var(--border-color);
-      padding: 16px;
-      font-size: 0.85rem;
-      line-height: 1.5;
-      color: var(--wa-text-secondary);
-    }
-
-    .config-card strong {
-      color: var(--wa-text-primary);
-    }
-
-    .config-card code {
-      background: #111b21;
-      padding: 2px 6px;
-      border-radius: 4px;
-      color: #00d287;
-      font-family: monospace;
-      font-size: 0.8rem;
-    }
-
-    /* Right: WhatsApp Chat Window */
-    .chat-window {
-      display: flex;
-      flex-direction: column;
-      background: var(--wa-chat-bg);
-      background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 20px 20px;
-      position: relative;
-      height: 100%;
-      min-height: 0;
-      overflow: hidden;
-    }
-
-    .chat-header {
-      background: var(--wa-header-bg);
-      padding: 10px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-      z-index: 5;
-      flex-shrink: 0;
-    }
-
-    .chat-contact-info {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #111, #222);
-      border: 2px solid var(--wa-gold);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      color: var(--wa-gold);
-    }
-
-    .contact-name {
-      font-weight: 600;
-      font-size: 1.05rem;
-      color: var(--wa-text-primary);
-    }
-
-    .contact-status {
-      font-size: 0.8rem;
-      color: var(--wa-accent);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--wa-accent);
-      display: inline-block;
-    }
-
-    .chat-messages {
-      flex: 1 1 0%;
-      padding: 24px;
-      overflow-y: scroll;
-      overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      min-height: 0;
-      scroll-behavior: smooth;
-    }
-
-    /* Scrollbar personalizada visible */
-    .chat-messages::-webkit-scrollbar,
-    .sidebar::-webkit-scrollbar {
-      width: 8px;
-    }
-    .chat-messages::-webkit-scrollbar-track,
-    .sidebar::-webkit-scrollbar-track {
-      background: rgba(0, 0, 0, 0.35);
-    }
-    .chat-messages::-webkit-scrollbar-thumb,
-    .sidebar::-webkit-scrollbar-thumb {
-      background: #37474f;
-      border-radius: 4px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .chat-messages::-webkit-scrollbar-thumb:hover,
-    .sidebar::-webkit-scrollbar-thumb:hover {
-      background: var(--wa-accent);
-    }
-
-    .message {
-      max-width: 75%;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      line-height: 1.45;
-      position: relative;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-
-    .message.incoming {
-      align-self: flex-start;
-      background: var(--wa-incoming-bubble);
-      color: var(--wa-text-primary);
-      border-top-left-radius: 0;
-    }
-
-    .message.outgoing {
-      align-self: flex-end;
-      background: var(--wa-outgoing-bubble);
-      color: #fff;
-      border-top-right-radius: 0;
-    }
-
-    .msg-time {
-      font-size: 0.7rem;
-      color: rgba(255, 255, 255, 0.5);
-      float: right;
-      margin-left: 10px;
-      margin-top: 4px;
-    }
-
-    .message a {
-      color: #53bdeb;
-      text-decoration: underline;
-    }
-
-    /* Chat input area */
-    .chat-input-bar {
-      background: var(--wa-header-bg);
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border-top: 1px solid var(--border-color);
-      flex-shrink: 0;
-    }
-
-    .chat-input {
-      flex: 1;
-      background: #2a3942;
-      border: none;
-      outline: none;
-      color: var(--wa-text-primary);
-      padding: 12px 18px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-    }
-
-    .chat-input::placeholder {
-      color: var(--wa-text-secondary);
-    }
-
-    .send-btn {
-      background: var(--wa-accent);
-      color: #fff;
-      border: none;
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      font-size: 1.1rem;
-      transition: background 0.2s, transform 0.1s;
-    }
-
-    .send-btn:hover {
-      background: #00bf96;
-    }
-
-    .send-btn:active {
-      transform: scale(0.95);
-    }
-
-    .typing-indicator {
-      display: none;
-      align-self: flex-start;
-      background: var(--wa-incoming-bubble);
-      padding: 8px 16px;
-      border-radius: 18px;
-      font-size: 0.85rem;
-      color: var(--wa-text-secondary);
-      align-items: center;
-      gap: 8px;
-    }
-
-    .typing-dots span {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background: var(--wa-text-secondary);
-      border-radius: 50%;
-      animation: typing 1.4s infinite ease-in-out both;
-    }
-
-    .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-    .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-
-    @keyframes typing {
-      0%, 80%, 100% { transform: scale(0); }
-      40% { transform: scale(1); }
-    }
-
-    @media (max-width: 860px) {
-      .app-container {
-        grid-template-columns: 1fr;
-      }
-      .sidebar {
-        display: none;
+// Cargar variables de entorno
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [k, ...v] = trimmed.split('=');
+      if (k && !process.env[k.trim()]) {
+        process.env[k.trim()] = v.join('=').trim();
       }
     }
-  </style>
-</head>
-<body>
+  });
+}
 
-  <!-- Top Header -->
-  <header class="top-header">
-    <div class="brand-title">
-      <img src="assets/logo_one_circle.png" alt="ONE" style="height:36px; width:36px; border-radius:50%; box-shadow:0 0 12px rgba(212,175,55,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
-      <span>Realty ONE Group Bolivia</span>
-      <span class="brand-badge" id="statusBadge">● IA Activa 24/7</span>
-    </div>
-    <nav class="nav-links">
-      <a href="ingreso_leads.html" style="color: #D4AF37; font-weight: 700; background: rgba(212,175,55,0.12); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(212,175,55,0.3);"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
-      <a href="publicidades.html" style="color: #D4AF37; font-weight: 600;"><i class="fas fa-bullhorn"></i> Campañas Facebook Ads</a>
-      <a href="qr_connect.html" style="color: #00d287; font-weight: 600;"><i class="fas fa-qrcode"></i> Vincular mi WhatsApp</a>
-      <a href="index.html"><i class="fas fa-globe"></i> Ver Portal Web</a>
-      <a href="buscar.html"><i class="fas fa-search"></i> Catálogo</a>
-    </nav>
-  </header>
+const aiAgent = require('./services/aiAgent');
+const campaignService = require('./services/campaignService');
+const whatsappRoutes = require('./routes/whatsappRoutes');
 
-  <!-- Main Container -->
-  <div class="app-container">
-    
-    <!-- Sidebar: Preguntas Rápidas y Configuración -->
-    <aside class="sidebar">
-      <h3 class="section-title"><i class="fas fa-bolt"></i> Flujo del Embudo Inmobiliario</h3>
-      <div class="quick-chips">
-        <button class="quick-chip" style="border-color: #D4AF37; color: #D4AF37;" onclick="sendQuickPrompt('Hola, vi la publicidad del Terreno Industrial de 7.000 m2 en Parque Industrial G77 y deseo más información.')">
-          <i class="fas fa-bullhorn"></i> 1. Impulsar Ads: Terreno G77 (Andrés Montaño)
-        </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('¡Hola! Me interesa comprar una casa o mansión de lujo en el Urubó.')">
-          <i class="fas fa-house-chimney"></i> 2. Solicitar Info: Venta Lujo (Carlos Rodríguez)
-        </button>
-        <button class="quick-chip" style="background: rgba(0, 168, 132, 0.15); border-color: #00d287;" onclick="sendQuickPrompt('Marcos Antezana, 77012345, marcos@gmail.com, Urubó $450.000, Mañana 15:30')">
-          <i class="fas fa-list-check"></i> 3. Formulario Datos ➔ Asignación e-Realtor
-        </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('Busco departamentos en alquiler amoblados en Equipetrol')">
-          <i class="fas fa-building"></i> 4. Alquiler Equipetrol (Valeria Suárez)
-        </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('Busco departamento en anticrético con presupuesto de $35.000 en Hamacas')">
-          <i class="fas fa-key"></i> 5. Anticrético Seguro (Lucía Vaca)
-        </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('Tengo una casa en Equipetrol y quiero consignarla para que Realty ONE la venda.')">
-          <i class="fas fa-handshake"></i> 6. Propietario / Consignar (Robert Oliva)
-        </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('Quiero agendar la visita para mañana a las 15:30 en el inmueble')">
-          <i class="fas fa-calendar-check"></i> 7. Confirmar Cita de Visita
-        </button>
-      </div>
+// Sincronización de logos corporativos de alta definición
+function syncBrandLogos() {
+  try {
+    const uploadedDir = path.join(process.env.USERPROFILE || 'C:\\Users\\etechadmin', '.gemini', 'antigravity-ide', 'brain', '5a66f826-cde6-4725-93a8-9fc6f34c9438', '.user_uploaded');
+    const assetsDir = path.join(__dirname, '..', 'assets');
+    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
 
-      <h3 class="section-title"><i class="fas fa-link"></i> Datos de Conexión</h3>
-      <div class="config-card">
-        <p><strong>Webhook de Meta:</strong></p>
-        <p style="margin: 4px 0 10px 0;"><code>/api/whatsapp/webhook</code></p>
-        <p><strong>Verify Token:</strong></p>
-        <p style="margin: 4px 0 10px 0;"><code>realty_one_whatsapp_verify_token_2026</code></p>
-        <p style="font-size: 0.8rem; color: #aebac1; margin-top: 8px;">
-          Configura tus claves en <code>backend/.env</code> para conectar con WhatsApp Cloud API.
-        </p>
-      </div>
-    </aside>
-
-    <!-- WhatsApp Chat Area -->
-    <main class="chat-window">
-      <div class="chat-header">
-        <div class="chat-contact-info">
-          <div class="avatar" style="overflow:hidden; border:2px solid var(--wa-gold); padding:0;">
-            <img src="assets/logo_one_circle.png" alt="ONE" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
-          </div>
-          <div>
-            <div class="contact-name">Realty ONE Group Bolivia</div>
-            <div class="contact-status">
-              <span class="status-dot"></span> en línea (IA 24/7)
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Message History -->
-      <div class="chat-messages" id="chatMessages">
-        <div class="message incoming">
-          👋 ¡Hola! Bienvenido a *Realty ONE Group Bolivia* 🦁✨
-Soy tu asesor inmobiliario virtual. ¿En qué te puedo ayudar hoy?
-
-1️⃣ *Comprar* una propiedad (Casas, Departamentos, Terrenos)
-2️⃣ *Alquilar* un inmueble
-3️⃣ *Anticrético* seguro
-4️⃣ *Vender o consignar* mi propiedad
-5️⃣ *Consultas legales* (Requisitos, Impuestos, Derechos Reales)
-
-Escribe libremente lo que buscas o haz clic en los ejemplos de la izquierda.
-          <span class="msg-time" id="initialTime">12:00</span>
-        </div>
-
-        <div class="typing-indicator" id="typingIndicator">
-          <span>ONEBot está escribiendo</span>
-          <div class="typing-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Bar -->
-      <div class="chat-input-bar">
-        <input 
-          type="text" 
-          id="messageInput" 
-          class="chat-input" 
-          placeholder="Escribe tu consulta inmobiliaria (ej: busco terreno en Urubó o anticrético)..."
-          autocomplete="off"
-          onkeypress="handleKeyPress(event)"
-        >
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
-          <i class="fas fa-paper-plane"></i>
-        </button>
-      </div>
-    </main>
-
-  </div>
-
-  <script>
-    // Catálogo Local Integrado para funcionamiento instantáneo
-    const LOCAL_PROPERTIES = [
-      { id: 1, titulo: 'Mansión Contemporánea - Urubó', precio: '$450.000', tipo: 'Venta', ubicacion: 'Urubó', habitaciones: 5, banos: 6, area: '600 m²', descripcion: 'Lujo sin límites en la zona más exclusiva. Hermosa piscina infinita, amplias salas sociales, cocina gourmet y 5 master suites.' },
-      { id: 2, titulo: 'Casa Minimalista - Equipetrol', precio: '$320.000', tipo: 'Venta', ubicacion: 'Equipetrol', habitaciones: 4, banos: 4, area: '400 m²', descripcion: 'Diseño moderno y ubicación privilegiada en el corazón de Equipetrol. Acabados premium e iluminación natural.' },
-      { id: 3, titulo: 'Penthouse de Lujo - Sirari', precio: '$280.000', tipo: 'Venta', ubicacion: 'Sirari', habitaciones: 3, banos: 4, area: '350 m²', descripcion: 'Vistas espectaculares de la ciudad. Terraza privada, jacuzzi, cocina integrada y acceso directo por ascensor.' },
-      { id: 7, titulo: 'Dpto Executive - Equipetrol', precio: '$1.200', tipo: 'Alquiler', ubicacion: 'Equipetrol', habitaciones: 2, banos: 2, area: '120 m²', descripcion: 'Completamente amoblado y céntrico, ideal para ejecutivos. Edificio moderno con gimnasio y piscina en el rooftop.' },
-      { id: 8, titulo: 'Studio Moderno - Urubó', precio: '$800', tipo: 'Alquiler', ubicacion: 'Urubó', habitaciones: 1, banos: 1, area: '60 m²', descripcion: 'Ideal para solteros o parejas jóvenes. Equipamiento de primera y seguridad 24 horas.' },
-      { id: 10, titulo: 'Casa en Condominio - Urubó', precio: '$2.500', tipo: 'Alquiler', ubicacion: 'Urubó', habitaciones: 4, banos: 4, area: '450 m²', descripcion: 'Seguridad máxima y áreas sociales de lujo. 4 suites familiares, galería con jardín y piscina propia.' },
-      { id: 13, titulo: 'Casa 2 Plantas - Hamacas', precio: '$45.000', tipo: 'Anticretico', ubicacion: 'Hamacas', habitaciones: 4, banos: 3, area: '350 m²', descripcion: 'Excelente estado, muy iluminada. Living comedor amplio, galería con churrasquera y portón eléctrico.' },
-      { id: 14, titulo: 'Dpto 3 Dorm - Urbari', precio: '$30.000', tipo: 'Anticretico', ubicacion: 'Urbari', habitaciones: 3, banos: 3, area: '160 m²', descripcion: 'Cerca de parques y colegios. Suite principal, dos dormitorios, área de servicio completa y cocina equipada.' },
-      { id: 16, titulo: 'Monoambiente - Sirari', precio: '$18.000', tipo: 'Anticretico', ubicacion: 'Sirari', habitaciones: 1, banos: 1, area: '50 m²', descripcion: 'Zona tranquila y segura. Equipado con cocina americana, cajonería alta y baja y aire acondicionado.' },
-      { id: 17, titulo: 'Lote Urbanizado - Urubó Golf', precio: '$120.000', tipo: 'Terreno', ubicacion: 'Urubó', habitaciones: 0, banos: 0, area: '800 m²', descripcion: 'Frente al campo de golf, plano y listo para construir. Servicios subterráneos en la mejor urbanización.' },
-      { id: 18, titulo: 'Terreno Industrial - Warnes', precio: '$85.000', tipo: 'Terreno', ubicacion: 'Warnes', habitaciones: 0, banos: 0, area: '3000 m²', descripcion: 'Acceso pavimentado para transporte pesado, luz trifásica y agua. Ubicación estratégica en parque industrial.' },
-      { id: 19, titulo: 'Lote en Esquina - Porongo', precio: '$35.000', tipo: 'Terreno', ubicacion: 'Porongo', habitaciones: 0, banos: 0, area: '600 m²', descripcion: 'Entorno natural y vista privilegiada en esquina. Ideal para quinta o cabaña vacacional.' }
+    const logoMaps = [
+      { src: 'media_1787946407253.png', dest: 'logo_one_circle.png' },
+      { src: 'media_1787946407253.png', dest: 'favicon.png' },
+      { src: 'media_1787756699919.png', dest: 'logo_realty_one_full.png' },
+      { src: 'media_1787756699989.png', dest: 'logo_realty_one_white.png' },
+      { src: 'media_1787756699919.png', dest: 'logo_bolivia.png' }
     ];
 
-    function getCurrentTime() {
-      const now = new Date();
-      return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    logoMaps.forEach(m => {
+      const srcP = path.join(uploadedDir, m.src);
+      const destP = path.join(assetsDir, m.dest);
+      if (fs.existsSync(srcP)) {
+        fs.copyFileSync(srcP, destP);
+      }
+    });
+  } catch (e) {}
+}
+syncBrandLogos();
+
+let currentQR = null;
+let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
+let connectedNumber = null;
+let reconnectAttempts = 0; // ponytail: backoff counter
+let activeSock = null; // ponytail: track live socket for health checks
+
+// Servidor Web para servir el QR real a qr_connect.html y API de Leads
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use('/api/whatsapp', whatsappRoutes);
+app.use(express.static(path.join(__dirname, '..')));
+
+app.get('/api/ping', (req, res) => res.send('pong'));
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    whatsapp: connectionStatus,
+    numeroConectado: connectedNumber,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/whatsapp/qr-real', (req, res) => {
+  res.json({
+    status: connectionStatus,
+    qr: currentQR,
+    numeroConectado: connectedNumber
+  });
+});
+
+app.post('/api/whatsapp/desconectar', (req, res) => {
+  try {
+    const authFolder = path.join(__dirname, 'baileys_auth');
+    if (fs.existsSync(authFolder)) {
+      fs.rmSync(authFolder, { recursive: true, force: true });
     }
-    document.getElementById('initialTime').innerText = getCurrentTime();
+    connectionStatus = 'desconectado';
+    connectedNumber = null;
+    currentQR = null;
+    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR...' });
+    setTimeout(() => {
+      startWhatsAppClient();
+    }, 1500);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
-    const chatMessages = document.getElementById('chatMessages');
-    const messageInput = document.getElementById('messageInput');
-    const typingIndicator = document.getElementById('typingIndicator');
-
-    function handleKeyPress(e) {
-      if (e.key === 'Enter') {
-        sendMessage();
-      }
-    }
-
-    function sendQuickPrompt(promptText) {
-      messageInput.value = promptText;
-      sendMessage();
-    }
-
-    function appendMessage(text, isUser = false) {
-      const msgDiv = document.createElement('div');
-      msgDiv.className = `message ${isUser ? 'outgoing' : 'incoming'}`;
-      
-      let formatted = text
-        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
-        .replace(/_(.*?)_/g, '<em>$1</em>')
-        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>')
-        .replace(/\n/g, '<br>');
-
-      formatted = formatted.replace(/(propiedad\.html\?id=\d+)/g, '<a href="$1" target="_blank" style="color: #53bdeb; text-decoration: underline;">$1</a>');
-
-      msgDiv.innerHTML = formatted + `<span class="msg-time">${getCurrentTime()}</span>`;
-      chatMessages.insertBefore(msgDiv, typingIndicator);
-      
-      requestAnimationFrame(() => {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      });
-      setTimeout(() => {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }, 50);
-    }
-
-    // Motor Inteligente en Cliente (Respuesta Instantánea)
-    function generateSmartClientResponse(text) {
-      const msg = text.toLowerCase();
-
-      // Formulario de Datos completado (email o múltiples datos con comas)
-      if (msg.includes('@') || (msg.split(',').length >= 2 && /\d/.test(msg))) {
-        let realtor = "Carlos Rodríguez (+591 70123456 - Venta de Lujo)";
-        if (msg.includes('terren') || msg.includes('g77') || msg.includes('industrial')) {
-          realtor = "Andrés Montaño (+591 70345678 - Terrenos & Parque Industrial)";
-        } else if (msg.includes('anticret')) {
-          realtor = "Lucía Vaca (+591 70456789 - Anticréticos Seguros)";
-        } else if (msg.includes('alquil')) {
-          realtor = "Valeria Suárez (+591 70234567 - Alquileres Corporativos)";
-        } else if (msg.includes('consignar') || msg.includes('vender mi')) {
-          realtor = "Robert Oliva (+591 60937050 - Master Broker / Captaciones)";
-        }
-
-        return `🎉 *¡FORMULARIO COMPLETADO CON ÉXITO!* 🦁✨\n\nTus datos han sido registrados en *One Comsys* y calificados como *🔥 PROSPECTO POTENCIAL*.\n\n⚡ *ASIGNACIÓN CRM IA ➔ E-REALTOR ASIGNADO:*\n👤 *e-Realtor Especialista:* *${realtor}*\n\nTu e-Realtor ya recibió tu ficha técnica en el CRM y te contactará de inmediato por este mismo chat para coordinar la visita presencial.`;
-      }
-
-      // Campaña Parque Industrial / G77
-      if (msg.includes('parque industrial') || msg.includes('g77') || msg.includes('16.800.000') || msg.includes('7.000')) {
-        return `🏗️ *Terreno Industrial 7.000 m² (Parque Industrial / G77)*\n• *Medidas:* 185m frente x 150m fondo\n• *Precio:* Bs 16.800.000 ($us 2.413.793 aprox)\n• *Servicios:* Energía Trifásica y Agua Industrial\n• *e-Realtor a cargo:* Andrés Montaño (+591 70345678)\n\n📋 *Para agendar una inspección técnica o recibir la ficha en PDF, compártenos en un solo mensaje:*\n👤 *Nombre y Apellido*\n📱 *Celular de contacto*\n✉️ *Correo electrónico*\n📅 *Día y hora de visita técnica (ej: Mañana 15:30)*`;
-      }
-
-      // Saludo
-      if (/^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches|inicio|menu)/i.test(msg) && msg.length < 30) {
-        return `👋 ¡Hola! Bienvenido a *Realty ONE Group Bolivia* 🦁✨\n\nSoy tu asesor inmobiliario virtual conectado a One Comsys. ¿En qué te puedo ayudar hoy?\n\n1️⃣ *Comprar* una propiedad (Casas, Terrenos, Departamentos)\n2️⃣ *Alquilar* un inmueble\n3️⃣ *Anticrético* seguro\n4️⃣ *Vender o consignar* mi propiedad\n5️⃣ *Consultas legales* (Requisitos, Impuestos, Derechos Reales)\n\nEscribe libremente lo que buscas (ej: _"Busco departamento en anticrético en Equipetrol"_).`;
-      }
-
-      // Anticrético
-      if (msg.includes('anticretico') || msg.includes('anticrético')) {
-        if (msg.includes('busco') || msg.includes('tienen') || msg.includes('departamento') || msg.includes('casa') || msg.includes('opciones')) {
-          const props = LOCAL_PROPERTIES.filter(p => p.tipo === 'Anticretico');
-          return formatProperties(props, 'Opciones en Anticrético disponibles');
-        }
-        return `🔑 *¿Cómo funciona el Anticrético en Bolivia?*\n\nEs una figura legal en Bolivia donde entregas un capital al propietario por el uso de la vivienda sin pagar alquiler mensual:\n\n✅ *Devolución del 100%:* Al finalizar el contrato (usualmente 1 año forzoso + 1 voluntario), se te devuelve todo tu capital íntegro.\n✅ *Seguridad Legal:* En Realty ONE verificamos que el inmueble tenga *Folio Real actualizado*, esté libre de gravámenes y se firma mediante *Escritura Pública* inscrita en Derechos Reales (DDRR).\n\n¿Deseas ver las propiedades que tenemos disponibles en anticrético?`;
-      }
-
-      // Terrenos
-      if (msg.includes('terreno') || msg.includes('lote') || msg.includes('quinta')) {
-        let props = LOCAL_PROPERTIES.filter(p => p.tipo === 'Terreno');
-        if (msg.includes('urubo') || msg.includes('urubó')) props = props.filter(p => p.ubicacion.includes('Urubó'));
-        else if (msg.includes('warnes')) props = props.filter(p => p.ubicacion.includes('Warnes'));
-        return formatProperties(props, 'Terrenos y Lotes disponibles');
-      }
-
-      // Alquileres
-      if (msg.includes('alquiler') || msg.includes('alquilar') || msg.includes('renta')) {
-        let props = LOCAL_PROPERTIES.filter(p => p.tipo === 'Alquiler');
-        if (msg.includes('equipetrol')) props = props.filter(p => p.ubicacion.includes('Equipetrol'));
-        return formatProperties(props, 'Propiedades en Alquiler disponibles');
-      }
-
-      // Ventas
-      if (msg.includes('venta') || msg.includes('comprar') || msg.includes('mansion') || msg.includes('casa')) {
-        let props = LOCAL_PROPERTIES.filter(p => p.tipo === 'Venta');
-        if (msg.includes('urubo') || msg.includes('urubó')) props = props.filter(p => p.ubicacion.includes('Urubó'));
-        else if (msg.includes('equipetrol')) props = props.filter(p => p.ubicacion.includes('Equipetrol'));
-        return formatProperties(props, 'Propiedades en Venta disponibles');
-      }
-
-      // Requisitos e Impuestos
-      if (msg.includes('requisito') || msg.includes('documento') || msg.includes('impuesto') || msg.includes('papeles') || msg.includes('derechos reales')) {
-        return `📑 *Requisitos y Documentos Legales en Bolivia:*\n\nPara una transacción inmobiliaria 100% segura requieres:\n1. *Folio Real actualizado* (Certificado alodial emitido por Derechos Reales).\n2. *Plano de Uso de Suelo* o Catastral aprobado por el municipio.\n3. *Impuestos Municipales al día* de los últimos 5 años.\n4. *Impuesto a la Transferencia (IT / IMT)* del 3% del valor catastral o de venta.\n5. *Cédulas de Identidad* vigentes de los propietarios.\n\nEn *Realty ONE Group* nuestro departamento legal revisa minuciosamente cada documento antes de cualquier firma.`;
-      }
-
-      // Consignar / Vender
-      if (msg.includes('vender mi') || msg.includes('alquilar mi') || msg.includes('consignar') || msg.includes('tengo una casa')) {
-        return `🤝 *¡Excelente! En Realty ONE Group te ayudamos a vender o alquilar tu inmueble al mejor precio del mercado.*\n\nTe ofrecemos:\n📸 Fotografía y video profesional\n🌐 Difusión en portales web, redes sociales y red de agentes\n⚖️ Asesoramiento legal y filtro de compradores reales\n\nPor favor indícanos: *¿En qué zona está ubicado tu inmueble y de qué tipo es?* Así te asignamos al asesor especialista de esa zona.`;
-      }
-
-      // Agendar visita
-      if (msg.includes('visita') || msg.includes('agendar') || msg.includes('asesor') || msg.includes('contacto') || msg.includes('humano')) {
-        return `📅 *¡Con gusto agendamos tu visita o te conectamos con un asesor especialista!*\n\nPor favor compártenos:\n1. Tu *Nombre completo*\n2. *Propiedad o zona* de tu interés\n3. *Día y horario preferido*\n\nUno de nuestros agentes inmobiliarios se comunicará contigo de inmediato por este mismo chat.`;
-      }
-
-      // Búsqueda general
-      const matches = LOCAL_PROPERTIES.filter(p => 
-        msg.includes(p.ubicacion.toLowerCase()) || 
-        msg.includes(p.tipo.toLowerCase()) ||
-        p.titulo.toLowerCase().includes(msg)
-      );
-
-      if (matches.length > 0) {
-        return formatProperties(matches, 'Propiedades encontradas');
-      }
-
-      return `Gracias por tu consulta. En *Realty ONE Group Bolivia* contamos con casas, departamentos, terrenos y condominios en Venta, Alquiler y Anticrético en las mejores zonas (Urubó, Equipetrol, Sirari, Zona Norte, etc.).\n\n¿Buscas alguna zona, presupuesto o tipo de inmueble en especial? Cuéntame y te paso las opciones ideales.`;
-    }
-
-    function formatProperties(props, title) {
-      if (!props || props.length === 0) {
-        return 'No encontré propiedades con esos filtros específicos en este momento. ¿Te gustaría que un asesor te busque opciones personalizadas?';
-      }
-      let text = `🏡 *${title}:*\n\n`;
-      props.slice(0, 3).forEach((p, idx) => {
-        text += `*${idx + 1}. ${p.titulo}*\n`;
-        text += `📍 *Ubicación:* ${p.ubicacion}\n`;
-        text += `💰 *Precio:* ${p.precio} (${p.tipo})\n`;
-        if (p.habitaciones > 0) text += `🛏 *Dormitorios:* ${p.habitaciones} | 🚿 *Baños:* ${p.banos}\n`;
-        if (p.area) text += `📐 *Superficie:* ${p.area}\n`;
-        text += `🔗 *Ver ficha:* propiedad.html?id=${p.id}\n\n`;
-      });
-      text += `👉 *¿Deseas coordinar una visita a alguna de estas propiedades o prefieres ajustar la zona y presupuesto?*`;
-      return text;
-    }
-
-    async function sendMessage() {
-      const text = messageInput.value.trim();
-      if (!text) return;
-
-      appendMessage(text, true);
-      messageInput.value = '';
-      messageInput.focus();
-
-      typingIndicator.style.display = 'flex';
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-
-      // Intentar primero con el servidor backend si está disponible
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`\n======================================================`);
+  console.log(`🦁 SERVIDOR REALTY ONE BOT ACTIVO EN: http://localhost:${PORT}`);
+  console.log(`📱 Abre en tu navegador: http://localhost:${PORT}/qr_connect.html`);
+  console.log(`======================================================\n`);
+  
+  // Anti-Sleep Heartbeat para Render + health check de Baileys
+  const renderExternalUrl = process.env.RENDER_EXTERNAL_URL;
+  if (renderExternalUrl) {
+    console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${renderExternalUrl}`);
+    setInterval(async () => {
       try {
-        const response = await fetch('/api/whatsapp/simular', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mensaje: text, usuarioId: 'web-simulator-user' })
-        });
+        await fetch(`${renderExternalUrl}/api/ping`);
+        console.log(`💓 [Heartbeat] Ping OK. WhatsApp: ${connectionStatus}`);
+        // ponytail: si Baileys murió sin reconectar, forzar restart
+        if (connectionStatus === 'desconectado' && !activeSock) {
+          console.log('🔄 [Heartbeat] Baileys muerto, reconectando...');
+          startWhatsAppClient();
+        }
+      } catch (e) {}
+    }, 4 * 60 * 1000);
+  }
 
-        if (response.ok) {
-          const data = await response.json();
-          typingIndicator.style.display = 'none';
-          if (data.exito && data.respuestaBot) {
-            appendMessage(data.respuestaBot, false);
-            return;
+  startWhatsAppClient();
+});
+
+/**
+ * Inicia el cliente WebSocket de Baileys
+ */
+async function startWhatsAppClient() {
+  try {
+    let baileys;
+    try {
+      baileys = require('@whiskeysockets/baileys');
+    } catch (e) {
+      console.log('⚠️ Para habilitar el escaneo de QR oficial en vivo, instala Baileys ejecutando:');
+      console.log('👉 npm install @whiskeysockets/baileys pino qrcode\n');
+      return;
+    }
+
+    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
+    const authFolder = path.join(__dirname, 'baileys_auth');
+    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+
+    const sock = makeWASocket({
+      auth: state,
+      printQRInTerminal: true,
+      browser: ['Realty ONE Bot', 'Chrome', '1.0.0'],
+      // ponytail: timeouts generosos para conexiones lentas en Render Free
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 25000
+    });
+    activeSock = sock;
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        try {
+          const QRCodePkg = require('qrcode');
+          currentQR = await QRCodePkg.toDataURL(qr, { margin: 2, scale: 8 });
+        } catch (e) {
+          currentQR = qr;
+        }
+        connectionStatus = 'esperando_qr';
+        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en tu terminal o en http://localhost:3000/qr_connect.html\n');
+      }
+
+      if (connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
+        console.log('🔌 Conexión cerrada. Código:', statusCode || 'desconocido');
+        connectionStatus = 'desconectado';
+        currentQR = null;
+        activeSock = null;
+        if (isLoggedOut) {
+          console.log('⚠️ Sesión de WhatsApp expirada o desvinculada en el teléfono.');
+          console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
+          reconnectAttempts = 0;
+          try {
+            if (fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
+          } catch (e) {}
+          setTimeout(() => startWhatsAppClient(), 1500);
+        } else {
+          // ponytail: backoff exponencial — 2s, 4s, 8s, 16s... max 60s
+          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
+          reconnectAttempts++;
+          console.log(`🔄 Reconectando en ${delay / 1000}s (intento #${reconnectAttempts})...`);
+          setTimeout(() => startWhatsAppClient(), delay);
+        }
+      } else if (connection === 'open') {
+        connectionStatus = 'conectado';
+        currentQR = null;
+        reconnectAttempts = 0; // ponytail: reset backoff on success
+        connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        console.log(`\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!`);
+        console.log(`✅ Número vinculado: +${connectedNumber}`);
+        console.log(`🤖 El bot ahora responderá automáticamente a todos los mensajes entrantes.\n`);
+      }
+    });
+
+    // Cache de mensajes recientes para evitar bucles o duplicados
+    const processedMessageIds = new Set();
+    const lastMessageBySender = new Map();
+
+    // MODO PRODUCCIÓN: Responde automáticamente a todos los mensajes de clientes entrantes
+    const TEST_MODE = false;
+    const NUMEROS_PRUEBA = [
+      // Vacío = bot en pausa. Agrega tu número de prueba aquí si tienes un segundo celular.
+      // Ejemplo: '59176543210',
+    ];
+
+    // Escuchar mensajes entrantes en WhatsApp
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return;
+
+      for (const msg of messages) {
+        const msgId = msg.key.id;
+
+        // 1. REGLA DE ORO: Si el mensaje fue enviado por nosotros/el bot (fromMe), IGNORAR TOTALMENTE
+        if (msg.key.fromMe) continue;
+
+        // 2. Si ya procesamos este ID de mensaje, ignorar
+        if (processedMessageIds.has(msgId)) continue;
+        processedMessageIds.add(msgId);
+        if (processedMessageIds.size > 200) {
+          const first = processedMessageIds.values().next().value;
+          processedMessageIds.delete(first);
+        }
+
+        const senderJid = msg.key.remoteJid;
+        if (!senderJid || senderJid.endsWith('@g.us') || senderJid === 'status@broadcast') continue;
+
+        const senderPhone = senderJid.replace('@s.whatsapp.net', '').split(':')[0];
+
+        // 3. FILTRO DE PRUEBA: Si TEST_MODE está activo, solo responde a los números permitidos
+        if (TEST_MODE && !NUMEROS_PRUEBA.includes(senderPhone)) {
+          console.log(`⏭️  [MODO PRUEBA] Mensaje de ${senderPhone} ignorado — no está en la lista de prueba.`);
+          continue;
+        }
+
+        // Desempaquetar mensajes efímeros o anidados
+        let rawMsg = msg.message;
+        if (rawMsg?.ephemeralMessage?.message) rawMsg = rawMsg.ephemeralMessage.message;
+        if (rawMsg?.viewOnceMessage?.message) rawMsg = rawMsg.viewOnceMessage.message;
+        if (rawMsg?.viewOnceMessageV2?.message) rawMsg = rawMsg.viewOnceMessageV2.message;
+        if (rawMsg?.documentWithCaptionMessage?.message) rawMsg = rawMsg.documentWithCaptionMessage.message;
+
+        const ext = rawMsg?.extendedTextMessage;
+        const contextInfo = ext?.contextInfo || rawMsg?.contextInfo;
+        const externalAdReply = contextInfo?.externalAdReply;
+
+        const baseText = rawMsg?.conversation ||
+                         ext?.text ||
+                         rawMsg?.imageMessage?.caption ||
+                         rawMsg?.videoMessage?.caption ||
+                         rawMsg?.documentMessage?.caption ||
+                         rawMsg?.buttonsResponseMessage?.selectedDisplayText ||
+                         rawMsg?.templateButtonReplyMessage?.selectedDisplayText ||
+                         rawMsg?.listResponseMessage?.title || '';
+
+        // Extraer todo el contexto de Facebook Ads / Tarjeta de publicación compartida
+        const adContext = [
+          externalAdReply?.title,
+          externalAdReply?.body,
+          externalAdReply?.sourceUrl,
+          externalAdReply?.description,
+          ext?.description,
+          ext?.title,
+          ext?.matchedText,
+          ext?.canonicalUrl
+        ].filter(Boolean).join(' ');
+
+        const messageText = (baseText + (adContext ? ' | ' + adContext : '')).trim();
+
+        if (!messageText) continue;
+
+        const pushName = msg.pushName || '';
+
+        // 4. Debounce: Evitar procesar el mismo texto del mismo usuario si llegó hace menos de 2 segundos
+        const now = Date.now();
+        const last = lastMessageBySender.get(senderPhone);
+        if (last && last.text === messageText && (now - last.time) < 2000) {
+          continue;
+        }
+        lastMessageBySender.set(senderPhone, { text: messageText, time: now });
+
+        console.log(`\n📩 [Mensaje entrante (${senderPhone}${pushName ? ` - ${pushName}` : ''})]: "${messageText}"`);
+
+        // Preparar referralData si viene desde un anuncio de Facebook
+        const referralData = {
+          headline: externalAdReply?.title || '',
+          body: externalAdReply?.body || '',
+          source_url: externalAdReply?.sourceUrl || '',
+          source_id: externalAdReply?.sourceId || '',
+          description: externalAdReply?.description || '',
+          fullContext: adContext,
+          pushName: pushName
+        };
+
+        // Procesar respuesta con el cerebro del nuevo flujo oficial
+        const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+
+        if (!botReply || typeof botReply !== 'string' || !botReply.trim()) {
+          console.log(`🔇 [Chat finalizado / silenciado para ${senderPhone}]`);
+          continue;
+        }
+
+        console.log(`🤖 [Respuesta enviada a ${senderPhone}]:\n${botReply}\n`);
+
+        // Enviar respuesta por WhatsApp (con imagen si el usuario pidió fotos)
+        const normMsg = messageText.toLowerCase();
+        let photoPath = null;
+
+        if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
+          if (botReply.includes('Departamento') || normMsg.includes('departamento') || normMsg.includes('dpto')) {
+            const p = path.join(__dirname, '..', 'assets', 'images', 'apartamento.png');
+            if (fs.existsSync(p)) photoPath = p;
+          } else if (botReply.includes('Mar Adentro') || normMsg.includes('mar adentro') || normMsg.includes('laguna')) {
+            const p1 = path.join(__dirname, '..', 'assets', 'images', 'mar_adentro.jpg');
+            const p2 = 'C:\\Users\\etechadmin\\.gemini\\antigravity-ide\\brain\\fea89e8d-eed8-4640-b4be-b2a07760e3fd\\mar_adentro_real_1788202039370.jpg';
+            if (fs.existsSync(p1)) {
+              photoPath = p1;
+            } else if (fs.existsSync(p2)) {
+              photoPath = p2;
+            }
+          } else if (botReply.includes('Industrial') || normMsg.includes('industrial') || normMsg.includes('g77')) {
+            const p = path.join(__dirname, '..', 'assets', 'images', 'terreno.png');
+            if (fs.existsSync(p)) photoPath = p;
           }
         }
-      } catch (err) {
-        // Si el backend no está encendido, el motor local responde instantáneamente
-      }
 
-      // Respuesta local garantizada
-      setTimeout(() => {
-        typingIndicator.style.display = 'none';
-        const reply = generateSmartClientResponse(text);
-        appendMessage(reply, false);
-      }, 400);
-    }
-  </script>
-</body>
-</html>
+        if (photoPath) {
+          try {
+            await sock.sendMessage(senderJid, {
+              image: fs.readFileSync(photoPath),
+              caption: botReply
+            });
+            continue;
+          } catch(imgErr) {
+            console.error('Error enviando imagen:', imgErr);
+          }
+        }
+
+        await sock.sendMessage(senderJid, { text: botReply });
+      }
+    });
+
+  } catch (error) {
+    console.error('Error iniciando cliente de WhatsApp:', error);
+    activeSock = null;
+    // ponytail: no morir, reintentar con backoff
+    const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
+    reconnectAttempts++;
+    console.log(`🔄 Reintentando en ${delay / 1000}s tras error fatal (intento #${reconnectAttempts})...`);
+    setTimeout(() => startWhatsAppClient(), delay);
+  }
+}
