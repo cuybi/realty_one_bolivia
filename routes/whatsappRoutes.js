@@ -173,9 +173,9 @@ router.get('/status', (req, res) => {
 /**
  * 7. Endpoints de CRM de Leads, Clasificación y Exportación
  */
-router.get('/leads', (req, res) => {
+router.get('/leads', async (req, res) => {
   try {
-    let leads = leadClassifier.getLeads();
+    let leads = await leadClassifier.getLeadsAsync();
     const { prioridad, search, anio, mes, dia, operacion, e_realtor, etapa } = req.query;
 
     if (prioridad && prioridad !== 'TODAS') {
@@ -245,9 +245,9 @@ router.get('/leads', (req, res) => {
 });
 
 // Descargar Reporte en Excel (.xlsx / .xls)
-router.get('/leads/export/excel', (req, res) => {
+router.get('/leads/export/excel', async (req, res) => {
   try {
-    let leads = leadClassifier.getLeads();
+    let leads = await leadClassifier.getLeadsAsync();
     const { prioridad, anio, mes, dia, e_realtor } = req.query;
 
     if (prioridad && prioridad !== 'TODAS') {
@@ -274,9 +274,9 @@ router.get('/leads/export/excel', (req, res) => {
 });
 
 // Descargar Reporte en CSV con UTF-8 BOM
-router.get('/leads/export/csv', (req, res) => {
+router.get('/leads/export/csv', async (req, res) => {
   try {
-    let leads = leadClassifier.getLeads();
+    let leads = await leadClassifier.getLeadsAsync();
     const { prioridad, anio, mes, dia, e_realtor } = req.query;
 
     if (prioridad && prioridad !== 'TODAS') {
@@ -303,9 +303,9 @@ router.get('/leads/export/csv', (req, res) => {
 });
 
 // Actualizar estado comercial, reasignar e-Realtor o notas de un lead
-router.put('/leads/:id', (req, res) => {
+router.put('/leads/:id', async (req, res) => {
   try {
-    const updated = leadClassifier.updateLeadStatus(req.params.id, req.body);
+    const updated = await leadClassifier.updateLeadStatus(req.params.id, req.body);
     if (!updated) {
       return res.status(404).json({ error: 'Lead no encontrado' });
     }
@@ -316,10 +316,10 @@ router.put('/leads/:id', (req, res) => {
 });
 
 // Sincronizar lista completa de leads
-router.post('/leads/sync', (req, res) => {
+router.post('/leads/sync', async (req, res) => {
   try {
     const list = req.body.all_leads || req.body.leads || req.body;
-    const synced = leadClassifier.syncLeads(list);
+    const synced = await leadClassifier.syncLeads(list);
     res.json({ exito: true, total: synced.length, leads: synced });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -327,9 +327,9 @@ router.post('/leads/sync', (req, res) => {
 });
 
 // Vaciar todos los leads
-router.delete('/leads', (req, res) => {
+router.delete('/leads', async (req, res) => {
   try {
-    leadClassifier.clearAllLeads();
+    await leadClassifier.clearAllLeads();
     res.json({ exito: true, total: 0, message: 'Todos los prospectos eliminados' });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -337,9 +337,9 @@ router.delete('/leads', (req, res) => {
 });
 
 // Eliminar un lead (por ID o teléfono)
-router.delete('/leads/:id', (req, res) => {
+router.delete('/leads/:id', async (req, res) => {
   try {
-    leadClassifier.deleteLead(req.params.id);
+    await leadClassifier.deleteLead(req.params.id);
     res.json({ exito: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
