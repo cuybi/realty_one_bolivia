@@ -3,6 +3,14 @@
  * Permite vincular cualquier celular escaneando el código QR oficial de WhatsApp.
  */
 
+// ponytail: crash guards — sin esto, un error no manejado mata todo el proceso
+process.on('uncaughtException', (err) => {
+  console.error('💀 [uncaughtException]', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💀 [unhandledRejection]', reason);
+});
+
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
@@ -55,6 +63,8 @@ syncBrandLogos();
 let currentQR = null;
 let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
 let connectedNumber = null;
+let reconnectAttempts = 0; // ponytail: backoff counter
+let activeSock = null; // ponytail: track live socket for health checks
 
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
@@ -62,6 +72,16 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/whatsapp', whatsappRoutes);
 app.use(express.static(path.join(__dirname, '..')));
+
+app.get('/api/ping', (req, res) => res.send('pong'));
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    whatsapp: connectionStatus,
+    numeroConectado: connectedNumber,
+    timestamp: new Date().toISOString()
+  });
+});
 
 app.get('/api/whatsapp/qr-real', (req, res) => {
   res.json({
@@ -95,6 +115,24 @@ app.listen(PORT, () => {
   console.log(`🦁 SERVIDOR REALTY ONE BOT ACTIVO EN: http://localhost:${PORT}`);
   console.log(`📱 Abre en tu navegador: http://localhost:${PORT}/qr_connect.html`);
   console.log(`======================================================\n`);
+  
+  // Anti-Sleep Heartbeat para Render + health check de Baileys
+  const renderExternalUrl = process.env.RENDER_EXTERNAL_URL;
+  if (renderExternalUrl) {
+    console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${renderExternalUrl}`);
+    setInterval(async () => {
+      try {
+        await fetch(`${renderExternalUrl}/api/ping`);
+        console.log(`💓 [Heartbeat] Ping OK. WhatsApp: ${connectionStatus}`);
+        // ponytail: si Baileys murió sin reconectar, forzar restart
+        if (connectionStatus === 'desconectado' && !activeSock) {
+          console.log('🔄 [Heartbeat] Baileys muerto, reconectando...');
+          startWhatsAppClient();
+        }
+      } catch (e) {}
+    }, 4 * 60 * 1000);
+  }
+
   startWhatsAppClient();
 });
 
@@ -119,31 +157,55 @@ async function startWhatsAppClient() {
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: true,
-      browser: ['Realty ONE Bot', 'Chrome', '1.0.0']
+      browser: ['Realty ONE Bot', 'Chrome', '1.0.0'],
+      // ponytail: timeouts generosos para conexiones lentas en Render Free
+      connectTimeoutMs: 60000,
+      keepAliveIntervalMs: 25000
     });
+    activeSock = sock;
 
     sock.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', (update) => {
+    sock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        currentQR = qr;
+        try {
+          const QRCodePkg = require('qrcode');
+          currentQR = await QRCodePkg.toDataURL(qr, { margin: 2, scale: 8 });
+        } catch (e) {
+          currentQR = qr;
+        }
         connectionStatus = 'esperando_qr';
         console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en tu terminal o en http://localhost:3000/qr_connect.html\n');
       }
 
       if (connection === 'close') {
-        const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-        console.log('🔌 Conexión cerrada. Reconectando:', shouldReconnect);
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
+        console.log('🔌 Conexión cerrada. Código:', statusCode || 'desconocido');
         connectionStatus = 'desconectado';
         currentQR = null;
-        if (shouldReconnect) {
-          startWhatsAppClient();
+        activeSock = null;
+        if (isLoggedOut) {
+          console.log('⚠️ Sesión de WhatsApp expirada o desvinculada en el teléfono.');
+          console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
+          reconnectAttempts = 0;
+          try {
+            if (fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
+          } catch (e) {}
+          setTimeout(() => startWhatsAppClient(), 1500);
+        } else {
+          // ponytail: backoff exponencial — 2s, 4s, 8s, 16s... max 60s
+          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
+          reconnectAttempts++;
+          console.log(`🔄 Reconectando en ${delay / 1000}s (intento #${reconnectAttempts})...`);
+          setTimeout(() => startWhatsAppClient(), delay);
         }
       } else if (connection === 'open') {
         connectionStatus = 'conectado';
         currentQR = null;
+        reconnectAttempts = 0; // ponytail: reset backoff on success
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
         console.log(`\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!`);
         console.log(`✅ Número vinculado: +${connectedNumber}`);
@@ -300,5 +362,11 @@ async function startWhatsAppClient() {
 
   } catch (error) {
     console.error('Error iniciando cliente de WhatsApp:', error);
+    activeSock = null;
+    // ponytail: no morir, reintentar con backoff
+    const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
+    reconnectAttempts++;
+    console.log(`🔄 Reintentando en ${delay / 1000}s tras error fatal (intento #${reconnectAttempts})...`);
+    setTimeout(() => startWhatsAppClient(), delay);
   }
 }
