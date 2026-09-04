@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestor de Campañas Facebook Ads & WhatsApp - Realty ONE Group Bolivia</title>
- <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'%3E%3Ccircle cx='500' cy='500' r='500' fill='%23CAA65E'/%3E%3Cg fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z'/%3E%3Crect x='432' y='362' width='58' height='276'/%3E%3Cpolygon points='432,362 490,362 650,638 592,638'/%3E%3Crect x='592' y='362' width='58' height='276'/%3E%3Crect x='708' y='362' width='58' height='276'/%3E%3Crect x='766' y='362' width='110' height='58'/%3E%3Crect x='766' y='471' width='84' height='58'/%3E%3Crect x='766' y='580' width='110' height='58'/%3E%3C/g%3E%3Cpolygon points='585,440 658,367 658,396 585,469' fill='%23CAA65E'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'%3E%3Ccircle cx='500' cy='500' r='500' fill='%23CAA65E'/%3E%3Cg fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z'/%3E%3Crect x='432' y='362' width='58' height='276'/%3E%3Cpolygon points='432,362 490,362 650,638 592,638'/%3E%3Crect x='592' y='362' width='58' height='276'/%3E%3Crect x='708' y='362' width='58' height='276'/%3E%3Crect x='766' y='362' width='110' height='58'/%3E%3Crect x='766' y='471' width='84' height='58'/%3E%3Crect x='766' y='580' width='110' height='58'/%3E%3C/g%3E%3Cpolygon points='585,440 658,367 658,396 585,469' fill='%23CAA65E'/%3E%3C/svg%3E">
   <link rel="shortcut icon" href="assets/favicon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -501,16 +501,31 @@
 </head>
 <body>
 
-  <header>
+ <header>
     <div class="logo-container">
-      <img src="assets/logo_one_circle.png" alt="ONE" style="height:42px; width:42px; border-radius:50%; box-shadow:0 0 14px rgba(212,175,55,0.45); object-fit:cover;" onerror="this.src='assets/logo_bolivia.png'">
+      <div style="position:relative; width:42px; height:42px; border-radius:50%; flex-shrink:0; box-shadow:0 0 14px rgba(202,166,94,0.65);">
+        <svg width="42" height="42" viewBox="0 0 1000 1000" style="display:block; border-radius:50%;">
+          <circle cx="500" cy="500" r="500" fill="#CAA65E" />
+          <g fill="#000000">
+            <path fill-rule="evenodd" d="M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z" />
+            <rect x="432" y="362" width="58" height="276" />
+            <polygon points="432,362 490,362 650,638 592,638" />
+            <rect x="592" y="362" width="58" height="276" />
+            <rect x="708" y="362" width="58" height="276" />
+            <rect x="766" y="362" width="110" height="58" />
+            <rect x="766" y="471" width="84" height="58" />
+            <rect x="766" y="580" width="110" height="58" />
+          </g>
+          <polygon points="585,440 658,367 658,396 585,469" fill="#CAA65E" />
+        </svg>
+      </div>
       <div>
         <div style="font-size:1.15rem; font-weight:800; color:#fff; letter-spacing:0.5px; line-height:1.2;">REALTY <span style="color:var(--gold-primary);">ONE</span> GROUP ITAICHA / ITAGUAZÚ</div>
         <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.5px;">MARKETING & META ADS HUB</div>
       </div>
     </div>
     <div class="nav-actions">
-      <a href="index.html" class="btn btn-secondary"><i class="fa-solid fa-globe"></i> Portal Web</a>
+      <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-globe"></i> Portal Web</a>
       <a href="ingreso_leads.html" class="btn btn-secondary" style="border-color:var(--gold-primary); color:var(--gold-primary);"><i class="fa-solid fa-users"></i> Ingreso Leads & Excel</a>
       <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-solid fa-qrcode"></i> Conector QR</a>
       <button class="btn btn-gold" onclick="openNewCampaignModal()"><i class="fa-solid fa-plus"></i> Nueva Publicidad</button>
