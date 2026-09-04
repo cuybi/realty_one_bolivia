@@ -531,11 +531,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     userFlowSessions.set(userId, session);
 
     let adTitle = 'nuestra publicación exclusiva';
-    if (lowerMsg.includes('mar adentro')) {
+    const allText = (lowerMsg + ' ' + (referralData?.headline || '') + ' ' + (referralData?.body || '')).toLowerCase();
+    if (allText.includes('mar adentro') || allText.includes('laguna')) {
       adTitle = 'Condominio Mar Adentro (Terrenos con Playa y Laguna Cristalina)';
-    } else if (lowerMsg.includes('industrial') || lowerMsg.includes('g77')) {
+    } else if (allText.includes('industrial') || allText.includes('g77')) {
       adTitle = 'Terreno Industrial en Venta 7.000 m² (Zona Parque Industrial / G77)';
-    } else if (lowerMsg.includes('departamento') || lowerMsg.includes('dpto')) {
+    } else if (allText.includes('departamento') || allText.includes('dpto')) {
       adTitle = 'Departamento en Venta';
     } else if (referralData?.headline) {
       adTitle = referralData.headline;
@@ -561,15 +562,17 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     session.state = 'FINISHED'; // Cierra el flujo tras la confirmación
     userFlowSessions.set(userId, session);
 
-    // Registrar prospecto en el CRM
+    // Registrar prospecto en el CRM (await: SiteGround debe confirmar antes de continuar)
     try {
-      leadClassifier.trackAndClassifyLead(userId, rawMsg, 'Formulario completado y visita agendada', {
+      await leadClassifier.trackAndClassifyLead(userId, rawMsg, 'Formulario completado y visita agendada', {
         campana: 'Flujo Oficial WhatsApp',
         canal: 'WhatsApp (+591 60937050)',
         pushName: pushName,
         status: 'Visita Agendada'
       });
-    } catch (e) {}
+    } catch (e) {
+      console.error('[aiAgent] ❌ Error guardando lead en CRM:', e.message);
+    }
 
     // Secuencia oficial de 4 pasos (Imagen 1, 2 y 3)
     return `✅ *¡Recibido!* Todos tus datos han sido registrados con éxito.\n\n` +

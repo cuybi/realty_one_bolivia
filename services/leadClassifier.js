@@ -14,6 +14,15 @@ const https = require('https');
 
 const LEADS_FILE = path.join(__dirname, '..', 'leads.json');
 
+// URL de SiteGround como base de datos primaria
+const SG_HOSTNAME = 'realyonegroupbolivia.e-techgroupbolivia.com';
+const SG_SYNC_PATH = '/save_leads_sync.php';
+
+// Cache en memoria para evitar lecturas repetidas en el mismo proceso
+let _memoryCache = null;
+let _memoryCacheTime = 0;
+const CACHE_TTL_MS = 30000; // 30 segundos
+
 // Directorio Oficial de e-Realtors (Asesores Inmobiliarios)
 const E_REALTORS = [
   {
@@ -76,83 +85,189 @@ const MESES = [
 ];
 
 /**
- * Carga los leads almacenados en memoria/archivo JSON
+ * Recupera leads desde SiteGround (fuente de verdad) vía HTTPS GET
+ * Retorna Promise<Array>
  */
-function getLeads() {
-  try {
-    if (!fs.existsSync(LEADS_FILE)) {
-      return [];
-    }
-    const data = fs.readFileSync(LEADS_FILE, 'utf8');
-    return JSON.parse(data || '[]');
-  } catch (error) {
-    console.error('Error al leer leads.json:', error);
-    return [];
-  }
-}
-
-/**
- * Guarda los leads en leads.json y los sincroniza en tiempo real con SiteGround
- */
-function saveLeads(leads) {
-  try {
-    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
-
-    // Guardar en la raíz también
-    try {
-      const rootLeads = path.join(__dirname, '..', '..', 'leads.json');
-      fs.writeFileSync(rootLeads, JSON.stringify(leads, null, 2), 'utf8');
-    } catch(e) {}
-
-    // Sincronizar en tiempo real con SiteGround en segundo plano
-    syncLeadsToSiteGround(leads);
-
-    return true;
-  } catch (error) {
-    console.error('Error al guardar leads.json:', error);
-    return false;
-  }
-}
-
-/**
- * Envía los leads en tiempo real a SiteGround para que el CRM en línea esté sincronizado
- */
-function syncLeadsToSiteGround(leads) {
-  try {
-    const payload = JSON.stringify(leads);
+function fetchLeadsFromSiteGround() {
+  return new Promise((resolve) => {
     const options = {
-      hostname: 'realyonegroupbolivia.e-techgroupbolivia.com',
+      hostname: SG_HOSTNAME,
       port: 443,
-      path: '/save_leads_sync.php',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*'
-      },
+      path: SG_SYNC_PATH,
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
       timeout: 8000
     };
-
     const req = https.request(options, (res) => {
-      let respData = '';
-      res.on('data', (chunk) => { respData += chunk; });
+      let data = '';
+      res.on('data', (c) => { data += c; });
       res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          console.log('✅ Leads sincronizados en vivo con SiteGround (HTTP ' + res.statusCode + ')');
-        } else {
-          console.warn('⚠️ Sincronización SiteGround respondió HTTP ' + res.statusCode + ':', respData.substring(0, 100));
+        try {
+          const parsed = JSON.parse(data);
+          const arr = Array.isArray(parsed) ? parsed : [];
+          console.log(`[SiteGround] ✅ Leads cargados desde SiteGround: ${arr.length}`);
+          resolve(arr);
+        } catch (e) {
+          console.warn('[SiteGround] ⚠️ Error parseando leads:', e.message, '| Raw:', data.substring(0, 80));
+          resolve([]);
         }
       });
     });
+    req.on('timeout', () => { req.destroy(); resolve([]); });
     req.on('error', (err) => {
-      console.warn('⚠️ Error de red sincronizando con SiteGround:', err.message);
+      console.warn('[SiteGround] ⚠️ No se pudo leer leads:', err.message);
+      resolve([]);
     });
-    req.write(payload);
     req.end();
-  } catch(e) {
-    console.warn('⚠️ Excepción sincronizando leads con SiteGround:', e.message);
+  });
+}
+
+/**
+ * Carga leads: primero cache en memoria, luego archivo local, luego SiteGround.
+ * IMPORTANTE: Para operaciones de escritura usar getLeadsAsync() para garantizar datos frescos.
+ */
+function getLeads() {
+  // 1. Cache en memoria vigente
+  if (_memoryCache !== null && (Date.now() - _memoryCacheTime) < CACHE_TTL_MS) {
+    return _memoryCache;
   }
+
+  // 2. Archivo local (cache de disco)
+  try {
+    if (fs.existsSync(LEADS_FILE)) {
+      const data = fs.readFileSync(LEADS_FILE, 'utf8');
+      const parsed = JSON.parse(data || '[]');
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        _memoryCache = parsed;
+        _memoryCacheTime = Date.now();
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('[getLeads] Error leyendo archivo local:', e.message);
+  }
+
+  // 3. Sin datos locales — retorna cache vacío (getLeadsAsync cargará desde SiteGround)
+  return _memoryCache || [];
+}
+
+/**
+ * Versión async de getLeads: garantiza datos frescos desde SiteGround cuando
+ * el archivo local está vacío (ej: tras restart de Render).
+ */
+async function getLeadsAsync() {
+  // Cache en memoria vigente
+  if (_memoryCache !== null && _memoryCache.length > 0 && (Date.now() - _memoryCacheTime) < CACHE_TTL_MS) {
+    return _memoryCache;
+  }
+
+  // Archivo local con datos
+  try {
+    if (fs.existsSync(LEADS_FILE)) {
+      const data = fs.readFileSync(LEADS_FILE, 'utf8');
+      const parsed = JSON.parse(data || '[]');
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        _memoryCache = parsed;
+        _memoryCacheTime = Date.now();
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.warn('[getLeadsAsync] Error leyendo local:', e.message);
+  }
+
+  // Archivo local vacío o inexistente → SiteGround es la fuente de verdad
+  console.log('[getLeadsAsync] Cache local vacío. Cargando desde SiteGround...');
+  const remote = await fetchLeadsFromSiteGround();
+  if (remote.length > 0) {
+    // Repoblar cache local para futuras lecturas síncronas
+    try {
+      fs.writeFileSync(LEADS_FILE, JSON.stringify(remote, null, 2), 'utf8');
+    } catch (e) {}
+    _memoryCache = remote;
+    _memoryCacheTime = Date.now();
+  }
+  return remote;
+}
+
+/**
+ * Envía leads a SiteGround. Retorna Promise<boolean>.
+ */
+function syncLeadsToSiteGround(leads) {
+  return new Promise((resolve) => {
+    try {
+      const payload = JSON.stringify(leads);
+      const options = {
+        hostname: SG_HOSTNAME,
+        port: 443,
+        path: SG_SYNC_PATH,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'User-Agent': 'RealtyONEBot/2.0',
+          'Accept': 'application/json'
+        },
+        timeout: 10000
+      };
+
+      const req = https.request(options, (res) => {
+        let respData = '';
+        res.on('data', (chunk) => { respData += chunk; });
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[SiteGround] ✅ ${leads.length} leads sincronizados (HTTP ${res.statusCode})`);
+            resolve(true);
+          } else {
+            console.error(`[SiteGround] ❌ HTTP ${res.statusCode}:`, respData.substring(0, 200));
+            resolve(false);
+          }
+        });
+      });
+      req.on('timeout', () => {
+        console.error('[SiteGround] ❌ Timeout al sincronizar leads');
+        req.destroy();
+        resolve(false);
+      });
+      req.on('error', (err) => {
+        console.error('[SiteGround] ❌ Error de red:', err.message);
+        resolve(false);
+      });
+      req.write(payload);
+      req.end();
+    } catch (e) {
+      console.error('[SiteGround] ❌ Excepción:', e.message);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Guarda leads: escribe cache local Y sincroniza con SiteGround (fuente de verdad).
+ * Retorna Promise<boolean>.
+ */
+async function saveLeads(leads) {
+  // Actualizar cache en memoria inmediatamente
+  _memoryCache = leads;
+  _memoryCacheTime = Date.now();
+
+  // Escribir cache local (best-effort, puede fallar en Render)
+  try {
+    fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[saveLeads] No se pudo escribir archivo local:', e.message);
+  }
+  try {
+    const rootLeads = path.join(__dirname, '..', '..', 'leads.json');
+    fs.writeFileSync(rootLeads, JSON.stringify(leads, null, 2), 'utf8');
+  } catch (e) {}
+
+  // Sincronizar con SiteGround (operación crítica)
+  const ok = await syncLeadsToSiteGround(leads);
+  if (!ok) {
+    console.error('[saveLeads] ❌ FALLO al guardar en SiteGround. Los datos pueden perderse si Render reinicia.');
+  }
+  return ok;
 }
 
 /**
@@ -170,15 +285,37 @@ function normalizeText(str = '') {
  * Genera el desglose temporal exacto (Fecha, Hora, Día, Mes, Año, Día de la Semana)
  */
 function generateTimeBreakdown(dateObj = new Date()) {
-  const anio = dateObj.getFullYear().toString();
-  const mesNum = String(dateObj.getMonth() + 1).padStart(2, '0');
-  const mesNombre = MESES[dateObj.getMonth()];
-  const diaNum = String(dateObj.getDate()).padStart(2, '0');
-  const diaSemana = DIAS_SEMANA[dateObj.getDay()];
-  
-  const horas = String(dateObj.getHours()).padStart(2, '0');
-  const minutos = String(dateObj.getMinutes()).padStart(2, '0');
-  const segundos = String(dateObj.getSeconds()).padStart(2, '0');
+  // Zona horaria oficial de Bolivia (America/La_Paz, UTC-4)
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/La_Paz',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(dateObj);
+  const p = {};
+  for (const part of parts) {
+    p[part.type] = part.value;
+  }
+
+  const anio = p.year;
+  const mesNum = p.month;
+  const mesIdx = Math.max(0, parseInt(mesNum, 10) - 1);
+  const mesNombre = MESES[mesIdx] || 'Septiembre';
+  const diaNum = p.day;
+
+  // Día de la semana exacto en Bolivia
+  const weekdayFormatter = new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', weekday: 'long' });
+  const rawDay = weekdayFormatter.format(dateObj);
+  const diaSemana = rawDay.charAt(0).toUpperCase() + rawDay.slice(1);
+
+  const horas = p.hour;
+  const minutos = p.minute;
+  const segundos = p.second;
   const horaCompleta = `${horas}:${minutos}:${segundos}`;
   const fechaCompleta = `${anio}-${mesNum}-${diaNum}`;
 
@@ -190,7 +327,7 @@ function generateTimeBreakdown(dateObj = new Date()) {
     mes: mesNombre,
     mes_numero: mesNum,
     anio: anio,
-    timestamp_iso: dateObj.toISOString()
+    timestamp_iso: `${fechaCompleta}T${horaCompleta}-04:00`
   };
 }
 
@@ -527,9 +664,9 @@ function normalizePhoneNumber(rawNumber = '') {
 /**
  * Procesa o actualiza un lead en la base de datos a partir de un mensaje entrante
  */
-function trackAndClassifyLead(userId, incomingMessage, botReply = '', metadata = {}) {
+async function trackAndClassifyLead(userId, incomingMessage, botReply = '', metadata = {}) {
   try {
-    const leads = getLeads();
+    const leads = await getLeadsAsync();
     const phone = normalizePhoneNumber(userId);
     const now = new Date();
     const timeData = generateTimeBreakdown(now);
@@ -702,7 +839,7 @@ function trackAndClassifyLead(userId, incomingMessage, botReply = '', metadata =
     lead.accion_sugerida = priorityResult.accion_sugerida;
     lead.resumen = priorityResult.resumen;
 
-    saveLeads(leads);
+    await saveLeads(leads);
     return lead;
   } catch (error) {
     console.error('Error al clasificar lead:', error);
@@ -713,8 +850,8 @@ function trackAndClassifyLead(userId, incomingMessage, botReply = '', metadata =
 /**
  * Actualiza el estado comercial, asignación o notas de un lead
  */
-function updateLeadStatus(leadId, updates = {}) {
-  const leads = getLeads();
+async function updateLeadStatus(leadId, updates = {}) {
+  const leads = await getLeadsAsync();
   const index = leads.findIndex(l => l.id === leadId);
   if (index >= 0) {
     const { estado_comercial, etapa_embudo, notas_asesor, cliente_nombre, email, prioridad, e_realtor_id } = updates;
@@ -746,7 +883,7 @@ function updateLeadStatus(leadId, updates = {}) {
       }
     }
 
-    saveLeads(leads);
+    await saveLeads(leads);
     return leads[index];
   }
   return null;
@@ -755,8 +892,8 @@ function updateLeadStatus(leadId, updates = {}) {
 /**
  * Elimina un lead por su ID o teléfono (eliminando duplicados)
  */
-function deleteLead(leadIdOrPhone) {
-  const leads = getLeads();
+async function deleteLead(leadIdOrPhone) {
+  const leads = await getLeadsAsync();
   const cleanTarget = String(leadIdOrPhone || '').replace(/\D/g, '');
   const shortTarget = cleanTarget.length >= 8 ? cleanTarget.slice(-8) : cleanTarget;
 
@@ -771,24 +908,24 @@ function deleteLead(leadIdOrPhone) {
     return true;
   });
 
-  saveLeads(filtered);
+  await saveLeads(filtered);
   return true;
 }
 
 /**
  * Limpia todos los prospectos del sistema
  */
-function clearAllLeads() {
-  saveLeads([]);
+async function clearAllLeads() {
+  await saveLeads([]);
   return true;
 }
 
 /**
  * Sincroniza la lista completa de prospectos directamente
  */
-function syncLeads(newList = []) {
+async function syncLeads(newList = []) {
   const cleanList = Array.isArray(newList) ? newList : [];
-  saveLeads(cleanList);
+  await saveLeads(cleanList);
   return cleanList;
 }
 
@@ -803,6 +940,7 @@ module.exports = {
   E_REALTORS,
   getERealtors,
   getLeads,
+  getLeadsAsync,
   saveLeads,
   trackAndClassifyLead,
   updateLeadStatus,
