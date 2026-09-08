@@ -101,8 +101,20 @@ app.get('/qr_connect.html', (req, res) => {
 
 app.get('/api/ping', (req, res) => res.send('pong'));
 
+let lastErrorMsg = null;
+
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'Realty ONE Bot Cloud 24/7', connection: connectionStatus, numeroConectado: connectedNumber, time: new Date().toISOString() });
+  res.json({
+    status: 'ok',
+    service: 'Realty ONE Bot Cloud 24/7',
+    connection: connectionStatus,
+    numeroConectado: connectedNumber,
+    hasQR: Boolean(currentQR),
+    lastError: lastErrorMsg,
+    uptime: Math.round(process.uptime()),
+    hasMongoUri: Boolean(process.env.MONGODB_URI),
+    time: new Date().toISOString()
+  });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -159,20 +171,29 @@ async function startWhatsAppClient() {
 
     let state, saveCreds;
     const mongoUri = process.env.MONGODB_URI;
+    let mongoLoaded = false;
     if (mongoUri) {
-      const { MongoClient } = require('mongodb');
-      const { useMongoAuthState } = require(fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
-        ? './backend/services/mongoAuthState'
-        : './services/mongoAuthState');
+      try {
+        const { MongoClient } = require('mongodb');
+        const mongoAuthModule = fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
+          ? './backend/services/mongoAuthState'
+          : './services/mongoAuthState';
+        const { useMongoAuthState } = require(mongoAuthModule);
 
-      if (!global.mongoClientSingleton) {
-        global.mongoClientSingleton = new MongoClient(mongoUri);
-        await global.mongoClientSingleton.connect();
-        console.log('✅ [MongoDB Atlas] Conectado en server.js para persistencia de sesión Baileys 24/7');
+        if (!global.mongoClientSingleton) {
+          global.mongoClientSingleton = new MongoClient(mongoUri);
+          await global.mongoClientSingleton.connect();
+          console.log('✅ [MongoDB Atlas] Conectado en server.js para persistencia de sesión Baileys 24/7');
+        }
+        const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+        ({ state, saveCreds } = await useMongoAuthState(col));
+        mongoLoaded = true;
+      } catch (mErr) {
+        console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando fallback local:', mErr.message);
+        lastErrorMsg = 'Mongo fallback: ' + mErr.message;
       }
-      const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-      ({ state, saveCreds } = await useMongoAuthState(col));
-    } else {
+    }
+    if (!mongoLoaded) {
       const authDir = fs.existsSync(path.join(__dirname, 'backend'))
         ? path.join(__dirname, 'backend', 'baileys_auth')
         : path.join(__dirname, 'baileys_auth');
@@ -306,6 +327,7 @@ async function startWhatsAppClient() {
     });
 
   } catch (error) {
-    console.error('Error iniciando cliente de WhatsApp:', error);
+    lastErrorMsg = error?.stack || error?.message || String(error);
+    console.error('Error iniciando cliente de WhatsApp:', lastErrorMsg);
   }
 }
