@@ -157,13 +157,30 @@ async function startWhatsAppClient() {
       console.warn('Error cargando aiAgent:', e.message);
     }
 
-    const authDir = fs.existsSync(path.join(__dirname, 'backend'))
-      ? path.join(__dirname, 'backend', 'baileys_auth')
-      : path.join(__dirname, 'baileys_auth');
+    let state, saveCreds;
+    const mongoUri = process.env.MONGODB_URI;
+    if (mongoUri) {
+      const { MongoClient } = require('mongodb');
+      const { useMongoAuthState } = require(fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
+        ? './backend/services/mongoAuthState'
+        : './services/mongoAuthState');
 
-    if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
+      if (!global.mongoClientSingleton) {
+        global.mongoClientSingleton = new MongoClient(mongoUri);
+        await global.mongoClientSingleton.connect();
+        console.log('✅ [MongoDB Atlas] Conectado en server.js para persistencia de sesión Baileys 24/7');
+      }
+      const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+      ({ state, saveCreds } = await useMongoAuthState(col));
+    } else {
+      const authDir = fs.existsSync(path.join(__dirname, 'backend'))
+        ? path.join(__dirname, 'backend', 'baileys_auth')
+        : path.join(__dirname, 'baileys_auth');
 
-    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+      if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
+      ({ state, saveCreds } = await useMultiFileAuthState(authDir));
+      console.log('⚠️ [server.js] Usando disco local para credenciales Baileys');
+    }
 
     const sock = makeWASocket({
       auth: state,
@@ -196,7 +213,7 @@ async function startWhatsAppClient() {
           setTimeout(startWhatsAppClient, 3000);
         } else {
           console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
-          if (fs.existsSync(authDir)) {
+          if (typeof authDir !== 'undefined' && fs.existsSync(authDir)) {
             fs.rmSync(authDir, { recursive: true, force: true });
           }
           setTimeout(startWhatsAppClient, 2000);

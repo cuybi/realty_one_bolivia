@@ -146,9 +146,6 @@ app.listen(PORT, () => {
  * Inicia el cliente WebSocket de Baileys
  */
 async function startWhatsAppClient() {
-  // ponytail: authFolder en scope externo para que el handler 'close' pueda accederlo
-  const authFolder = path.join(__dirname, 'baileys_auth');
-
   try {
     let baileys;
     try {
@@ -170,18 +167,11 @@ async function startWhatsAppClient() {
         await mongoClientSingleton.connect();
         console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
       }
-      // ponytail: nombre de colección fijo — debe coincidir con lo que hay en Atlas
       const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-      console.log('🔍 [Auth] Leyendo credenciales desde MongoDB Atlas (colección: baileys_auth)...');
       ({ state, saveCreds } = await useMongoAuthState(col));
-      const credsDoc = await col.findOne({ _id: 'creds' });
-      if (credsDoc) {
-        console.log('✅ [Auth] Credenciales previas encontradas en MongoDB — sesión reutilizada, no se pedirá QR.');
-      } else {
-        console.log('⚠️  [Auth] No hay credenciales en MongoDB — se generará un nuevo código QR.');
-      }
     } else {
       // ponytail: fallback local para desarrollo sin MongoDB
+      const authFolder = path.join(__dirname, 'baileys_auth');
       ({ state, saveCreds } = await useMultiFileAuthState(authFolder));
       console.log('⚠️  Auth state: disco local (set MONGODB_URI para persistencia en Render)');
     }
