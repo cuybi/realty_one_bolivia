@@ -332,13 +332,33 @@
             const fecha = dateInput.value;
             const hora = document.getElementById('horaVisita').value;
 
-            // Guardar en backend
+            // Guardar en backend (Render API y SiteGround)
+            const leadPayload = {
+                nombre,
+                telefono,
+                email,
+                fecha_visita: fecha,
+                hora_visita: hora,
+                numero_celular: telefono.startsWith('+') ? telefono : '+591' + telefono.replace(/\D/g, ''),
+                cliente_nombre: nombre,
+                ultimo_mensaje: `Formulario completado: ${nombre}, ${telefono}, ${email}, Visita: ${fecha} ${hora}`,
+                etapa_embudo: 'VISITA_AGENDADA',
+                prioridad: 'POTENCIAL'
+            };
+            fetch('/api/whatsapp/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(leadPayload)
+            }).catch(() => {});
+            fetch('https://realty-one-bolivia.onrender.com/api/whatsapp/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(leadPayload)
+            }).catch(() => {});
             fetch('save_leads_sync.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nombre, telefono, email, fecha_visita: fecha, hora_visita: hora
-                })
+                body: JSON.stringify(leadPayload)
             }).catch(() => {});
 
             // Ocultar form y mostrar éxito

@@ -239,8 +239,28 @@ router.get('/leads', async (req, res) => {
       leads
     });
   } catch (error) {
-    console.error('Error al obtener leads:', error);
-    res.status(500).json({ error: 'Error al obtener leads' });
+    console.error('[WhatsApp Leads Route Error]:', error);
+    res.status(500).json({ error: 'Error obteniendo prospectos del CRM' });
+  }
+});
+
+/**
+ * 4.1 Guardar / Sincronizar Leads desde el CRM Web
+ */
+router.post('/leads', async (req, res) => {
+  try {
+    const data = req.body;
+    if (data) {
+      if (Array.isArray(data)) {
+        await leadClassifier.saveLeads(data);
+      } else if (data.numero_celular) {
+        await leadClassifier.trackAndClassifyLead(data.numero_celular, data.ultimo_mensaje || '', 'Registro Web', data);
+      }
+    }
+    res.json({ exito: true, total: leadClassifier.getLeads().length });
+  } catch (e) {
+    console.error('[POST /leads Error]:', e.message);
+    res.status(500).json({ error: e.message });
   }
 });
 

@@ -1218,47 +1218,27 @@
       try {
         const cacheBuster = `t=${Date.now()}`;
         let data = null;
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-        // 1. En la nube (SiteGround) cargar directo de leads.json / save_leads_sync.php
-        if (!isLocalhost) {
+        // ponytail: Probar API en vivo (Render o Localhost o Nube) antes de archivos estáticos
+        const candidateUrls = [
+          `/api/whatsapp/leads?${cacheBuster}`,
+          `https://realty-one-bolivia.onrender.com/api/whatsapp/leads?${cacheBuster}`,
+          `save_leads_sync.php?${cacheBuster}`,
+          `leads.json?${cacheBuster}`
+        ];
+
+        for (const u of candidateUrls) {
           try {
-            const res = await fetch(`leads.json?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+            const res = await fetch(u, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
             if (res.ok) {
               const d = await res.json();
-              if (d && Array.isArray(d)) data = d;
+              const items = d?.leads || d;
+              if (Array.isArray(items) && items.length > 0) {
+                data = items;
+                break;
+              }
             }
           } catch(e) {}
-
-          if (!data || data.length === 0) {
-            try {
-              const res = await fetch(`save_leads_sync.php?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
-              if (res.ok) {
-                const d = await res.json();
-                if (d && Array.isArray(d)) data = d;
-              }
-            } catch(e) {}
-          }
-        } else {
-          // En entorno de desarrollo local (localhost)
-          try {
-            const nodeUrl = window.location.port === '3000' ? `/api/whatsapp/leads?${cacheBuster}` : `http://localhost:3000/api/whatsapp/leads?${cacheBuster}`;
-            const res = await fetch(nodeUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
-            if (res.ok) {
-              const d = await res.json();
-              data = d.leads || d;
-            }
-          } catch(e) {}
-
-          if (!data || data.length === 0) {
-            try {
-              const res = await fetch(`leads.json?${cacheBuster}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
-              if (res.ok) {
-                const d = await res.json();
-                if (d && Array.isArray(d)) data = d;
-              }
-            } catch(e) {}
-          }
         }
 
         let rawLeads = [];
@@ -1864,15 +1844,23 @@
         lead.score = 100;
       }
 
-      // Sincronizar con backend
+      // Sincronizar con backend (Render API primero, luego fallback)
       try {
-        const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
-        const syncUrl = isSiteGround ? 'save_leads_sync.php' : 'https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php';
-        fetch(syncUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(allLeads)
-        }).catch(() => {});
+        const syncUrls = [
+          '/api/whatsapp/leads',
+          'https://realty-one-bolivia.onrender.com/api/whatsapp/leads',
+          'save_leads_sync.php'
+        ];
+        for (const sUrl of syncUrls) {
+          try {
+            fetch(sUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(allLeads)
+            }).catch(() => {});
+            break;
+          } catch(e) {}
+        }
       } catch(e) {}
 
       return lead;
