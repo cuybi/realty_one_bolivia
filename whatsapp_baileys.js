@@ -3,6 +3,9 @@
  * Permite vincular cualquier celular escaneando el código QR oficial de WhatsApp.
  */
 
+// Configurar zona horaria oficial de Bolivia (America/La_Paz, UTC-4)
+process.env.TZ = 'America/La_Paz';
+
 // ponytail: crash guards — sin esto, un error no manejado mata todo el proceso
 process.on('uncaughtException', (err) => {
   console.error('💀 [uncaughtException]', err.message);
@@ -15,6 +18,8 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const { MongoClient } = require('mongodb');
+const { useMongoAuthState } = require('./services/mongoAuthState');
 
 // Cargar variables de entorno
 const envPath = path.join(__dirname, '.env');
@@ -65,6 +70,7 @@ let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'con
 let connectedNumber = null;
 let reconnectAttempts = 0; // ponytail: backoff counter
 let activeSock = null; // ponytail: track live socket for health checks
+let mongoClientSingleton = null; // ponytail: una sola conexión Mongo reutilizada en reconexiones
 
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
@@ -109,7 +115,7 @@ app.post('/api/whatsapp/desconectar', (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.BAILEYS_PORT || process.env.PORT || 3001; // ponytail: 3001 evita conflicto con server.js en 3000
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
   console.log(`🦁 SERVIDOR REALTY ONE BOT ACTIVO EN: http://localhost:${PORT}`);
@@ -146,13 +152,29 @@ async function startWhatsAppClient() {
       baileys = require('@whiskeysockets/baileys');
     } catch (e) {
       console.log('⚠️ Para habilitar el escaneo de QR oficial en vivo, instala Baileys ejecutando:');
-      console.log('👉 npm install @whiskeysockets/baileys pino qrcode\n');
+      console.log('👉 npm install @whiskeysockets/baileys pino qrcode mongodb\n');
       return;
     }
 
     const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
-    const authFolder = path.join(__dirname, 'baileys_auth');
-    const { state, saveCreds } = await useMultiFileAuthState(authFolder);
+
+    // Auth state: MongoDB en producción (Render), disco local en desarrollo
+    let state, saveCreds;
+    const mongoUri = process.env.MONGODB_URI;
+    if (mongoUri) {
+      if (!mongoClientSingleton) {
+        mongoClientSingleton = new MongoClient(mongoUri);
+        await mongoClientSingleton.connect();
+        console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
+      }
+      const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+      ({ state, saveCreds } = await useMongoAuthState(col));
+    } else {
+      // ponytail: fallback local para desarrollo sin MongoDB
+      const authFolder = path.join(__dirname, 'baileys_auth');
+      ({ state, saveCreds } = await useMultiFileAuthState(authFolder));
+      console.log('⚠️  Auth state: disco local (set MONGODB_URI para persistencia en Render)');
+    }
 
     const sock = makeWASocket({
       auth: state,
@@ -192,7 +214,7 @@ async function startWhatsAppClient() {
           console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
           reconnectAttempts = 0;
           try {
-            if (fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
+            if (!mongoUri && fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
           } catch (e) {}
           setTimeout(() => startWhatsAppClient(), 1500);
         } else {
