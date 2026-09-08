@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "OneLeads — WhatsApp Web Visual CRM",
+  "version": "1.0.0",
+  "description": "Transforma tu WhatsApp Web en un CRM visual con tablero Kanban, respuestas en 1 clic y recordatorios automáticos.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://web.whatsapp.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "OneLeads CRM"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content_script.js"],
+      "css": ["content_styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

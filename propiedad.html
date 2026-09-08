@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Propiedad | Realty ONE Group Bolivia</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        .btn-back { display: inline-flex; align-items: center; gap: 10px; color: var(--primary-color); text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; padding: 10px 0; }
+        .btn-back:hover { color: #fff; transform: translateX(-5px); }
+        .property-detail-container { max-width: 1200px; margin: 150px auto 50px; padding: 0 20px; min-height: 80vh; }
+        .detail-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 40px; }
+        .main-image-box { border-radius: 15px; overflow: hidden; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: #222; min-height: 400px; }
+        .main-image-box img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .info-card { background: #111; padding: 30px; border-radius: 15px; border: 1px solid #333; position: sticky; top: 120px; }
+        .detail-title { font-size: 2.2rem; margin-bottom: 10px; color: #fff; line-height: 1.2; }
+        .detail-price { font-size: 2rem; color: var(--primary-color); font-weight: 700; margin-bottom: 20px; }
+        .detail-meta { display: flex; gap: 15px; margin-bottom: 30px; padding: 20px 0; border-top: 1px solid #333; border-bottom: 1px solid #333; flex-wrap: wrap; }
+        .meta-box { text-align: center; flex: 1; min-width: 80px; }
+        .meta-box i { color: var(--primary-color); font-size: 1.5rem; margin-bottom: 8px; display: block; }
+        .meta-box span { color: #888; font-size: 0.8rem; text-transform: uppercase; }
+        .meta-box strong { display: block; font-size: 1.1rem; color: #fff; }
+        .description-box { margin-top: 40px; }
+        .description-box h3 { color: var(--primary-color); margin-bottom: 15px; font-size: 1.5rem; }
+        .description-box p { line-height: 1.8; color: #ccc; font-size: 1.1rem; white-space: pre-line; }
+        .btn-whatsapp-detail { background: #25d366; color: #fff; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; border-radius: 8px; font-weight: 600; margin-top: 20px; transition: 0.3s; }
+        .btn-whatsapp-detail:hover { background: #128c7e; transform: scale(1.02); }
+        @media (max-width: 992px) {
+            .detail-grid { grid-template-columns: 1fr; }
+            .info-card { position: static; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Topbar Superior Funcional -->
+    <div class="topbar" id="topbar">
+        <div class="topbar-container">
+            <div class="topbar-left">
+                <a href="tel:+59160937050" class="topbar-item" title="Llamar o contactar">
+                    <i class="fas fa-phone-alt"></i> <span>+591 60937050</span>
+                </a>
+                <a href="mailto:info@realtyonegroup.com.bo?subject=Consulta%20Inmobiliaria%20Realty%20ONE%20Bolivia" class="topbar-item" title="Enviar correo">
+                    <i class="fas fa-envelope"></i> <span>info@realtyonegroup.com.bo</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-socials">
+                    <a href="https://www.facebook.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+                <div class="topbar-auth" id="topbar-auth">
+                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="topbar-auth-btn" id="btn-topbar-login">
+                        <i class="fas fa-user"></i> <span>Iniciar Sesión</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="topbar-auth-btn" id="btn-topbar-register">
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header id="header">
+        <a href="index.html" class="logo">
+            <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" id="main-logo">
+        </a>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li class="dropdown">
+                    <a href="javascript:void(0)">Propiedades <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="venta.html">Venta</a></li>
+                        <li><a href="alquiler.html">Alquiler</a></li>
+                        <li><a href="anticretico.html">Anticrético</a></li>
+                        <li><a href="terrenos.html">Terrenos</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="index.html#proyectos">Proyectos <i class="fas fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html#proyectos">Urub&oacute; Green Park</a></li>
+                        <li><a href="mapa.html" target="_blank"><i class="fas fa-map-marked-alt" style="margin-right:6px;"></i>Plano UGP</a></li>
+                    </ul>
+                </li>
+                <li><a href="index.html#nosotros">Nosotros</a></li>
+                <li><a href="index.html#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+        <div class="header-btns">
+            <button id="menu-toggle" class="menu-btn"><i class="fas fa-bars"></i></button>
+        </div>
+    </header>
+
+    <main class="property-detail-container" id="detail-page-content">
+        <!-- Contenido inyectado por JS -->
+        <div style="text-align: center; padding: 100px;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: var(--primary-color);"></i>
+            <p style="margin-top: 20px; color: #888;">Cargando detalles de la propiedad...</p>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <a href="index.html" class="logo">
+                    <img src="assets/logo_bolivia.png" id="footer-logo" style="max-height: 40px;">
+                </a>
+                <p style="margin-top: 20px; color: #888;" id="footer-text"></p>
+            </div>
+            <div class="footer-col">
+                <h4>Contacto</h4>
+                <ul>
+                    <li><i class="fas fa-envelope" style="color: var(--primary-color);"></i> <span id="contact-email-footer"></span></li>
+                    <li><i class="fas fa-phone" style="color: var(--primary-color);"></i> <span id="contact-phone-footer"></span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright" id="copyright-text"></div>
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+    <script>
+        AOS.init({ duration: 1000, once: true });
+    </script>
+</body>
+</html>

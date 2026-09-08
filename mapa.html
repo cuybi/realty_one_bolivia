@@ -1,0 +1,2139 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa Interactivo Urubó | Realty ONE Group Bolivia</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <style>
+        /* Custom map interface styling */
+        .map-page-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            padding-top: 98px; /* Header + Topbar height offset */
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            position: relative;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Sidebar overlay */
+        .map-sidebar {
+            width: 420px;
+            height: 100%;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(199, 170, 94, 0.2);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+            transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+        }
+
+        .sidebar-header {
+            padding: 25px;
+            border-bottom: 1px solid rgba(199, 170, 94, 0.2);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.6rem;
+            color: #fff;
+            margin-bottom: 8px;
+            font-weight: 900;
+        }
+
+        .sidebar-header h1 span {
+            color: var(--primary-color);
+        }
+
+        .sidebar-header p {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        /* Filter Tabs */
+        .map-filters {
+            display: flex;
+            gap: 10px;
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--primary-color);
+            background: rgba(199, 170, 94, 0.1);
+        }
+
+        .filter-btn.active {
+            background: var(--primary-color);
+            color: #000;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 15px rgba(199, 170, 94, 0.3);
+        }
+
+        /* Locations List */
+        .locations-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Custom Scrollbar for Sidebar */
+        .locations-list::-webkit-scrollbar {
+            width: 5px;
+        }
+        .locations-list::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 10px;
+        }
+
+        .location-card {
+            background: rgba(24, 24, 24, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 18px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .location-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: transparent;
+            transition: var(--transition);
+        }
+
+        .location-card:hover {
+            background: rgba(199, 170, 94, 0.05);
+            border-color: rgba(199, 170, 94, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .location-card.active {
+            background: rgba(199, 170, 94, 0.08);
+            border-color: var(--primary-color);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .location-card.active::before {
+            background: var(--primary-color);
+        }
+
+        .location-card h3 {
+            font-size: 1.1rem;
+            color: #fff;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .location-card h3 i {
+            font-size: 0.9rem;
+            color: var(--primary-color);
+        }
+
+        .location-card p {
+            font-size: 0.8rem;
+            color: var(--text-gray);
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .location-stats {
+            display: flex;
+            gap: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: 0.75rem;
+            color: var(--text-gray);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-item i {
+            color: var(--primary-color);
+        }
+
+        /* Floating buttons on map */
+        .map-toggle-btn {
+            position: absolute;
+            top: 100px;
+            left: 440px;
+            z-index: 100;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: none; /* Only visible on mobile/tablet when sidebar is hidden */
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            transition: var(--transition);
+        }
+
+        /* Responsive Mobile Settings */
+        @media (max-width: 900px) {
+            .map-page-container {
+                flex-direction: column;
+            }
+
+            .map-sidebar {
+                width: 100%;
+                height: 40vh;
+                order: 2;
+                border-right: none;
+                border-top: 1px solid rgba(199, 170, 94, 0.2);
+            }
+
+            #map {
+                height: 60vh;
+                order: 1;
+            }
+
+            .map-toggle-btn {
+                display: none !important;
+            }
+        }
+
+        /* Glowing Custom Marker Styles */
+        .custom-gold-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .marker-pin-gold {
+            width: 16px;
+            height: 16px;
+            background-color: var(--primary-color);
+            border: 2px solid #000;
+            border-radius: 50%;
+            position: relative;
+            box-shadow: 0 0 10px var(--primary-color);
+            z-index: 5;
+        }
+
+        .pulse-ring {
+            border: 3px solid var(--primary-color);
+            background: transparent;
+            border-radius: 50%;
+            height: 40px;
+            width: 40px;
+            position: absolute;
+            animation: pulsedust 2s infinite ease-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        @keyframes pulsedust {
+            0% {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        /* Custom Leaflet Popups */
+        .leaflet-popup-content-wrapper {
+            background: rgba(14, 14, 14, 0.96) !important;
+            color: #fff !important;
+            border: 1px solid var(--primary-color) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.85), 0 0 25px rgba(199, 170, 94, 0.2) !important;
+            padding: 4px !important;
+            font-family: 'Montserrat', sans-serif !important;
+            backdrop-filter: blur(12px) !important;
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(14, 14, 14, 0.96) !important;
+            border-left: 1px solid var(--primary-color) !important;
+            border-bottom: 1px solid var(--primary-color) !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 14px !important;
+            line-height: 1.4 !important;
+            min-width: 260px;
+            max-width: 320px;
+        }
+
+        /* Popup flotante enriquecido y editable */
+        .custom-map-popup {
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        .popup-view-mode h3 {
+            font-size: 1.05rem;
+            color: var(--primary-color);
+            margin: 0 0 4px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .popup-tag-badge {
+            display: inline-block;
+            background: rgba(199, 170, 94, 0.15);
+            color: var(--primary-color);
+            border: 1px solid rgba(199, 170, 94, 0.4);
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .popup-desc {
+            font-size: 0.8rem;
+            color: #ddd;
+            line-height: 1.45;
+            margin: 8px 0 10px;
+        }
+
+        .popup-features-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #aaa;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .popup-features-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .popup-feature-tag {
+            background: #202020;
+            border: 1px solid #383838;
+            color: #eee;
+            font-size: 0.72rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .popup-feature-tag i {
+            color: var(--primary-color);
+            font-size: 0.65rem;
+        }
+
+        .popup-stat {
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .popup-btn-edit {
+            width: 100%;
+            background: rgba(199, 170, 94, 0.12);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 7px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .popup-btn-edit:hover {
+            background: var(--primary-color);
+            color: #000;
+        }
+
+        /* Formulario de edición dentro del popup */
+        .popup-edit-form {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+            text-align: left;
+        }
+
+        .popup-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .popup-form-group label {
+            display: block;
+            font-size: 0.68rem;
+            color: #aaa;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        .popup-input, .popup-textarea {
+            width: 100%;
+            background: #181818;
+            border: 1px solid #3a3a3a;
+            color: #fff;
+            padding: 7px 9px;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+
+        .popup-input:focus, .popup-textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background: #202020;
+        }
+
+        .popup-color-picker {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-top: 3px;
+        }
+
+        .popup-color-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s;
+        }
+
+        .popup-color-dot.active {
+            border-color: #fff;
+            transform: scale(1.2);
+            box-shadow: 0 0 8px rgba(255,255,255,0.6);
+        }
+
+        .popup-edit-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .popup-btn-save {
+            flex: 2;
+            background: var(--primary-color);
+            color: #000;
+            border: none;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .popup-btn-save:hover {
+            background: #dfc77e;
+            transform: translateY(-1px);
+        }
+
+        .popup-btn-delete {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #ff6b6b;
+            padding: 8px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .popup-btn-delete:hover {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .popup-btn-cancel {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 8px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .popup-btn-cancel:hover {
+            background: #333;
+            color: #fff;
+        }
+        
+        /* Interactive Bridge hover card */
+        .bridge-tooltip {
+            background: rgba(0,0,0,0.85) !important;
+            color: var(--primary-color) !important;
+            border: 1px solid var(--primary-color) !important;
+            border-radius: 5px !important;
+            font-family: 'Montserrat', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 0.75rem !important;
+            padding: 4px 8px !important;
+        }
+
+        /* Handles interactivos de arrastre para mover líneas y puentes */
+        .line-handle-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .line-drag-handle {
+            width: 14px;
+            height: 14px;
+            background: #ffffff;
+            border: 2px solid var(--primary-color);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--primary-color), 0 0 15px rgba(255, 255, 255, 0.9);
+            cursor: grab;
+            transition: transform 0.15s ease, background 0.15s ease;
+        }
+
+        .line-drag-handle:hover, .line-drag-handle:active {
+            transform: scale(1.4);
+            background: var(--primary-color);
+            cursor: grabbing;
+        }
+
+        /* Leaflet custom dark/gold zoom controls */
+        .leaflet-control-zoom {
+            border: 1px solid rgba(199, 170, 94, 0.4) !important;
+            border-radius: 8px !important;
+            overflow: hidden !important;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.8) !important;
+            margin-top: 18px !important;
+            margin-right: 22px !important;
+        }
+
+        .leaflet-control-zoom a {
+            background-color: rgba(12, 12, 12, 0.95) !important;
+            color: var(--primary-color) !important;
+            border-bottom: 1px solid rgba(199, 170, 94, 0.2) !important;
+            width: 36px !important;
+            height: 36px !important;
+            line-height: 36px !important;
+            font-size: 1.15rem !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .leaflet-control-zoom a:hover {
+            background-color: var(--primary-color) !important;
+            color: #000 !important;
+        }
+
+        /* Map Editor Accordion Panel Styles */
+        .map-editor-panel {
+            position: absolute;
+            top: 105px;
+            left: 440px;
+            right: 75px; /* Deja 75px a la derecha para no tapar los botones + y - */
+            z-index: 1000;
+            background: rgba(12, 12, 12, 0.95);
+            border: 1px solid rgba(199, 170, 94, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85);
+            color: #fff;
+            font-family: 'Montserrat', sans-serif;
+            transition: all 0.3s ease;
+            display: none; /* Oculto por defecto para proteger contra cambios no autorizados */
+        }
+
+        /* Botón MODO EDICIÓN centrado en la parte superior del mapa */
+        .btn-unlock-map-editor {
+            position: absolute;
+            top: 108px;
+            left: calc(420px + (100% - 420px) / 2);
+            transform: translateX(-50%);
+            z-index: 999;
+            background: rgba(12, 12, 12, 0.92);
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+            padding: 10px 22px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            cursor: pointer;
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(199, 170, 94, 0.2);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .btn-unlock-map-editor:hover {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: 0 10px 35px rgba(199, 170, 94, 0.5);
+            transform: translateX(-50%) translateY(-2px);
+        }
+
+        @media (max-width: 992px) {
+            .map-editor-panel {
+                left: 20px;
+                right: 75px;
+                top: 140px;
+            }
+            .btn-unlock-map-editor {
+                top: 108px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            .btn-unlock-map-editor:hover {
+                transform: translateX(-50%) translateY(-2px);
+            }
+        }
+
+        .map-editor-header {
+            padding: 14px 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            background: rgba(20, 20, 20, 0.7);
+            border-top-left-radius: 11px;
+            border-top-right-radius: 11px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .map-editor-header:hover {
+            background: rgba(35, 35, 35, 0.85);
+        }
+
+        .map-editor-header h2 {
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-transform: uppercase;
+        }
+
+        .map-editor-header h2 i {
+            color: var(--primary-color);
+        }
+
+        .map-editor-header .session-badge {
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            margin-left: 6px;
+            font-weight: 700;
+        }
+
+        .map-editor-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .editor-accordion-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: var(--primary-color);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .editor-accordion-btn:hover {
+            background: var(--primary-color);
+            color: #000;
+            border-color: var(--primary-color);
+            transform: scale(1.08);
+        }
+
+        .editor-accordion-btn i {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .map-editor-body {
+            padding: 18px 22px 22px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-height: 800px;
+            opacity: 1;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.165, 0.84, 0.44, 1), opacity 0.3s ease, padding 0.3s ease;
+        }
+
+        .map-editor-body.collapsed {
+            display: none !important;
+        }
+
+        .editor-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .editor-section-title {
+            width: 100%;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray);
+            margin-bottom: 2px;
+        }
+
+        .editor-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .editor-btn:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+            background: rgba(199, 170, 94, 0.12);
+        }
+
+        .editor-btn.active {
+            background: var(--primary-color);
+            color: #000;
+            border-color: var(--primary-color);
+            box-shadow: 0 4px 12px rgba(199, 170, 94, 0.3);
+        }
+
+        .color-swatch {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            display: inline-block;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.2);
+        }
+
+        .color-swatch.active {
+            border-color: #fff;
+            transform: scale(1.25);
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+        }
+
+        .editor-select {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            outline: none;
+        }
+
+        .editor-select option {
+            background: #111;
+            color: #fff;
+        }
+
+        .editor-help-text {
+            font-size: 0.72rem;
+            color: #bbb;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .action-btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-save-map {
+            background: var(--primary-color);
+            color: #000;
+            font-weight: 800;
+            padding: 9px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-save-map:hover {
+            background: #e6c875;
+            box-shadow: 0 4px 15px rgba(199, 170, 94, 0.4);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Topbar Superior Funcional -->
+    <div class="topbar" id="topbar">
+        <div class="topbar-container">
+            <div class="topbar-left">
+                <a href="tel:+59160937050" class="topbar-item" title="Llamar o contactar">
+                    <i class="fas fa-phone-alt"></i> <span>+591 60937050</span>
+                </a>
+                <a href="mailto:info@realtyonegroup.com.bo?subject=Consulta%20Inmobiliaria%20Realty%20ONE%20Bolivia" class="topbar-item" title="Enviar correo">
+                    <i class="fas fa-envelope"></i> <span>info@realtyonegroup.com.bo</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-socials">
+                    <a href="https://www.facebook.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+                <div class="topbar-auth" id="topbar-auth">
+                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="topbar-auth-btn" id="btn-topbar-login">
+                        <i class="fas fa-user"></i> <span>Iniciar Sesión</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="topbar-auth-btn" id="btn-topbar-register">
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header id="header">
+        <a href="index.html" class="logo">
+            <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" id="main-logo" style="height: 45px;">
+        </a>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="index.html#propiedades">Propiedades</a></li>
+                <li class="dropdown">
+                    <a href="index.html#proyectos">Proyectos <i class="fas fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html#proyectos">Urub&oacute; Green Park</a></li>
+                        <li><a href="mapa.html" class="active"><i class="fas fa-map-marked-alt" style="margin-right:6px;"></i>Plano UGP</a></li>
+                    </ul>
+                </li>
+                <li><a href="index.html#agentes">Agentes</a></li>
+                <li><a href="index.html#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+        <div class="header-btns">
+            <a href="index.html" class="btn-login" style="background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color);">
+                <i class="fas fa-arrow-left"></i> VOLVER AL INICIO
+            </a>
+        </div>
+    </header>
+
+    <div class="map-page-container">
+
+        <!-- Botón para solicitar desbloqueo del editor con contraseña -->
+        <button type="button" class="btn-unlock-map-editor" id="btn-unlock-map-editor" onclick="openMapAuthModal()">
+            <i class="fas fa-lock"></i> <span>MODO EDICIÓN</span>
+        </button>
+        
+        <!-- Panel de Edición del Mapa (Protegido con contraseña) -->
+        <div class="map-editor-panel" id="map-editor-panel" style="display: none;">
+            <div class="map-editor-header" id="map-editor-header">
+                <h2><i class="fas fa-pencil-alt"></i> PANEL DE EDICI&Oacute;N DEL MAPA <span class="session-badge">[SESI&Oacute;N ACTIVA]</span></h2>
+                <div class="map-editor-header-right">
+                    <button type="button" class="editor-accordion-btn" id="editor-accordion-toggle"
+                        onclick="var p=this.closest('.map-editor-panel');var bd=p.querySelector('.map-editor-body');var ic=this.querySelector('i');bd.classList.toggle('collapsed');ic.className=bd.classList.contains('collapsed')?'fas fa-chevron-down':'fas fa-chevron-up';"
+                        aria-label="Contraer / Desplegar panel">
+                        <i class="fas fa-chevron-up"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="map-editor-body" id="map-editor-body">
+                <!-- Sección 1: Pines de Colores -->
+                <div class="editor-row">
+                    <div class="editor-section-title">PINES DE COLORES — HAZ CLIC EN EL MAPA PARA COLOCAR</div>
+                    <button class="editor-btn" id="btn-mode-pin" onclick="setEditorMode('pin')">
+                        <i class="fas fa-map-pin"></i> Agregar Pin
+                    </button>
+                    <div class="color-palette" style="display: flex; gap: 8px; align-items: center;">
+                        <span class="color-swatch active" style="background:#ef4444;" onclick="selectColor('#ef4444', this)"></span>
+                        <span class="color-swatch" style="background:#f97316;" onclick="selectColor('#f97316', this)"></span>
+                        <span class="color-swatch" style="background:#eab308;" onclick="selectColor('#eab308', this)"></span>
+                        <span class="color-swatch" style="background:#22c55e;" onclick="selectColor('#22c55e', this)"></span>
+                        <span class="color-swatch" style="background:#3b82f6;" onclick="selectColor('#3b82f6', this)"></span>
+                        <span class="color-swatch" style="background:#a855f7;" onclick="selectColor('#a855f7', this)"></span>
+                        <span class="color-swatch" style="background:#ec4899;" onclick="selectColor('#ec4899', this)"></span>
+                        <span class="color-swatch" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></span>
+                    </div>
+                </div>
+
+                <!-- Sección 2: Texto en el Mapa -->
+                <div class="editor-row">
+                    <div class="editor-section-title">TEXTO EN EL MAPA</div>
+                    <button class="editor-btn" id="btn-mode-text" onclick="setEditorMode('text')">
+                        <i class="fas fa-font"></i> Agregar Texto
+                    </button>
+                    <select class="editor-select" id="text-color-select" onchange="currentEditorColor = this.value">
+                        <option value="#ffffff">Blanco</option>
+                        <option value="#c7aa5e">Dorado</option>
+                        <option value="#ef4444">Rojo</option>
+                        <option value="#3b82f6">Azul</option>
+                        <option value="#22c55e">Verde</option>
+                    </select>
+                </div>
+
+                <!-- Sección 3: Líneas y Flechas -->
+                <div class="editor-row">
+                    <div class="editor-section-title">LÍNEAS Y FLECHAS — CLIC INICIO, DOBLE CLIC PARA TERMINAR</div>
+                    <button class="editor-btn" id="btn-mode-line" onclick="setEditorMode('line')">
+                        <i class="fas fa-minus"></i> Línea
+                    </button>
+                    <button class="editor-btn" id="btn-mode-arrow" onclick="setEditorMode('arrow')">
+                        <i class="fas fa-arrow-right"></i> Flecha
+                    </button>
+                    <div class="color-palette" style="display: flex; gap: 8px; align-items: center;">
+                        <span class="color-swatch active" style="background:#c7aa5e;" onclick="selectColor('#c7aa5e', this)"></span>
+                        <span class="color-swatch" style="background:#f97316;" onclick="selectColor('#f97316', this)"></span>
+                        <span class="color-swatch" style="background:#22c55e;" onclick="selectColor('#22c55e', this)"></span>
+                        <span class="color-swatch" style="background:#3b82f6;" onclick="selectColor('#3b82f6', this)"></span>
+                        <span class="color-swatch" style="background:#ef4444;" onclick="selectColor('#ef4444', this)"></span>
+                        <span class="color-swatch" style="background:#ffffff;" onclick="selectColor('#ffffff', this)"></span>
+                    </div>
+                </div>
+
+                <!-- Sección 4: Nota de Mover -->
+                <div class="editor-help-text">
+                    <i class="fas fa-hand-paper" style="color: var(--primary-color);"></i>
+                    <span><strong>MOVER:</strong> Arrastra directamente cualquier pin, insignia (Urubó Green Park, Santa Cruz...) o extremos de puentes para ajustar su posición.</span>
+                </div>
+
+                <!-- Sección 5: Botones de Acción -->
+                <div class="editor-actions">
+                    <button class="btn-save-map" onclick="saveMapEdits()">
+                        <i class="fas fa-save"></i> GUARDAR MAPA
+                    </button>
+                    <div class="action-btn-group">
+                        <button class="editor-btn" onclick="restoreOriginals()">
+                            <i class="fas fa-undo-alt"></i> Restaurar Originales
+                        </button>
+                        <button class="editor-btn" onclick="undoLastAction()">
+                            <i class="fas fa-undo"></i> Deshacer
+                        </button>
+                        <button class="editor-btn" onclick="clearNotes()">
+                            <i class="fas fa-times"></i> Limpiar notas
+                        </button>
+                        <button class="editor-btn" onclick="exitEditor()" style="border-color: rgba(239, 68, 68, 0.4); color: #ef4444;">
+                            <i class="fas fa-lock"></i> Salir
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle button for mobile/sidebar -->
+        <button class="map-toggle-btn" id="sidebar-toggle">
+            <i class="fas fa-bars"></i>
+        </button>
+
+        <!-- Sidebar panel -->
+        <div class="map-sidebar" id="map-sidebar">
+            <div class="sidebar-header">
+                <h1>Urubó <span>Interactivo</span></h1>
+                <p>Explora las urbanizaciones más exclusivas y las conexiones viales clave de la zona premium de Bolivia.</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="map-filters">
+                <button class="filter-btn active" data-filter="todos">
+                    <i class="fas fa-globe"></i> Todos
+                </button>
+                <button class="filter-btn" data-filter="urbanizacion">
+                    <i class="fas fa-home"></i> Urbanizaciones
+                </button>
+                <button class="filter-btn" data-filter="puente">
+                    <i class="fas fa-bridge"></i> Puentes
+                </button>
+            </div>
+
+            <!-- Scrollable Locations List -->
+            <div class="locations-list" id="locations-list-container">
+                <!-- Se inyecta dinámicamente con JavaScript -->
+            </div>
+        </div>
+
+        <!-- The Map Container -->
+        <div id="map"></div>
+
+    </div>
+
+    <!-- Leaflet.js script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // Data containing gated communities (urbanizaciones), bridges, and Viru Viru Airport
+        const mapData = {
+            urbanizaciones: [
+                {
+                    id: "colinas",
+                    type: "urbanizacion",
+                    name: "Colinas del Urubó",
+                    coords: [-17.7674, -63.2205],
+                    desc: "La urbanización privada de mayor prestigio y exclusividad de Bolivia. Cuenta con terrenos majestuosos, mansiones residenciales premium, seguridad de triple anillo, lagunas internas hermosas y un entorno natural privilegiado justo en el corazón inicial del Urubó.",
+                    keyPoints: "Seguridad 24/7 • Club House Premium • Lagunas Privadas",
+                    distanceBridge: "1.8 km al Puente Foianini",
+                    distanceAirport: "18.5 km a Viru Viru"
+                },
+                {
+                    id: "green",
+                    type: "urbanizacion",
+                    name: "Urubó Green Park",
+                    coords: [-17.7478, -63.2355],
+                    desc: "Un proyecto residencial excepcional diseñado para la armonía familiar con extensas áreas verdes, bosques preservados y senderos ecológicos. Ofrece el escape perfecto del estrés urbano manteniendo una conectividad rápida con la ciudad.",
+                    keyPoints: "Senderos Ecológicos • Complejo Deportivo • Control Biométrico",
+                    distanceBridge: "4.5 km al Puente Foianini",
+                    distanceAirport: "20.1 km a Viru Viru"
+                },
+                {
+                    id: "playa",
+                    type: "urbanizacion",
+                    name: "Playa Turquesa",
+                    coords: [-17.7285, -63.2662],
+                    desc: "Hogar de la majestuosa laguna de aguas cristalinas de 13 hectáreas (segunda más grande del mundo), que utiliza la tecnología patentada de Crystal Lagoons. Es un verdadero paraíso tropical en Santa Cruz donde puedes practicar deportes acuáticos.",
+                    keyPoints: "Laguna de 13 Hectáreas • Playas de Arena Blanca • Restaurantes",
+                    distanceBridge: "8.5 km al Puente Foianini",
+                    distanceAirport: "23.4 km a Viru Viru"
+                },
+                {
+                    id: "kalomai",
+                    type: "urbanizacion",
+                    name: "Kalomai Park",
+                    coords: [-17.7321, -63.2928],
+                    desc: "Un mega-resort residencial y parque acuático privado de primera categoría. Cuenta con piscinas de olas gigantes, toboganes espectaculares, canchas deportivas profesionales y condominios cerrados que prometen un estilo de vida de vacaciones eternas.",
+                    keyPoints: "Parque Acuático • Piscinas de Olas • Hotel Resort",
+                    distanceBridge: "11.2 km al Puente Foianini",
+                    distanceAirport: "26.8 km a Viru Viru"
+                },
+                {
+                    id: "belgica",
+                    type: "urbanizacion",
+                    name: "Colpa Bélgica",
+                    coords: [-17.5582, -63.2185],
+                    desc: "Histórica y encantadora localidad industrial azucarera en pleno auge de plusvalía y expansión. Actualmente rodeada de innovadores desarrollos urbanos de tipo campestre y proyectos de condominios ecológicos que serán el futuro residencial del norte metropolitano.",
+                    keyPoints: "Gran Plusvalía • Condominios Campestres • Clima Templado",
+                    distanceBridge: "23.5 km al Puente Foianini",
+                    distanceAirport: "21.2 km a Viru Viru (Vía Warnes)"
+                }
+            ],
+            keyPoints: [
+                {
+                    id: "viruviru",
+                    type: "aeropuerto",
+                    name: "Aeropuerto Internacional Viru Viru",
+                    coords: [-17.6445, -63.1365],
+                    desc: "La terminal aeroportuaria internacional más importante de Bolivia. Conecta al departamento y al país con destinos en toda América y Europa, situado estratégicamente en la zona norte con alta vinculación metropolitana al Urubó.",
+                    keyPoints: "Hub de Conectividad • Aerolíneas Internacionales • Zona Franca",
+                    distanceBridge: "19.8 km al Urubó",
+                    distanceAirport: "Punto de Referencia Inicial"
+                }
+            ],
+            puentes: [
+                {
+                    id: "puente_foianini",
+                    type: "puente",
+                    name: "Puente Mario Foianini",
+                    coords: [
+                        [-17.7651, -63.1993], // Santa Cruz Side (Equipetrol Norte / Av. La Salle)
+                        [-17.7667, -63.2045]  // Urubó Side
+                    ],
+                    desc: "El pionero e histórico puente del Urubó. Recientemente duplicado a 4 carriles para optimizar el flujo vehicular. Conecta de manera directa la lujosa zona de Equipetrol Norte con el acceso central de Colinas del Urubó.",
+                    status: "En Funcionamiento (Duplicado)",
+                    length: "420 metros"
+                },
+                {
+                    id: "puente_metropolitana",
+                    type: "puente",
+                    name: "Puente Héroes del Acre (Metropolitana)",
+                    coords: [
+                        [-17.7554, -63.2043], // Santa Cruz Side (Av. Busch)
+                        [-17.7562, -63.2078]  // Urubó Side
+                    ],
+                    desc: "Espectacular obra de ingeniería inaugurada recientemente. Conecta la prolongación de la Avenida Busch en Santa Cruz directamente con la zona norte del Urubó. Alivia significativamente la congestión de tráfico.",
+                    status: "En Funcionamiento",
+                    length: "380 metros"
+                },
+                {
+                    id: "puente_village",
+                    type: "puente",
+                    name: "Puente Urubó Village",
+                    coords: [
+                        [-17.7788, -63.2168], // Santa Cruz Side (Av. Roca y Coronado)
+                        [-17.7811, -63.2208]  // Urubó Side (Urubó Village)
+                    ],
+                    desc: "El puente de última generación recientemente construido que une de forma directa la Avenida Roca y Coronado (Santa Cruz) con el megadesarrollo residencial Urubó Village y las zonas aledañas del sur del Urubó.",
+                    status: "Inaugurado / Operativo",
+                    length: "350 metros"
+                },
+                {
+                    id: "puente_belgica",
+                    type: "puente",
+                    name: "Puente de la Integración (Colpa Bélgica)",
+                    coords: [
+                        [-17.5542, -63.2215], // Warnes/North Side
+                        [-17.5555, -63.2231]  // Colpa Bélgica Side
+                    ],
+                    desc: "Puente vial clave sobre el Río Piraí que conecta de manera ágil el municipio de Warnes y la carretera al norte (cerca de Viru Viru) con la histórica Colpa Bélgica, integrando productiva y residencialmente el norte metropolitano.",
+                    status: "Operativo",
+                    length: "180 metros"
+                }
+            ]
+        };
+
+        // Initialize Leaflet Map
+        const map = L.map('map', {
+            zoomControl: false // Custom placement of zoom control
+        }).setView([-17.7200, -63.2050], 12); // Centered strategically to see all locations
+
+        // Add custom zoom controls at top-right
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
+
+        // CartoDB Dark Matter tiles (Beautiful sleek dark styling)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Store Leaflet objects to manage layers/filters
+        const markersGroup = {};
+        const polylinesGroup = {};
+        const allPlaces = {};
+        const bridgeHandles = {}; // Handles de arrastre para mover líneas y puentes
+        const customDrawnLines = [];
+
+        // Helper: Create custom animated glowing divIcon for Leaflet markers with custom color support
+        function createCustomPinIcon(color = '#c7aa5e', isAirport = false) {
+            let iconHtml = '';
+            if (isAirport) {
+                iconHtml = `
+                    <div class="custom-gold-marker">
+                        <div class="marker-pin-gold" style="background-color: #fff; box-shadow: 0 0 12px #fff;">
+                            <i class="fas fa-plane" style="font-size: 8px; color: #000; position: absolute; top: 4px; left: 4px;"></i>
+                        </div>
+                        <div class="pulse-ring" style="border-color: #fff;"></div>
+                    </div>`;
+            } else {
+                iconHtml = `
+                    <div class="custom-gold-marker">
+                        <div class="marker-pin-gold" style="background-color: ${color}; box-shadow: 0 0 14px ${color};"></div>
+                        <div class="pulse-ring" style="border-color: ${color};"></div>
+                    </div>`;
+            }
+            
+            return L.divIcon({
+                html: iconHtml,
+                className: 'leaflet-custom-marker',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20],
+                popupAnchor: [0, -10]
+            });
+        }
+
+        // Icono para los manejadores/vértices de movimiento de líneas y puentes
+        function createLineHandleIcon() {
+            return L.divIcon({
+                className: 'line-handle-marker',
+                html: `<div class="line-drag-handle" title="Arrastra para mover este extremo"></div>`,
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+        }
+
+        // Generar contenido HTML del Popup Flotante (Modo Vista o Modo Edición)
+        function buildPopupHTML(item, isEditing = false) {
+            const isAuth = sessionStorage.getItem('map_editor_auth') === 'true';
+            let userSession = null;
+            try {
+                userSession = JSON.parse(localStorage.getItem('realty_user_session') || 'null');
+            } catch(e) { userSession = null; }
+            const canEdit = isAuth || (userSession && userSession.role === 'admin');
+
+            if (isEditing) {
+                const colors = ['#c7aa5e', '#ef4444', '#f97316', '#22c55e', '#3b82f6', '#a855f7', '#ec4899', '#ffffff'];
+                const currentColor = item.color || '#c7aa5e';
+
+                return `
+                <div class="custom-map-popup popup-edit-form" id="popup-form-${item.id}">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(199,170,94,0.3); padding-bottom:5px; margin-bottom:6px;">
+                        <span style="color:var(--primary-color); font-weight:800; font-size:0.8rem; text-transform:uppercase;">
+                            <i class="fas fa-edit"></i> Editar Lugar / Punto
+                        </span>
+                        <span style="font-size:0.68rem; color:#888;">${item.type || 'Punto'}</span>
+                    </div>
+
+                    <div class="popup-form-group">
+                        <label>Título del Lugar</label>
+                        <input type="text" id="edit_title_${item.id}" class="popup-input" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Nombre del proyecto o lugar" required>
+                    </div>
+
+                    <div class="popup-form-group">
+                        <label>Categoría / Subtítulo</label>
+                        <input type="text" id="edit_tag_${item.id}" class="popup-input" value="${(item.tag || item.type || 'Urbanización de Lujo').replace(/"/g, '&quot;')}" placeholder="ej. Urbanización, Lote, Mirador">
+                    </div>
+
+                    <div class="popup-form-group">
+                        <label>Descripción del Lugar</label>
+                        <textarea id="edit_desc_${item.id}" class="popup-textarea" rows="3" placeholder="Describe los detalles, ubicación o ventajas...">${item.desc || ''}</textarea>
+                    </div>
+
+                    <div class="popup-form-group">
+                        <label>Características / Amenidades</label>
+                        <input type="text" id="edit_features_${item.id}" class="popup-input" value="${(item.keyPoints || '').replace(/"/g, '&quot;')}" placeholder="ej. Piscina, Seguridad 24/7, Asfaltado">
+                        <span style="font-size:0.62rem; color:#777;">Separa las características con '•' o comas</span>
+                    </div>
+
+                    <div class="popup-form-group">
+                        <label>Color del Pin</label>
+                        <div class="popup-color-picker" id="color-picker-${item.id}">
+                            ${colors.map(c => `<span class="popup-color-dot ${c === currentColor ? 'active' : ''}" style="background:${c};" onclick="selectPopupColor('${item.id}', '${c}', this)"></span>`).join('')}
+                        </div>
+                        <input type="hidden" id="edit_color_${item.id}" value="${currentColor}">
+                    </div>
+
+                    <div class="popup-edit-actions">
+                        <button type="button" class="popup-btn-save" onclick="savePopupData('${item.id}')">
+                            <i class="fas fa-save"></i> GUARDAR
+                        </button>
+                        ${item.isCustom ? `
+                        <button type="button" class="popup-btn-delete" onclick="deleteMapMarker('${item.id}')" title="Eliminar este pin">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>` : ''}
+                        <button type="button" class="popup-btn-cancel" onclick="cancelPopupEdit('${item.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>`;
+            }
+
+            // Modo Lectura / Visualización
+            const features = item.keyPoints ? item.keyPoints.split(/[•,]/).map(f => f.trim()).filter(f => f.length > 0) : [];
+            const iconType = item.type === 'aeropuerto' ? 'fa-plane' : item.type === 'puente' ? 'fa-bridge' : 'fa-map-marker-alt';
+
+            return `
+            <div class="custom-map-popup popup-view-mode">
+                <h3><i class="fas ${iconType}" style="color:${item.color || 'var(--primary-color)'}"></i> ${item.name}</h3>
+                ${item.tag ? `<span class="popup-tag-badge">${item.tag}</span>` : (item.type ? `<span class="popup-tag-badge">${item.type}</span>` : '')}
+                
+                <p class="popup-desc">${item.desc || 'Sin descripción disponible.'}</p>
+                
+                ${features.length > 0 ? `
+                <div class="popup-features-title"><i class="fas fa-star" style="color:var(--primary-color); font-size:0.65rem;"></i> Características</div>
+                <div class="popup-features-list">
+                    ${features.map(f => `<span class="popup-feature-tag"><i class="fas fa-check"></i> ${f}</span>`).join('')}
+                </div>` : ''}
+
+                ${(item.distanceBridge || item.distanceAirport) ? `
+                <div class="popup-stat" style="border-top:1px solid rgba(255,255,255,0.08); padding-top:8px; margin-top:8px;">
+                    ${item.distanceBridge ? `<span><i class="fas fa-road"></i> ${item.distanceBridge}</span>` : ''}
+                    ${item.distanceAirport ? `<span><i class="fas fa-plane"></i> ${item.distanceAirport}</span>` : ''}
+                </div>` : ''}
+
+                ${canEdit ? `
+                <button type="button" class="popup-btn-edit" onclick="startPopupEdit('${item.id}')">
+                    <i class="fas fa-pencil-alt"></i> EDITAR INFORMACIÓN
+                </button>` : ''}
+            </div>`;
+        }
+
+        // Cargar modificaciones y pines guardados
+        function getSavedPlacesData() {
+            try {
+                return JSON.parse(localStorage.getItem('realty_map_places_saved') || '{}');
+            } catch(e) { return {}; }
+        }
+
+        function getSavedBridgesData() {
+            try {
+                return JSON.parse(localStorage.getItem('realty_map_bridges_saved') || '{}');
+            } catch(e) { return {}; }
+        }
+
+        function getSavedLinesData() {
+            try {
+                return JSON.parse(localStorage.getItem('realty_map_custom_lines_saved') || '[]');
+            } catch(e) { return []; }
+        }
+
+        function saveAllPlacesToStorage() {
+            const savedData = {};
+            Object.keys(allPlaces).forEach(id => {
+                const p = allPlaces[id];
+                savedData[id] = {
+                    id: p.id,
+                    name: p.name,
+                    tag: p.tag,
+                    type: p.type,
+                    desc: p.desc,
+                    keyPoints: p.keyPoints,
+                    color: p.color,
+                    coords: p.coords,
+                    isCustom: p.isCustom,
+                    distanceBridge: p.distanceBridge,
+                    distanceAirport: p.distanceAirport
+                };
+            });
+            localStorage.setItem('realty_map_places_saved', JSON.stringify(savedData));
+        }
+
+        function saveAllBridgesToStorage() {
+            const savedBridges = {};
+            Object.keys(polylinesGroup).forEach(id => {
+                if (polylinesGroup[id] && polylinesGroup[id].data) {
+                    savedBridges[id] = {
+                        id: id,
+                        coords: polylinesGroup[id].data.coords
+                    };
+                }
+            });
+            localStorage.setItem('realty_map_bridges_saved', JSON.stringify(savedBridges));
+        }
+
+        function saveAllCustomLinesToStorage() {
+            const linesData = customDrawnLines.map(l => ({
+                id: l.id,
+                coords: l.coords,
+                color: l.color
+            }));
+            localStorage.setItem('realty_map_custom_lines_saved', JSON.stringify(linesData));
+        }
+
+        // Configuración de manejadores de arrastre para líneas y puentes
+        function setupLineHandles(lineItem, polyline, polylineCore) {
+            bridgeHandles[lineItem.id] = [];
+
+            lineItem.coords.forEach((coord, idx) => {
+                const handle = L.marker(coord, {
+                    icon: createLineHandleIcon(),
+                    draggable: true,
+                    zIndexOffset: 1000
+                });
+
+                handle.on('drag', (e) => {
+                    const newLatLng = e.target.getLatLng();
+                    lineItem.coords[idx] = [newLatLng.lat, newLatLng.lng];
+                    polyline.setLatLngs(lineItem.coords);
+                    if (polylineCore) polylineCore.setLatLngs(lineItem.coords);
+                });
+
+                handle.on('dragend', () => {
+                    saveAllBridgesToStorage();
+                    saveAllCustomLinesToStorage();
+                    if (typeof showToast === 'function') {
+                        showToast(`🌉 Posición de "${lineItem.name || 'Línea'}" actualizada.`, 'info');
+                    }
+                });
+
+                bridgeHandles[lineItem.id].push(handle);
+            });
+        }
+
+        function updateHandlesVisibility(show) {
+            Object.keys(bridgeHandles).forEach(id => {
+                bridgeHandles[id].forEach(handle => {
+                    if (show) {
+                        handle.addTo(map);
+                    } else {
+                        map.removeLayer(handle);
+                    }
+                });
+            });
+        }
+
+        // Habilitar o deshabilitar arrastre según permisos de edición
+        function updateDraggableState(canDrag) {
+            // Puntos y marcadores
+            Object.values(allPlaces).forEach(p => {
+                if (p.marker) {
+                    if (canDrag) {
+                        p.marker.dragging.enable();
+                        // Vincula evento de arrastre para guardar nueva posición
+                        p.marker.off('dragend');
+                        p.marker.on('dragend', (e) => {
+                            const newPos = e.target.getLatLng();
+                            p.coords = [newPos.lat, newPos.lng];
+                            saveAllPlacesToStorage();
+                            if (typeof showToast === 'function') {
+                                showToast(`📍 Posición de "${p.name}" actualizada.`, 'info');
+                            }
+                        });
+                    } else {
+                        p.marker.dragging.disable();
+                    }
+                }
+            });
+
+            // Handles de líneas y puentes
+            updateHandlesVisibility(canDrag);
+        }
+
+        // Funciones de control del Popup Flotante
+        function startPopupEdit(itemId) {
+            const place = allPlaces[itemId];
+            if (!place || !place.marker) return;
+            place.marker.setPopupContent(buildPopupHTML(place, true));
+            place.marker.openPopup();
+        }
+
+        function cancelPopupEdit(itemId) {
+            const place = allPlaces[itemId];
+            if (!place || !place.marker) return;
+            place.marker.setPopupContent(buildPopupHTML(place, false));
+            place.marker.openPopup();
+        }
+
+        function selectPopupColor(itemId, color, el) {
+            const hidden = document.getElementById(`edit_color_${itemId}`);
+            if (hidden) hidden.value = color;
+            const container = document.getElementById(`color-picker-${itemId}`);
+            if (container) {
+                container.querySelectorAll('.popup-color-dot').forEach(d => d.classList.remove('active'));
+                if (el) el.classList.add('active');
+            }
+        }
+
+        function savePopupData(itemId) {
+            const place = allPlaces[itemId];
+            if (!place) return;
+
+            const title = document.getElementById(`edit_title_${itemId}`)?.value.trim() || place.name;
+            const tag = document.getElementById(`edit_tag_${itemId}`)?.value.trim() || place.tag;
+            const desc = document.getElementById(`edit_desc_${itemId}`)?.value.trim() || place.desc;
+            const features = document.getElementById(`edit_features_${itemId}`)?.value.trim() || place.keyPoints;
+            const color = document.getElementById(`edit_color_${itemId}`)?.value || place.color || '#c7aa5e';
+
+            place.name = title;
+            place.tag = tag;
+            place.desc = desc;
+            place.keyPoints = features;
+            place.color = color;
+
+            // Actualizar icono del marcador
+            if (place.marker) {
+                place.marker.setIcon(createCustomPinIcon(color, place.type === 'aeropuerto'));
+                place.marker.setPopupContent(buildPopupHTML(place, false));
+                place.marker.openPopup();
+            }
+
+            saveAllPlacesToStorage();
+            renderSidebar();
+
+            if (typeof showToast === 'function') {
+                showToast('¡Información del lugar guardada exitosamente!', 'success');
+            } else {
+                alert('¡Información guardada exitosamente!');
+            }
+        }
+
+        function deleteMapMarker(itemId) {
+            const place = allPlaces[itemId];
+            if (!place) return;
+            if (confirm(`¿Deseas eliminar el pin "${place.name}" del mapa?`)) {
+                if (place.marker) {
+                    map.removeLayer(place.marker);
+                }
+                delete allPlaces[itemId];
+                delete markersGroup[itemId];
+                saveAllPlacesToStorage();
+                if (typeof showToast === 'function') {
+                    showToast('Pin eliminado del mapa.', 'info');
+                }
+            }
+        }
+
+        // Cargar Urbanizaciones y Puntos en el Mapa
+        const savedOverrides = getSavedPlacesData();
+
+        mapData.urbanizaciones.forEach(item => {
+            const data = Object.assign({}, item, savedOverrides[item.id] || {});
+            data.color = data.color || '#c7aa5e';
+            const marker = L.marker(data.coords, { icon: createCustomPinIcon(data.color), draggable: false });
+            marker.bindPopup(buildPopupHTML(data, false));
+            marker.addTo(map);
+
+            data.marker = marker;
+            allPlaces[data.id] = data;
+            markersGroup[data.id] = { obj: marker, data: data };
+        });
+
+        // Cargar Puntos Clave (Aeropuerto)
+        mapData.keyPoints.forEach(item => {
+            const data = Object.assign({}, item, savedOverrides[item.id] || {});
+            const marker = L.marker(data.coords, { icon: createCustomPinIcon('#ffffff', true), draggable: false });
+            marker.bindPopup(buildPopupHTML(data, false));
+            marker.addTo(map);
+
+            data.marker = marker;
+            allPlaces[data.id] = data;
+            markersGroup[data.id] = { obj: marker, data: data };
+        });
+
+        // Cargar Pines Personalizados Guardados
+        Object.keys(savedOverrides).forEach(id => {
+            if (savedOverrides[id].isCustom && !allPlaces[id]) {
+                const data = savedOverrides[id];
+                const marker = L.marker(data.coords, { icon: createCustomPinIcon(data.color || '#c7aa5e'), draggable: false });
+                marker.bindPopup(buildPopupHTML(data, false));
+                marker.addTo(map);
+
+                data.marker = marker;
+                allPlaces[data.id] = data;
+                markersGroup[data.id] = { obj: marker, data: data };
+            }
+        });
+
+        // Cargar Puentes (con soporte para coordenadas modificadas y handles interactivos)
+        const savedBridges = getSavedBridgesData();
+
+        mapData.puentes.forEach(item => {
+            if (savedBridges[item.id] && savedBridges[item.id].coords) {
+                item.coords = savedBridges[item.id].coords;
+            }
+
+            // Draw a thick gold line
+            const polyline = L.polyline(item.coords, {
+                color: '#c7aa5e',
+                weight: 6,
+                opacity: 0.8,
+                lineCap: 'round',
+                lineJoin: 'round',
+                dashArray: 'none'
+            }).addTo(map);
+
+            // Add a glowing thin inner white core to make it look active/highway-like
+            const polylineCore = L.polyline(item.coords, {
+                color: '#ffffff',
+                weight: 2,
+                opacity: 0.9,
+                lineCap: 'round'
+            }).addTo(map);
+
+            // Bind a popup to the polyline
+            const popupContent = `
+                <div class="custom-map-popup popup-view-mode">
+                    <h3><i class="fas fa-bridge" style="color:var(--primary-color)"></i> ${item.name}</h3>
+                    <span class="popup-tag-badge">Puente Vial</span>
+                    <p class="popup-desc">${item.desc}</p>
+                    <div class="popup-stat" style="justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 8px;">
+                        <span><strong>Estado:</strong> ${item.status}</span>
+                        <span><strong>Largo:</strong> ${item.length}</span>
+                    </div>
+                </div>
+            `;
+            
+            polyline.bindPopup(popupContent);
+            polylineCore.bindPopup(popupContent);
+
+            // Custom tooltip on hover
+            polyline.bindTooltip(item.name, {
+                sticky: true,
+                className: 'bridge-tooltip'
+            });
+
+            // Interactive hover effect
+            polyline.on('mouseover', function () {
+                this.setStyle({
+                    color: '#fff',
+                    weight: 8
+                });
+            });
+            polyline.on('mouseout', function () {
+                this.setStyle({
+                    color: '#c7aa5e',
+                    weight: 6
+                });
+            });
+
+            polylinesGroup[item.id] = { obj: polyline, core: polylineCore, data: item };
+
+            // Inicializar handles de arrastre para este puente
+            setupLineHandles(item, polyline, polylineCore);
+        });
+
+        // Cargar Líneas Personalizadas Guardadas
+        const savedCustomLines = getSavedLinesData();
+        savedCustomLines.forEach(lData => {
+            const poly = L.polyline(lData.coords, { color: lData.color || '#c7aa5e', weight: 4 }).addTo(map);
+            customDrawnLines.push(lData);
+            setupLineHandles(lData, poly, null);
+        });
+
+        // Render sidebar items dynamically
+        function renderSidebar(filter = 'todos') {
+            const list = document.getElementById('locations-list-container');
+            if (!list) return;
+            list.innerHTML = '';
+
+            // Section 1: Urbanizaciones
+            if (filter === 'todos' || filter === 'urbanizacion') {
+                const urbHeader = document.createElement('div');
+                urbHeader.style.cssText = 'font-size:0.8rem; color:var(--primary-color); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-top:10px; margin-bottom:5px;';
+                urbHeader.innerHTML = '<i class="fas fa-home"></i> Urbanizaciones de Lujo';
+                list.appendChild(urbHeader);
+
+                Object.values(allPlaces).filter(p => p.type === 'urbanizacion' || p.isCustom).forEach(item => {
+                    const card = createSidebarCard(item);
+                    list.appendChild(card);
+                });
+            }
+
+            // Section 2: Puentes
+            if (filter === 'todos' || filter === 'puente') {
+                const puenteHeader = document.createElement('div');
+                puenteHeader.style.cssText = 'font-size:0.8rem; color:var(--primary-color); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-top:20px; margin-bottom:5px;';
+                puenteHeader.innerHTML = '<i class="fas fa-bridge"></i> Puentes de Conexión';
+                list.appendChild(puenteHeader);
+
+                mapData.puentes.forEach(item => {
+                    const card = createSidebarCard(item);
+                    list.appendChild(card);
+                });
+            }
+        }
+
+        // Helper: Create cards in the sidebar
+        function createSidebarCard(item) {
+            const card = document.createElement('div');
+            card.className = 'location-card';
+            card.setAttribute('data-id', item.id);
+
+            const isPuente = item.type === 'puente';
+            const icon = isPuente ? 'fa-bridge' : item.type === 'aeropuerto' ? 'fa-plane' : 'fa-home';
+            const statusOrFeatures = isPuente ? `<p class="card-status"><i class="fas fa-info-circle"></i> ${item.status} (${item.length})</p>` : `<p class="card-status"><i class="fas fa-star" style="color:var(--primary-color)"></i> ${item.keyPoints || item.desc}</p>`;
+
+            card.innerHTML = `
+                <h3>${item.name} <i class="fas ${icon}"></i></h3>
+                ${statusOrFeatures}
+            `;
+
+            // Click event: Fly to marker on the map and open its popup
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.location-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+
+                if (isPuente) {
+                    const poly = polylinesGroup[item.id].obj;
+                    map.fitBounds(poly.getBounds(), { padding: [50, 50], maxZoom: 15 });
+                    setTimeout(() => {
+                        poly.openPopup();
+                    }, 500);
+                } else if (allPlaces[item.id] && allPlaces[item.id].marker) {
+                    const marker = allPlaces[item.id].marker;
+                    map.flyTo(item.coords, 14, {
+                        animate: true,
+                        duration: 1.2
+                    });
+                    setTimeout(() => {
+                        marker.openPopup();
+                    }, 900);
+                }
+            });
+
+            return card;
+        }
+
+        // Initialize sidebar list
+        renderSidebar();
+
+        // Handle Filters Clicks
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const filter = btn.getAttribute('data-filter');
+                renderSidebar(filter);
+
+                // Filter elements on the map
+                if (filter === 'todos') {
+                    Object.keys(allPlaces).forEach(id => {
+                        if (allPlaces[id].marker) allPlaces[id].marker.addTo(map);
+                    });
+                    Object.keys(polylinesGroup).forEach(id => {
+                        polylinesGroup[id].obj.addTo(map);
+                        polylinesGroup[id].core.addTo(map);
+                    });
+                } else if (filter === 'urbanizacion') {
+                    Object.keys(allPlaces).forEach(id => {
+                        if (allPlaces[id].type === 'urbanizacion' || allPlaces[id].isCustom) {
+                            if (allPlaces[id].marker) allPlaces[id].marker.addTo(map);
+                        } else {
+                            if (allPlaces[id].marker) map.removeLayer(allPlaces[id].marker);
+                        }
+                    });
+                    Object.keys(polylinesGroup).forEach(id => {
+                        map.removeLayer(polylinesGroup[id].obj);
+                        map.removeLayer(polylinesGroup[id].core);
+                    });
+                } else if (filter === 'puente') {
+                    Object.keys(allPlaces).forEach(id => {
+                        if (allPlaces[id].marker) map.removeLayer(allPlaces[id].marker);
+                    });
+                    Object.keys(polylinesGroup).forEach(id => {
+                        polylinesGroup[id].obj.addTo(map);
+                        polylinesGroup[id].core.addTo(map);
+                    });
+                }
+            });
+        });
+
+        // Mobile responsive sidebar toggle
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const sidebarPanel = document.getElementById('map-sidebar');
+        
+        if (sidebarToggle && sidebarPanel) {
+            sidebarToggle.addEventListener('click', () => {
+                if (sidebarPanel.style.transform === 'translateX(-100%)') {
+                    sidebarPanel.style.transform = 'translateX(0)';
+                    sidebarToggle.innerHTML = '<i class="fas fa-times"></i>';
+                } else {
+                    sidebarPanel.style.transform = 'translateX(-100%)';
+                    sidebarToggle.innerHTML = '<i class="fas fa-bars"></i>';
+                }
+            });
+        }
+
+        // ====================================================
+        // ACCORDEÓN Y LÓGICA DEL PANEL DE EDICIÓN DEL MAPA
+        // ====================================================
+
+        let currentEditorMode = null;
+        let currentEditorColor = '#c7aa5e';
+        let editorHistory = [];
+
+        // Selección de modo (pin, text, line, arrow)
+        function setEditorMode(mode) {
+            if (currentEditorMode === mode) {
+                currentEditorMode = null;
+                document.querySelectorAll('.editor-btn').forEach(b => b.classList.remove('active'));
+                map.getContainer().style.cursor = '';
+                return;
+            }
+
+            currentEditorMode = mode;
+            document.querySelectorAll('.editor-btn').forEach(b => b.classList.remove('active'));
+
+            const activeBtn = document.getElementById(`btn-mode-${mode}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            if (mode === 'pin') map.getContainer().style.cursor = 'crosshair';
+            else if (mode === 'text') map.getContainer().style.cursor = 'text';
+            else if (mode === 'line' || mode === 'arrow') map.getContainer().style.cursor = 'crosshair';
+        }
+
+        // Seleccionar color
+        function selectColor(color, el) {
+            currentEditorColor = color;
+            if (el && el.parentElement) {
+                el.parentElement.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                el.classList.add('active');
+            }
+        }
+
+        // Acciones del editor
+        function saveMapEdits() {
+            saveAllPlacesToStorage();
+            saveAllBridgesToStorage();
+            saveAllCustomLinesToStorage();
+            if (typeof showToast === 'function') {
+                showToast('🎉 ¡Mapa, ubicaciones y trazos guardados exitosamente!', 'success');
+            } else {
+                alert('¡Mapa guardado exitosamente!');
+            }
+        }
+
+        function restoreOriginals() {
+            if (confirm('¿Deseas restaurar el mapa a su estado original (se borrarán los cambios de posición, pines y trazos personalizados)?')) {
+                localStorage.removeItem('realty_map_places_saved');
+                localStorage.removeItem('realty_map_bridges_saved');
+                localStorage.removeItem('realty_map_custom_lines_saved');
+                sessionStorage.removeItem('map_editor_auth');
+                location.reload();
+            }
+        }
+
+        function undoLastAction() {
+            if (editorHistory.length > 0) {
+                const lastLayer = editorHistory.pop();
+                map.removeLayer(lastLayer);
+            }
+        }
+
+        function clearNotes() {
+            if (confirm('¿Limpiar los trazos y notas agregados?')) {
+                editorHistory.forEach(layer => map.removeLayer(layer));
+                editorHistory = [];
+                customDrawnLines.length = 0;
+                saveAllCustomLinesToStorage();
+            }
+        }
+
+        function exitEditor() {
+            const panel = document.getElementById('map-editor-panel');
+            const unlockBtn = document.getElementById('btn-unlock-map-editor');
+            if (panel) panel.style.display = 'none';
+            if (unlockBtn) unlockBtn.style.display = 'flex';
+            sessionStorage.removeItem('map_editor_auth');
+            setEditorMode(null);
+            
+            // Re-render popups to remove edit buttons for guest mode
+            Object.values(allPlaces).forEach(p => {
+                if (p.marker) p.marker.setPopupContent(buildPopupHTML(p, false));
+            });
+
+            // Disable dragging on all points and hide bridge handles
+            updateDraggableState(false);
+
+            if (typeof showToast === 'function') {
+                showToast('Modo de edición bloqueado.', 'info');
+            }
+        }
+
+        // Seguridad y Desbloqueo del Editor del Mapa
+        function checkMapEditorAccess() {
+            const isAuth = sessionStorage.getItem('map_editor_auth') === 'true';
+            let userSession = null;
+            try {
+                userSession = JSON.parse(localStorage.getItem('realty_user_session') || 'null');
+            } catch(e) { userSession = null; }
+            
+            const isAdmin = userSession && userSession.role === 'admin';
+            const panel = document.getElementById('map-editor-panel');
+            const unlockBtn = document.getElementById('btn-unlock-map-editor');
+            const canEdit = isAuth || isAdmin;
+
+            if (canEdit) {
+                if (panel) panel.style.display = 'block';
+                if (unlockBtn) unlockBtn.style.display = 'none';
+            } else {
+                if (panel) panel.style.display = 'none';
+                if (unlockBtn) unlockBtn.style.display = 'flex';
+            }
+
+            // Actualizar popups según permisos
+            Object.values(allPlaces).forEach(p => {
+                if (p.marker) p.marker.setPopupContent(buildPopupHTML(p, false));
+            });
+
+            // Habilitar o deshabilitar movimiento según permisos
+            updateDraggableState(canEdit);
+        }
+
+        function openMapAuthModal() {
+            let userSession = null;
+            try {
+                userSession = JSON.parse(localStorage.getItem('realty_user_session') || 'null');
+            } catch(e) { userSession = null; }
+
+            if (userSession && userSession.role === 'admin') {
+                sessionStorage.setItem('map_editor_auth', 'true');
+                checkMapEditorAccess();
+                if (typeof showToast === 'function') showToast('¡Modo Edición Activado!', 'success');
+                return;
+            }
+
+            const modal = document.getElementById('map-auth-modal');
+            if (modal) {
+                modal.classList.add('active');
+                const err = document.getElementById('map-auth-error');
+                if (err) err.style.display = 'none';
+                setTimeout(() => document.getElementById('map-pass-input')?.focus(), 100);
+            }
+        }
+
+        function closeMapAuthModal() {
+            const modal = document.getElementById('map-auth-modal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function handleMapAuthOverlay(e) {
+            if (e.target.id === 'map-auth-modal') {
+                closeMapAuthModal();
+            }
+        }
+
+        function handleMapAuthSubmit(e) {
+            e.preventDefault();
+            const pass = document.getElementById('map-pass-input')?.value;
+            const err = document.getElementById('map-auth-error');
+
+            if (pass === 'ONE2026') {
+                sessionStorage.setItem('map_editor_auth', 'true');
+                closeMapAuthModal();
+                checkMapEditorAccess();
+                document.getElementById('map-pass-input').value = '';
+                if (typeof showToast === 'function') {
+                    showToast('🎉 ¡Modo Edición Desbloqueado! Ahora puedes mover puntos y líneas libremente.', 'success');
+                } else {
+                    alert('¡Modo Edición Desbloqueado!');
+                }
+            } else {
+                if (err) {
+                    err.style.display = 'block';
+                    err.textContent = 'Contraseña incorrecta. Acceso restringido a administradores.';
+                } else {
+                    alert('Contraseña incorrecta.');
+                }
+            }
+        }
+
+        // Verificar acceso al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkMapEditorAccess();
+        });
+
+        // Interacción con el mapa para agregar elementos
+        let linePoints = [];
+        let tempPolyline = null;
+
+        map.on('click', (e) => {
+            if (!currentEditorMode) return;
+            const isAuth = sessionStorage.getItem('map_editor_auth') === 'true';
+            let userSession = null;
+            try {
+                userSession = JSON.parse(localStorage.getItem('realty_user_session') || 'null');
+            } catch(err) { userSession = null; }
+            if (!isAuth && (!userSession || userSession.role !== 'admin')) return;
+
+            const { lat, lng } = e.latlng;
+
+            if (currentEditorMode === 'pin') {
+                const newId = `pin_${Date.now()}`;
+                const newPinData = {
+                    id: newId,
+                    isCustom: true,
+                    type: 'Lugar Urubó',
+                    tag: 'Nuevo Punto',
+                    name: 'Nuevo Punto de Interés',
+                    desc: 'Escribe aquí la descripción de este lugar o proyecto en el Urubó...',
+                    keyPoints: 'Acceso Asfaltado • Seguridad 24/7 • Servicios Básicos',
+                    color: currentEditorColor || '#c7aa5e',
+                    coords: [lat, lng]
+                };
+
+                const marker = L.marker([lat, lng], {
+                    icon: createCustomPinIcon(newPinData.color),
+                    draggable: true
+                }).addTo(map);
+
+                marker.on('dragend', (ev) => {
+                    const newPos = ev.target.getLatLng();
+                    newPinData.coords = [newPos.lat, newPos.lng];
+                    saveAllPlacesToStorage();
+                });
+
+                newPinData.marker = marker;
+                allPlaces[newId] = newPinData;
+                markersGroup[newId] = { obj: marker, data: newPinData };
+                editorHistory.push(marker);
+
+                // Abre inmediatamente el diálogo flotante en modo edición para que el usuario escriba
+                marker.bindPopup(buildPopupHTML(newPinData, true));
+                marker.openPopup();
+
+                saveAllPlacesToStorage();
+                setEditorMode(null);
+            } else if (currentEditorMode === 'text') {
+                const text = prompt('Ingrese el texto a mostrar en el mapa:');
+                if (text) {
+                    const textMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'custom-map-text',
+                            html: `<span style="color:${currentEditorColor}; font-weight:800; font-size:14px; text-shadow:0 0 4px #000, 0 0 8px #000;">${text}</span>`,
+                            iconSize: [120, 20]
+                        }),
+                        draggable: true
+                    }).addTo(map);
+                    editorHistory.push(textMarker);
+                }
+                setEditorMode(null);
+            } else if (currentEditorMode === 'line' || currentEditorMode === 'arrow') {
+                linePoints.push([lat, lng]);
+                if (linePoints.length === 1) {
+                    tempPolyline = L.polyline(linePoints, { color: currentEditorColor, weight: 4, dashArray: '6, 6' }).addTo(map);
+                } else if (linePoints.length >= 2) {
+                    if (tempPolyline) map.removeLayer(tempPolyline);
+                    const finalLine = L.polyline(linePoints, { color: currentEditorColor, weight: 4 }).addTo(map);
+                    
+                    const lineData = {
+                        id: `line_${Date.now()}`,
+                        name: 'Línea Personalizada',
+                        coords: [linePoints[0], linePoints[1]],
+                        color: currentEditorColor
+                    };
+                    customDrawnLines.push(lineData);
+                    setupLineHandles(lineData, finalLine, null);
+                    updateHandlesVisibility(true);
+                    saveAllCustomLinesToStorage();
+
+                    editorHistory.push(finalLine);
+                    linePoints = [];
+                    tempPolyline = null;
+                    setEditorMode(null);
+                }
+            }
+        });
+    </script>
+
+    <!-- Modal de Contraseña para el Editor del Mapa -->
+    <div id="map-auth-modal" class="auth-modal-overlay" onclick="handleMapAuthOverlay(event)">
+        <div class="auth-modal-card" style="max-width: 420px; text-align: center;">
+            <div class="auth-modal-header" style="padding: 25px 25px 15px;">
+                <button type="button" class="auth-modal-close" onclick="closeMapAuthModal()">&times;</button>
+                <div style="width: 55px; height: 55px; background: rgba(199, 170, 94, 0.1); border: 2px solid var(--primary-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+                    <i class="fas fa-lock" style="color: var(--primary-color); font-size: 1.4rem;"></i>
+                </div>
+                <h3 style="color: #fff; font-size: 1.15rem; margin: 0; font-weight: 800; letter-spacing: 1px;">EDITOR PLANO UGP</h3>
+                <p style="color: #888; font-size: 0.8rem; margin-top: 6px;">Ingresa la contraseña de autorización para modificar el plano interactivo.</p>
+            </div>
+            <div class="auth-modal-body" style="padding-top: 15px;">
+                <form onsubmit="handleMapAuthSubmit(event)">
+                    <div id="map-auth-error" class="auth-alert-box auth-alert-error" style="display: none; margin-bottom: 15px;"></div>
+                    <div class="auth-form-group">
+                        <label>Contraseña / Llave de Acceso</label>
+                        <div class="auth-input-wrapper">
+                            <i class="fas fa-key input-icon"></i>
+                            <input type="password" id="map-pass-input" class="auth-input" placeholder="••••••••" required autocomplete="current-password" style="text-align: center; font-size: 1.1rem; letter-spacing: 3px;">
+                        </div>
+                    </div>
+                    <button type="submit" class="auth-submit-btn" style="margin-top: 10px;">
+                        <i class="fas fa-unlock-alt" style="margin-right: 6px;"></i> DESBLOQUEAR EDICIÓN
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realty ONE Group Bolivia | Bienes Raíces Premium</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- Topbar Superior Funcional -->
+    <div class="topbar" id="topbar">
+        <div class="topbar-container">
+            <div class="topbar-left">
+                <a href="tel:+59160937050" class="topbar-item" title="Llamar o contactar">
+                    <i class="fas fa-phone-alt"></i> <span>+591 60937050</span>
+                </a>
+                <a href="mailto:info@realtyonegroup.com.bo?subject=Consulta%20Inmobiliaria%20Realty%20ONE%20Bolivia" class="topbar-item" title="Enviar correo">
+                    <i class="fas fa-envelope"></i> <span>info@realtyonegroup.com.bo</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-socials">
+                    <a href="https://www.facebook.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+                <div class="topbar-auth" id="topbar-auth">
+                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="topbar-auth-btn" id="btn-topbar-login">
+                        <i class="fas fa-user"></i> <span>Iniciar Sesión</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="topbar-auth-btn" id="btn-topbar-register">
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header id="header">
+        <a href="#" class="logo">
+            <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" id="main-logo">
+        </a>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="#inicio">Inicio</a></li>
+                <li class="dropdown">
+                    <a href="#propiedades">Propiedades <i class="fas fa-chevron-down"
+                            style="font-size: 0.7rem;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="venta.html" target="_blank">Venta</a></li>
+                        <li><a href="alquiler.html" target="_blank">Alquiler</a></li>
+                        <li><a href="anticretico.html" target="_blank">Anticrético</a></li>
+                        <li><a href="terrenos.html" target="_blank">Terrenos</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="#proyectos">Proyectos <i class="fas fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="#proyectos">Urub&oacute; Green Park</a></li>
+                        <li><a href="mapa.html" target="_blank"><i class="fas fa-map-marked-alt" style="margin-right:6px;"></i>Plano UGP</a></li>
+                    </ul>
+                </li>
+                <li><a href="#blog">Noticias</a></li>
+                <li><a href="#testimonios">Testimonios</a></li>
+                <li><a href="#nosotros" class="active">Nosotros</a></li>
+                <li><a href="#agentes">Agentes</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+                <li class="mobile-only-item"><a href="javascript:void(0)" onclick="toggleLoginModal()" style="color: var(--primary-color); font-weight:700;"><i class="fas fa-lock" style="margin-right:8px;"></i>PANEL DE GESTIÓN</a></li>
+            </ul>
+        </nav>
+        <div class="header-btns">
+            <button id="menu-toggle" class="menu-btn"><i class="fas fa-bars"></i></button>
+        </div>
+    </header>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 style="color: var(--primary-color);">Acceso Restringido</h2>
+                <span class="close-modal" onclick="toggleLoginModal()">&times;</span>
+            </div>
+            <p style="margin-bottom: 20px; color: #888;">Ingresa tu código de acceso para gestionar el inventario.</p>
+            <div class="form-group">
+                <input type="password" id="access-code" placeholder="Código Secreto"
+                    style="text-align: center; font-size: 1.2rem;">
+            </div>
+            <button class="btn-submit" onclick="validateAccess()" style="width: 100%; margin-top: 10px;">ACCEDER AL
+                PANEL</button>
+            <div id="login-error" style="color: #ff4444; margin-top: 15px; display: none;">Código incorrecto. Intenta de
+                nuevo.</div>
+        </div>
+    </div>
+
+    <section class="hero" id="inicio">
+        <div class="hero-slider" id="hero-slider-container">
+            <!-- Cargado dinámicamente -->
+        </div>
+        <div class="hero-overlay"></div>
+        <h1 data-aos="zoom-out" data-aos-duration="1500" id="hero-title">TU HOGAR <span>ESTÁ AQUÍ</span></h1>
+        <p data-aos="fade-up" data-aos-delay="200" id="hero-desc">En Realty ONE Group Bolivia, hacemos realidad tus
+            sueños
+            inmobiliarios con tecnología de vanguardia y un servicio premium excepcional.</p>
+
+        <div data-aos="fade-up" data-aos-delay="300" style="text-align:center; margin: 25px 0 10px;">
+            <a href="buscar.html" style="display:inline-flex; align-items:center; gap:12px; background:var(--primary-color); color:#000; padding:16px 36px; border-radius:50px; font-weight:900; font-size:1rem; letter-spacing:2px; text-decoration:none; box-shadow:0 8px 30px rgba(201,168,76,0.35); transition:0.3s;" onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 15px 40px rgba(201,168,76,0.5)'" onmouseout="this.style.transform=''; this.style.boxShadow='0 8px 30px rgba(201,168,76,0.35)'">
+                <i class="fas fa-search"></i> BUSCAR PROPIEDADES
+            </a>
+        </div>
+
+        <div class="search-container" data-aos="fade-up" data-aos-delay="400">
+            <div class="search-tabs" id="search-tabs-container">
+                <div class="tab active" onclick="switchTab(this, 'todos')">Todos</div>
+                <div class="tab" onclick="switchTab(this, 'alquiler')">Alquiler</div>
+                <div class="tab" onclick="switchTab(this, 'venta')">Venta</div>
+                <div class="tab" onclick="switchTab(this, 'anticretico')">Anticrético</div>
+                <div class="tab" onclick="switchTab(this, 'terreno')">Terrenos</div>
+            </div>
+            <div class="search-fields">
+                <div class="field">
+                    <label>Tipo de Inmueble</label>
+                    <select id="search-type">
+                        <option value="todos">Todos</option>
+                        <option>Casa</option>
+                        <option>Departamento</option>
+                        <option>Terreno</option>
+                        <option>Comercial</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>Ubicación</label>
+                    <input type="text" id="search-location" placeholder="Ciudad o Barrio...">
+                </div>
+                <div class="field">
+                    <label>Precio Máximo</label>
+                    <input type="number" id="search-price" placeholder="Ej: 200,000">
+                </div>
+                <button class="btn-search" onclick="applyFilters()"><i class="fas fa-search"></i> BUSCAR</button>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="proyectos">
+        <div class="section-title" data-aos="fade-up">
+            <h2>Proyectos <span>Destacados ONE</span></h2>
+        </div>
+        <div id="projects-container">
+            <!-- Los proyectos se cargan automáticamente desde script.js -->
+        </div>
+    </section>
+
+    <section class="section" id="propiedades">
+        <div class="section-title" data-aos="fade-up">
+            <h2>Inmuebles <span>Destacados ONE</span></h2>
+        </div>
+
+        <div class="property-grid" id="property-container">
+            <!-- Las propiedades se cargan automáticamente desde script.js -->
+        </div>
+    </section>
+
+    <!-- Interactive Map Promo Banner Section -->
+    <section class="map-promo-section" style="padding: 80px 50px; background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%); border-top: 1px solid rgba(199, 170, 94, 0.2); border-bottom: 1px solid rgba(199, 170, 94, 0.2); position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -100px; right: -100px; width: 300px; height: 300px; background: rgba(199, 170, 94, 0.05); border-radius: 50%; filter: blur(50px); pointer-events: none;"></div>
+        <div style="position: absolute; bottom: -100px; left: -100px; width: 300px; height: 300px; background: rgba(199, 170, 94, 0.05); border-radius: 50%; filter: blur(50px); pointer-events: none;"></div>
+        
+        <div class="map-promo-content" style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 50px; flex-wrap: wrap;" data-aos="fade-up">
+            <div class="map-promo-text" style="flex: 1.2; min-width: 300px;">
+                <span class="text-script" style="font-size: 2rem; margin-bottom: 10px;">Tu Conexión Premium</span>
+                <h2 style="font-size: 2.5rem; text-transform: uppercase; margin-bottom: 20px; line-height: 1.2;">EXPLORA EL <span style="color: var(--primary-color);">URUBÓ INTERACTIVO</span></h2>
+                <p style="color: var(--text-gray); font-size: 1.1rem; margin-bottom: 30px; line-height: 1.6;">
+                    Visualiza la ubicación exacta de las urbanizaciones más exclusivas: <strong>Colinas del Urubó, Urubó Green, Playa Turquesa, Kalomai y Bélgica</strong>. 
+                    Conoce de primera mano los puentes de última generación que integran Santa Cruz con toda la zona metropolitana del Urubó, y su proximidad al <strong>Aeropuerto Internacional Viru Viru</strong>.
+                </p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 600; font-size: 0.9rem;"><i class="fas fa-home" style="color: var(--primary-color);"></i> Urbanizaciones</div>
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 600; font-size: 0.9rem;"><i class="fas fa-bridge" style="color: var(--primary-color);"></i> Puentes Viales</div>
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff; font-weight: 600; font-size: 0.9rem;"><i class="fas fa-plane" style="color: var(--primary-color);"></i> Conectividad Aérea</div>
+                </div>
+            </div>
+            
+            <div class="map-promo-visual" style="flex: 1; min-width: 300px; text-align: center; position: relative;">
+                <div class="map-mockup-wrapper" style="position: relative; display: inline-block; border-radius: 20px; overflow: hidden; border: 2px solid var(--primary-color); box-shadow: 0 20px 40px rgba(0,0,0,0.6); transition: 0.3s;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
+                    <!-- A stylized representation of a map card -->
+                    <div style="width: 100%; max-width: 450px; height: 280px; background: #000; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; text-align: left; position: relative;">
+                        <!-- UI elements -->
+                        <div style="z-index: 2; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span style="font-size: 0.7rem; color: var(--primary-color); border: 1px solid var(--primary-color); padding: 4px 12px; border-radius: 50px; font-weight: 700; background: rgba(0,0,0,0.8); letter-spacing: 1px;">SISTEMA DE MAPAS V2</span>
+                            <i class="fas fa-compass" style="color: var(--primary-color); font-size: 1.2rem;"></i>
+                        </div>
+                        <div style="z-index: 2; margin-bottom: 15px;">
+                            <h4 style="font-size: 1.3rem; color: #fff; margin-bottom: 5px; font-weight: 700; letter-spacing: 1px;">MAPA DE INTEGRACIÓN</h4>
+                            <p style="font-size: 0.85rem; color: #888; margin: 0;">Explora y calcula distancias del Urubó en tiempo real.</p>
+                        </div>
+                        <div style="z-index: 2; width: 100%;">
+                            <a href="mapa.html" target="_blank" class="btn-submit" style="display: block; text-align: center; padding: 12px 20px; font-size: 0.85rem; border-radius: 50px; text-decoration: none; font-weight: 800; letter-spacing: 1px;">EXPLORAR MAPA <i class="fas fa-arrow-right" style="margin-left: 8px;"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials" id="testimonios">
+        <div class="section-title" data-aos="fade-up">
+            <h2>Lo que dicen <span>Nuestros Clientes ONE</span></h2>
+        </div>
+        <div class="testimonial-container" id="testimonial-container">
+            <!-- Cargado dinámicamente -->
+        </div>
+    </section>
+
+    <!-- Nosotros Section (Manifiesto y 6C's) -->
+    <section id="nosotros" style="overflow: hidden;">
+        <!-- Manifiesto Section -->
+        <div class="manifesto-section-refurbished">
+            <div class="manifesto-split-new">
+                <div class="manifesto-left-new">
+                    <div style="position: absolute; top: 40px; left: 50px; text-align: left; z-index: 10;">
+                        <h2 style="font-size: 1.5rem; letter-spacing: 2px; color: #fff; margin: 0; font-weight: 800;">NOSOTROS <span style="color: var(--primary-color);">SOMOS ONE</span></h2>
+                    </div>
+                    <div class="manifesto-branding">
+                        <span class="nuestro-text">Nuestro</span>
+                        <div class="manifesto-white-bar">
+                            <h2 class="manifesto-title-bold">MANIFIESTO</h2>
+                            <img src="assets/gold_globe_icon.png" alt="Gold Globe" class="gold-globe-icon">
+                        </div>
+                    </div>
+                </div>
+                <div class="manifesto-right-new">
+                    <div class="manifesto-quote-box">
+                        <h2 class="manifesto-quote-title" id="manifesto-quote-title">TODOS TENEMOS <br> UNA VIDA PARA VIVIR</h2>
+                        <p class="manifesto-paragraph" id="manifesto-quote-paragraph" style="color: #000;">
+                            <strong style="color: #000; display: block; margin-bottom: 10px; font-size: 1.1rem; letter-spacing: 2px;">PROPÓSITO</strong>
+                            Abriendo puertas en todo el mundo,<br>
+                            <strong>ONE</strong> hogar <strong>ONE</strong> sueño <strong>ONE</strong> vida a la vez
+                            <br><br>
+                            Tienes <strong>ONE</strong> vida para vivir.<br>
+                            <strong>ONE</strong> oportunidad de hacerla significativa, darle sentido y la posibilidad de vivir sin remordimientos.<br>
+                            Asume riesgos, sé audaz, aprovecha el día y usa el respeto como guía. Lidera con respeto.<br>
+                            Tus circunstancias cambiarán, la gente cambiará, tú cambiarás.<br>
+                            Ábrete a esto, acéptalo y vívelo.<br>
+                            Aquí todos y cada <strong>ONE</strong> de nosotros tenemos voz.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Misión y Visión 2-Column Accordion -->
+        <div class="mission-vision-grid">
+            <div class="mv-column" data-aos="fade-right">
+                <div class="accordion-item mv-card-accordion" onclick="this.classList.toggle('active')">
+                    <div class="mv-content-card">
+                        <i class="fas fa-bullseye"></i>
+                        <h3 id="mision-title">Nuestra Misión</h3>
+                        <div class="accordion-content">
+                            <p id="mision-text">Cargando misión...</p>
+                        </div>
+                        <div class="expand-indicator"><i class="fas fa-plus"></i></div>
+                    </div>
+                </div>
+            </div>
+            <div class="mv-column" data-aos="fade-left">
+                <div class="accordion-item mv-card-accordion" onclick="this.classList.toggle('active')">
+                    <div class="mv-content-card">
+                        <i class="fas fa-eye"></i>
+                        <h3 id="vision-title">Nuestra Visión</h3>
+                        <div class="accordion-content">
+                            <p id="vision-text">Cargando visión...</p>
+                        </div>
+                        <div class="expand-indicator"><i class="fas fa-plus"></i></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 6C's Section -->
+        <div class="six-cs-custom-section">
+            <div class="six-cs-flex-container">
+                <div class="six-cs-large-visual">
+                    <img src="assets/six_cs_visual.png" alt="6C's Visual" class="huge-6cs-image" id="six-cs-image" onerror="this.src='assets/logo_bolivia.png'">
+                </div>
+                <div class="six-cs-data-list" id="six-cs-list">
+                    <!-- Dinámicamente renderizado desde script.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Expansion Section -->
+        <div class="expansion-section" data-aos="fade-up">
+            <div class="container">
+                <h2 class="expansion-title" id="expansion-title"><span style="color: var(--primary-color);">REALTY ONE GROUP</span> SE EXPANDE EN EL MUNDO</h2>
+                <p class="expansion-subtitle" id="expansion-subtitle">
+                    NOS ESTAMOS EXPANDIENDO Acompáñanos mientras seguimos pintando de ORO la nación, sacudiendo la industria inmobiliaria hasta su núcleo – y dándote las herramientas para llevar tu negocio al siguiente nivel localmente e internacionalmente.
+                </p>
+
+                <div class="expansion-grid" id="expansion-grid">
+                    <!-- Dinámicamente renderizado desde script.js -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Agents Section -->
+    <section class="agents-section" id="agentes">
+        <div class="section-title" data-aos="fade-up">
+            <h2>Nuestros <span>Agentes ONE</span></h2>
+            <p style="color: #888; margin-top: 10px;">Profesionales comprometidos con hacer realidad tu sueño inmobiliario.</p>
+        </div>
+        <div class="agent-grid" id="agent-container">
+            <!-- Cargado dinámicamente desde script.js -->
+        </div>
+    </section>
+
+    <!-- Blog Section -->
+    <section class="section" id="blog" style="background: #fff; color: #111;">
+        <div class="section-title">
+            <h2 style="color: #111;">NOTICIAS Y <span style="color: var(--primary-color);">TENDENCIAS ONE</span></h2>
+            <p style="color: #666; margin-top: 10px;">Mantente al día con lo último del mundo inmobiliario en Bolivia.</p>
+        </div>
+        <div class="blog-grid" id="blog-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
+            <!-- Cargado dinámicamente -->
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="section" id="contacto">
+        <div class="section-title">
+            <h2>Hablemos de <span>Tu Futuro</span></h2>
+        </div>
+        <div class="contact-container">
+            <div class="contact-info">
+                <div class="contact-item" data-aos="fade-up" data-aos-delay="100">
+                    <i class="fas fa-phone"></i>
+                    <div>
+                        <h4 style="color: var(--primary-color);">Llámanos</h4>
+                        <p id="contact-phone">+591 60937050</p>
+                    </div>
+                </div>
+                <div class="contact-item" data-aos="fade-up" data-aos-delay="200">
+                    <i class="fas fa-envelope"></i>
+                    <div>
+                        <h4 style="color: var(--primary-color);">Email</h4>
+                        <p id="contact-email">info@realtyonegroup.com.bo</p>
+                    </div>
+                </div>
+                <div class="contact-item" data-aos="fade-up" data-aos-delay="300">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <div>
+                        <h4 style="color: var(--primary-color);">Oficina</h4>
+                        <p id="contact-address">Equipetrol Norte, Santa Cruz</p>
+                    </div>
+                </div>
+            </div>
+            <form class="contact-form">
+                <div class="form-group">
+                    <input type="text" placeholder="Tu Nombre Completo" required>
+                </div>
+                <div class="form-group">
+                    <input type="email" placeholder="Tu Correo Electrónico" required>
+                </div>
+                <div class="form-group">
+                    <textarea rows="5" placeholder="¿En qué podemos ayudarte?" required></textarea>
+                </div>
+                <button type="submit" class="btn-submit">ENVIAR MENSAJE</button>
+            </form>
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <a href="#" class="logo">
+                    <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" style="max-height: 40px;"
+                        id="footer-logo">
+                </a>
+                <p style="margin-top: 20px; color: #888;" id="footer-text">La franquicia inmobiliaria de más rápido
+                    crecimiento en el
+                    mundo. El estilo de vida ONE ha llegado a Bolivia.</p>
+                <div class="social-links">
+                    <a href="#"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#"><i class="fab fa-instagram"></i></a>
+                    <a href="#"><i class="fab fa-whatsapp"></i></a>
+                    <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                </div>
+            </div>
+            <div class="footer-col">
+                <h4>Enlaces Rápidos</h4>
+                <ul>
+                    <li><a href="#">Inicio</a></li>
+                    <li><a href="#">Propiedades</a></li>
+                    <li><a href="mapa.html" target="_blank" style="color: var(--primary-color); font-weight:700;"><i class="fas fa-map-marked-alt"></i> Mapa Urubó</a></li>
+                    <li><a href="#agentes">Agentes</a></li>
+                    <li><a href="#">Franquicias</a></li>
+                    <li><a href="#">Únete al equipo</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contacto</h4>
+                <ul>
+                    <li><i class="fas fa-envelope" style="color: var(--primary-color);"></i>
+                        <span id="contact-email-footer">info@realtyonegroup.com.bo</span>
+                    </li>
+                    <li><i class="fas fa-phone" style="color: var(--primary-color);"></i> <span
+                            id="contact-phone-footer">+591 60937050</span></li>
+                    <li><i class="fas fa-map-marker-alt" style="color: var(--primary-color);"></i> <span
+                            id="contact-address-footer">Santa Cruz, Bolivia</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="copyright" id="copyright-text" style="display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <span>&copy; 2026 Realty ONE Group Bolivia. Todos los derechos reservados.</span>
+            <a href="javascript:void(0)" onclick="toggleLoginModal()" style="color: #666; text-decoration: none; font-size: 0.8rem; display: flex; align-items: center; gap: 5px;">
+                <i class="fas fa-lock"></i> Gestión ONE
+            </a>
+        </div>
+    </footer>
+
+    <!-- Floating Buttons -->
+    <a href="https://wa.me/59160937050" class="whatsapp-float pulse" target="_blank" id="whatsapp-float-link">
+        <i class="fab fa-whatsapp"></i>
+        <span>¡Hablemos!</span>
+    </a>
+
+    <button id="back-to-top" class="back-to-top" onclick="scrollToTop()">
+        <i class="fas fa-chevron-up"></i>
+    </button>
+
+    <!-- Admin Panel Modal -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-content" style="max-width: 1080px; padding: 0; border: none; overflow: hidden;">
+            <div class="admin-header-luxury">
+                <div class="admin-header-title">
+                    <img src="assets/logo_one_circle.png" alt="ONE" style="width: 32px; height: 32px; object-fit: contain;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: 1.5px; color: #fff;">
+                            PANEL DE <span style="color: var(--primary-color);">GESTIÓN ONE</span>
+                        </h2>
+                        <span style="font-size: 0.72rem; color: #888; font-weight: 500;">Gestor de Contenidos & Administrador Global</span>
+                    </div>
+                    <span class="admin-badge-v2" style="margin-left: 10px;"><i class="fas fa-bolt" style="color: var(--primary-color);"></i> CMS v2.0</span>
+                </div>
+                <div class="admin-close-btn" onclick="toggleAdminPanel()" title="Cerrar Panel">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+
+            <div class="admin-body" style="display: flex; height: 72vh;">
+                <!-- Sidebar Tabs -->
+                <div class="admin-sidebar" id="admin-tabs" style="width: 250px;">
+                    <!-- Cargado por JS -->
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="admin-main" style="flex: 1;">
+                    <div id="tab-content">
+                        <!-- Cargado por JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden Export Section (Access only when saving) -->
+            <div id="export-section" style="display: none; padding: 18px 24px; background: #0c0c10; border-top: 1px solid rgba(255,255,255,0.08);">
+                <h3 style="color: var(--primary-color); font-size: 0.95rem; margin-bottom: 6px;"><i class="fas fa-code"></i> Código de Persistencia:</h3>
+                <p style="font-size: 0.78rem; color: #888; margin-bottom: 10px;">Copia este código para respaldo o sincronización manual si lo necesitas.</p>
+                <textarea id="export-code" style="width: 100%; height: 90px; background: #141419; color: #a3e635; border: 1px solid rgba(255,255,255,0.12); padding: 10px; font-family: monospace; font-size: 0.78rem; border-radius: 8px;"></textarea>
+                <button class="cms-btn-primary" onclick="copyCode()" style="margin-top: 10px; width: 100%;"><i class="fas fa-copy"></i> COPIAR Y CERRAR</button>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 24px; background: #09090c; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #888;">
+                    <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #22c55e;"></span>
+                    <span>Cambios sincronizados en vivo con SiteGround</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="cms-btn-secondary" onclick="showSaveOption()">
+                        <i class="fas fa-code"></i> Exportar Código
+                    </button>
+                    <button class="cms-btn-primary" onclick="saveToFile()">
+                        <i class="fas fa-check-double"></i> Guardar Todo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+    <script>
+        AOS.init({
+            duration: 1200,
+            once: false,
+            offset: 120,
+            easing: 'ease-in-out-cubic'
+        });
+    </script>
+</body>
+
+</html>

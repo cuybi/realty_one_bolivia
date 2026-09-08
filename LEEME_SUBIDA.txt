@@ -1,0 +1,51 @@
+========================================================================
+🦁 REALTY ONE GROUP BOLIVIA - GUÍA RÁPIDA DE SUBIDA A SITEGROUND / CPANEL
+========================================================================
+
+¡Todos los archivos del Chatbot, CRM y Portal Web ya están 100% listos!
+
+------------------------------------------------------------------------
+PASO 1: EMPAQUETAR O SUBIR LOS ARCHIVOS
+------------------------------------------------------------------------
+Opción A (Recomendada):
+1. Haz doble clic en el archivo "crear_zip_siteground.bat"
+2. Se generará automáticamente el archivo: "siteground_deploy.zip"
+3. Entra a tu cPanel / SiteGround -> "Administrador de Archivos" (File Manager)
+4. Entra a la carpeta "public_html" de tu dominio
+5. Sube "siteground_deploy.zip" y haz clic derecho -> "Extraer" (Extract)
+
+Opción B (Directa):
+Selecciona todos los archivos y carpetas de esta carpeta y súbelos 
+directamente a la carpeta "public_html" de tu hosting vía FTP o File Manager.
+
+------------------------------------------------------------------------
+PASO 2: ACTIVAR EL WEBHOOK EN FACEBOOK / META DEVELOPERS
+------------------------------------------------------------------------
+1. Ingresa a: https://developers.facebook.com/
+2. Entra a tu App -> Menú lateral "WhatsApp" -> "Configuración" (Configuration)
+3. En la sección "Webhook", haz clic en "Editar":
+   - URL de devolución de llamada: https://TUDOMINIO.com/webhook.php
+   - Identificador de verificación: realty_one_whatsapp_verify_token_2026
+4. Haz clic en "Verificar y Guardar"
+5. En "Campos del Webhook", haz clic en "Administrar" y suscríbete a: "messages"
+
+------------------------------------------------------------------------
+PASO 3: GUARDAR TU TOKEN DE META
+------------------------------------------------------------------------
+Abre en tu navegador:
+https://TUDOMINIO.com/activar.php
+Pega tu Token de acceso de Meta y haz clic en "Guardar y Activar Conexión".
+
+------------------------------------------------------------------------
+PASO 4: VERIFICAR Y PROBAR
+------------------------------------------------------------------------
+1. Diagnóstico: Abre https://TUDOMINIO.com/diagnostico.php para comprobar 
+   que el Token y los permisos están en VERDE.
+2. CRM en Vivo: Abre https://TUDOMINIO.com/crm_leads.html para gestionar 
+   los prospectos y atenderlos con los e-Realtors.
+3. Envía un mensaje desde tu WhatsApp personal a tu número Business para 
+   comprobar la respuesta instantánea del bot.
+
+========================================================================
+🦁 Realty ONE Group Bolivia - Innovación Inmobiliaria con IA
+========================================================================

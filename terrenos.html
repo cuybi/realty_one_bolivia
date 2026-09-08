@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrenos y Lotes | Realty ONE Group Bolivia</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- Topbar Superior Funcional -->
+    <div class="topbar" id="topbar">
+        <div class="topbar-container">
+            <div class="topbar-left">
+                <a href="tel:+59160937050" class="topbar-item" title="Llamar o contactar">
+                    <i class="fas fa-phone-alt"></i> <span>+591 60937050</span>
+                </a>
+                <a href="mailto:info@realtyonegroup.com.bo?subject=Consulta%20Inmobiliaria%20Realty%20ONE%20Bolivia" class="topbar-item" title="Enviar correo">
+                    <i class="fas fa-envelope"></i> <span>info@realtyonegroup.com.bo</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-socials">
+                    <a href="https://www.facebook.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+                <div class="topbar-auth" id="topbar-auth">
+                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="topbar-auth-btn" id="btn-topbar-login">
+                        <i class="fas fa-user"></i> <span>Iniciar Sesión</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="topbar-auth-btn" id="btn-topbar-register">
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header id="header">
+        <a href="index.html" class="logo">
+            <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" id="main-logo">
+        </a>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="index.html#inicio">Inicio</a></li>
+                <li class="dropdown">
+                    <a href="index.html#propiedades">Propiedades <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="venta.html" target="_blank">Venta</a></li>
+                        <li><a href="alquiler.html" target="_blank">Alquiler</a></li>
+                        <li><a href="anticretico.html" target="_blank">Anticrético</a></li>
+                        <li><a href="terrenos.html" target="_blank">Terrenos</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="index.html#proyectos">Proyectos <i class="fas fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html#proyectos">Urub&oacute; Green Park</a></li>
+                        <li><a href="mapa.html" target="_blank"><i class="fas fa-map-marked-alt" style="margin-right:6px;"></i>Plano UGP</a></li>
+                    </ul>
+                </li>
+                <li><a href="index.html#nosotros">Nosotros</a></li>
+                <li><a href="index.html#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+        <div class="header-btns">
+            <button id="menu-toggle" class="menu-btn"><i class="fas fa-bars"></i></button>
+        </div>
+    </header>
+
+    <section class="section-hero">
+        <div class="section-title" data-aos="fade-up">
+            <h2 id="cat-title">Venta de <span>Terrenos y Lotes</span></h2>
+            <p id="cat-desc" style="margin-top: 20px; color: #888;">Invierte en tierra, la base de todo patrimonio sólido. Lotes en las zonas de mayor plusvalía.</p>
+            
+            <div style="margin-top: 30px;">
+                <a href="index.html#propiedades" class="btn-search" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px 25px;">
+                    <i class="fas fa-arrow-left"></i> VOLVER A PROPIEDADES
+                </a>
+            </div>
+        </div>
+
+        <div class="property-grid" id="property-container">
+            <!-- Cargado dinámicamente -->
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <a href="index.html" class="logo">
+                    <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" style="max-height: 40px;" id="footer-logo">
+                </a>
+                <p style="margin-top: 20px; color: #888;" id="footer-text">La franquicia inmobiliaria de más rápido crecimiento en el mundo. El estilo de vida ONE ha llegado a Bolivia.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Enlaces Rápidos</h4>
+                <ul>
+                    <li><a href="index.html">Inicio</a></li>
+                    <li><a href="venta.html">Venta</a></li>
+                    <li><a href="alquiler.html">Alquiler</a></li>
+                    <li><a href="terrenos.html">Terrenos</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contacto</h4>
+                <ul>
+                    <li><i class="fas fa-envelope" style="color: var(--primary-color);"></i> <span id="contact-email-footer">info@realtyonegroup.com.bo</span></li>
+                    <li><i class="fas fa-phone" style="color: var(--primary-color);"></i> <span id="contact-phone-footer">+591 60937050</span></li>
+                    <li><i class="fas fa-map-marker-alt" style="color: var(--primary-color);"></i> <span id="contact-address-footer">Santa Cruz, Bolivia</span></li>
+                </ul>
+            </div>
+        </div>
+            <span id="copyright-text"></span>
+        </div>
+
+    </footer>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+    <script>
+        AOS.init({ duration: 1000, once: true });
+    </script>
+</body>
+</html>

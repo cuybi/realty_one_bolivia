@@ -1,0 +1,20 @@
+{
+  "name": "realty-one-group-bolivia",
+  "version": "1.0.0",
+  "description": "Sitio web oficial de Realty ONE Group Bolivia - Bienes Raíces Premium",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "cors": "^2.8.5",
+    "express": "^4.18.3",
+    "pino": "^10.3.1",
+    "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneLeads CRM — Tablero Visual Kanban & Gestión de Ventas</title>
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="app_crm.css">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="crm-header">
+    <div class="brand-section">
+      <a href="app_crm.html" class="brand-logo">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>One</span>Leads CRM
+      </a>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        <span>En Vivo (WhatsApp Web)</span>
+      </div>
+    </div>
+
+    <!-- View Mode Switcher -->
+    <div class="view-switcher">
+      <button class="view-btn active" id="btnViewKanban" onclick="switchView('kanban')">
+        <i class="fa-solid fa-table-columns"></i> Kanban
+      </button>
+      <button class="view-btn" id="btnViewTable" onclick="switchView('table')">
+        <i class="fa-solid fa-list-check"></i> Tabla
+      </button>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="header-actions">
+      <button class="crm-btn crm-btn-lime" onclick="openCreateLeadModal('NUEVO')">
+        <i class="fa-solid fa-user-plus"></i> + Nuevo Prospecto
+      </button>
+
+      <button class="crm-btn crm-btn-secondary" onclick="toggleTemplateDrawer()" title="Plantillas de Mensajes en 1 Clic">
+        <i class="fa-solid fa-bolt-lightning" style="color:var(--lime-primary);"></i> Plantillas 1-Clic
+      </button>
+
+      <button class="crm-btn crm-btn-secondary" onclick="toggleSimulatorDrawer()" title="Simulador y Consola de Chat">
+        <i class="fa-solid fa-robot" style="color:#25d366;"></i> Simulador Chat
+      </button>
+
+      <button class="crm-btn crm-btn-excel" onclick="exportKanbanToExcel()" title="Descargar reporte en Excel (.xlsx/.xls)">
+        <i class="fa-solid fa-file-excel"></i> Exportar Excel
+      </button>
+
+      <button class="crm-btn crm-btn-secondary" onclick="manualRefresh()" title="Recargar y sincronizar datos">
+        <i class="fa-solid fa-rotate" id="refreshIcon"></i>
+      </button>
+
+      <button class="crm-btn crm-btn-danger" onclick="clearAllBoard()" title="Vaciar todos los prospectos del CRM">
+        <i class="fa-solid fa-trash"></i> Vaciar
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Wrapper -->
+  <main class="crm-main">
+
+    <!-- Pipeline Step Banner -->
+    <div class="pipeline-banner">
+      <div style="display:flex; align-items:center; gap:8px; font-weight:800; font-size:0.82rem; color:var(--lime-primary); text-transform:uppercase; letter-spacing:0.5px;">
+        <i class="fa-solid fa-network-wired"></i> Embudo de Ventas OneLeads
+      </div>
+      <div class="pipeline-steps">
+        <div class="pipeline-step"><i class="fa-solid fa-bullhorn" style="color:#38bdf8;"></i> 1. Ads / WhatsApp</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-inbox"></i> 2. Nuevo Lead</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-comments" style="color:#faad14;"></i> 3. Calificación</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step active"><i class="fa-solid fa-calendar-check" style="color:#ffd700;"></i> 4. Visita Agendada</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step"><i class="fa-solid fa-briefcase" style="color:#ff7a45;"></i> 5. Negociación</div>
+        <i class="fa-solid fa-arrow-right pipeline-arrow"></i>
+        <div class="pipeline-step" style="background:#22c55e; color:#000; font-weight:800;"><i class="fa-solid fa-trophy"></i> 6. Cierre Ganado</div>
+      </div>
+    </div>
+
+    <!-- KPI Metric Cards Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card total" onclick="filterByPriorityKPI('TODAS')">
+        <div class="kpi-data">
+          <span class="kpi-title">Total Leads</span>
+          <span class="kpi-number" id="kpiTotal">0</span>
+        </div>
+        <i class="fa-solid fa-users kpi-icon"></i>
+      </div>
+
+      <div class="kpi-card potencial" onclick="filterByPriorityKPI('POTENCIAL')">
+        <div class="kpi-data">
+          <span class="kpi-title">🔥 Calientes</span>
+          <span class="kpi-number" id="kpiPotencial">0</span>
+        </div>
+        <i class="fa-solid fa-fire kpi-icon"></i>
+      </div>
+
+      <div class="kpi-card indeciso" onclick="filterByPriorityKPI('INDECISO')">
+        <div class="kpi-data">
+          <span class="kpi-title">⚡ Tibios</span>
+          <span class="kpi-number" id="kpiIndeciso">0</span>
+        </div>
+        <i class="fa-solid fa-bolt kpi-icon"></i>
+      </div>
+
+      <div class="kpi-card pasivo" onclick="filterByPriorityKPI('PASIVO')">
+        <div class="kpi-data">
+          <span class="kpi-title">❄️ Fríos</span>
+          <span class="kpi-number" id="kpiPasivo">0</span>
+        </div>
+        <i class="fa-solid fa-snowflake kpi-icon"></i>
+      </div>
+
+      <div class="kpi-card visitas" onclick="filterByStageKPI('VISITA_AGENDADA')">
+        <div class="kpi-data">
+          <span class="kpi-title">📅 Visitas / Citas</span>
+          <span class="kpi-number" id="kpiVisitas">0</span>
+        </div>
+        <i class="fa-regular fa-calendar-check kpi-icon"></i>
+      </div>
+
+      <div class="kpi-card cerrado" onclick="filterByStageKPI('CERRADO')">
+        <div class="kpi-data">
+          <span class="kpi-title">🏆 Cerrados</span>
+          <span class="kpi-number" id="kpiCerrado">0</span>
+        </div>
+        <i class="fa-solid fa-trophy kpi-icon"></i>
+      </div>
+    </div>
+
+    <!-- Toolbar & Filters -->
+    <div class="toolbar-card">
+      <div class="filter-group">
+        <!-- Search Box -->
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" class="search-input" placeholder="Buscar por cliente, celular, inmueble o notas...">
+        </div>
+
+        <!-- Priority / Temp Filter -->
+        <select id="priorityFilter" class="filter-select">
+          <option value="TODAS">🔥 Todas las Temperaturas</option>
+          <option value="POTENCIAL">🔥 Calientes (Alta Intención)</option>
+          <option value="INDECISO">⚡ Tibios (Evaluando)</option>
+          <option value="PASIVO">❄️ Fríos (Contacto Inicial)</option>
+          <option value="CERRADO">🏆 Ganados / Cerrados</option>
+        </select>
+
+        <!-- Stage Filter -->
+        <select id="stageFilter" class="filter-select">
+          <option value="TODAS">📊 Todas las Etapas</option>
+          <option value="NUEVO">1. Nuevos Prospectos</option>
+          <option value="CALIFICACION">2. Calificación & Interés</option>
+          <option value="VISITA_AGENDADA">3. Visita Agendada</option>
+          <option value="NEGOCIACION">4. Propuesta / Negociación</option>
+          <option value="CERRADO">5. Cerrado / Ganado</option>
+          <option value="DESCARTADO">6. Descartado / Frío</option>
+        </select>
+
+        <!-- Origin Filter -->
+        <select id="originFilter" class="filter-select">
+          <option value="TODOS">🌐 Todos los Orígenes</option>
+          <option value="WhatsApp Web">WhatsApp Web</option>
+          <option value="Facebook Ads (CTWA)">Facebook Ads (CTWA)</option>
+          <option value="Instagram Ads">Instagram Ads</option>
+          <option value="Meta Ads">Meta Ads</option>
+          <option value="Portal Web / Formulario">Portal Web</option>
+        </select>
+      </div>
+
+      <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;">
+        Mostrando <strong id="leadCountLabel" style="color:var(--lime-primary);">0</strong> prospectos
+      </div>
+    </div>
+
+    <!-- VISTA 1: TABLERO KANBAN -->
+    <div class="kanban-wrapper" id="kanbanWrapper">
+      <!-- Generado dinámicamente -->
+    </div>
+
+    <!-- VISTA 2: TABLA / LISTA (SIN COLUMNA DE E-REALTOR) -->
+    <div class="table-view-container" id="tableViewContainer">
+      <table class="crm-table">
+        <thead>
+          <tr>
+            <th>Prioridad</th>
+            <th>Cliente & Celular</th>
+            <th>Inmueble & Presupuesto</th>
+            <th>Etapa del Embudo</th>
+            <th>Fecha Visita / Recordatorio</th>
+            <th>Último Mensaje / Nota</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="leadsTableBody">
+          <!-- Filas generadas dinámicamente sin e-Realtor -->
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+  <!-- Modal: Crear / Editar Prospecto (Sin campo de e-Realtor) -->
+  <div class="modal-overlay" id="leadModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="leadModalTitle"><i class="fa-solid fa-user-plus"></i> Nuevo Prospecto</h3>
+        <button class="modal-close" onclick="closeLeadModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre del Cliente *</label>
+            <input type="text" id="formName" class="form-input" placeholder="Ej: Arq. Carlos Mendoza">
+          </div>
+          <div class="form-group">
+            <label>Celular / WhatsApp *</label>
+            <input type="text" id="formPhone" class="form-input" placeholder="Ej: +591 70123456">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Correo Electrónico</label>
+            <input type="email" id="formEmail" class="form-input" placeholder="cliente@correo.com">
+          </div>
+          <div class="form-group">
+            <label>Inmueble / Tipo de Interés</label>
+            <input type="text" id="formInterest" class="form-input" placeholder="Ej: Casa en Urubó / Terreno G77">
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Presupuesto Estimado</label>
+            <input type="text" id="formBudget" class="form-input" placeholder="Ej: $250.000 / Bs 1.500.000">
+          </div>
+          <div class="form-group">
+            <label>Canal de Origen</label>
+            <select id="formOrigin" class="form-input">
+              <option value="WhatsApp Web">WhatsApp Web</option>
+              <option value="Facebook Ads (CTWA)">Facebook Ads (CTWA)</option>
+              <option value="Instagram Ads">Instagram Ads</option>
+              <option value="Meta Ads">Meta Ads</option>
+              <option value="Portal Web / Formulario">Portal Web / Formulario</option>
+              <option value="Referido / Recomendado">Referido / Recomendado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Etapa del Embudo (Columna)</label>
+            <select id="formStage" class="form-input">
+              <option value="NUEVO">1. Nuevos Prospectos</option>
+              <option value="CALIFICACION">2. Calificación & Interés</option>
+              <option value="VISITA_AGENDADA">3. Visita Agendada</option>
+              <option value="NEGOCIACION">4. Propuesta / Negociación</option>
+              <option value="CERRADO">5. Cerrado / Ganado</option>
+              <option value="DESCARTADO">6. Descartado / Frío</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Calificación de Temperatura</label>
+            <select id="formTemp" class="form-input">
+              <option value="POTENCIAL">🔥 Caliente (Alta Intención)</option>
+              <option value="INDECISO">⚡ Tibio (Evaluando)</option>
+              <option value="PASIVO">❄️ Frío (Contacto Inicial)</option>
+              <option value="CERRADO">🏆 Ganado (Venta Concluida)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Notas Internas & Requerimientos</label>
+          <textarea id="formNotes" class="form-input" rows="3" placeholder="Añade detalles de la conversación, requerimientos bancarios, acuerdos de visita..."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="crm-btn crm-btn-secondary" onclick="closeLeadModal()">Cancelar</button>
+        <button class="crm-btn crm-btn-lime" onclick="saveLeadForm()"><i class="fa-solid fa-floppy-disk"></i> Guardar Prospecto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Programar Recordatorio / Follow-up -->
+  <div class="modal-overlay" id="reminderModal">
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-header">
+        <h3><i class="fa-regular fa-bell" style="color:var(--lime-primary);"></i> Programar Recordatorio</h3>
+        <button class="modal-close" onclick="closeReminderModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem; color:var(--text-muted);">
+          Para el prospecto: <strong id="reminderLeadName" style="color:#fff;"></strong>
+        </p>
+        <div class="form-group">
+          <label>Fecha y Hora del Recordatorio:</label>
+          <input type="text" id="reminderTime" class="form-input" placeholder="Ej: Mañana 15:30 o 2026-09-05 10:00">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="crm-btn crm-btn-secondary" onclick="closeReminderModal()">Cancelar</button>
+        <button class="crm-btn crm-btn-lime" onclick="saveReminder()"><i class="fa-solid fa-check"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer Lateral: Plantillas 1-Clic -->
+  <div class="drawer-overlay" id="drawerOverlay" onclick="closeAllDrawers()"></div>
+  <div class="drawer-panel" id="templateDrawerPanel">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-bolt-lightning" style="color:var(--lime-primary);"></i> Plantillas 1-Clic</h3>
+      <button class="modal-close" onclick="closeAllDrawers()">&times;</button>
+    </div>
+    <div style="padding:14px; overflow-y:auto; flex:1;" id="templatesList">
+      <!-- Tarjetas de Plantillas -->
+    </div>
+  </div>
+
+  <!-- Drawer Lateral: Consola / Simulador de Chat WhatsApp -->
+  <div class="drawer-panel" id="simulatorDrawerPanel">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-robot" style="color:#25d366;"></i> Simulador WhatsApp en Vivo</h3>
+      <button class="modal-close" onclick="closeAllDrawers()">&times;</button>
+    </div>
+    <div class="sim-messages" id="simChatBox">
+      <div class="bubble bubble-bot">🦁 ¡Hola! Soy ONEBot. Escribe una consulta o usa los botones rápidos para simular la interacción y perfilar al cliente en tiempo real. ✨</div>
+    </div>
+    <div class="sim-chips">
+      <button class="quick-chip" onclick="quickSend('Hola, me interesa agendar una visita a la casa en Urubó.')">
+        🏡 1. Solicitar Visita Presencial
+      </button>
+      <button class="quick-chip" onclick="quickSend('¿Cuál es el precio oficial y documentación del Terreno G77?')">
+        📑 2. Consultar Precios & Folio Real
+      </button>
+      <button class="quick-chip" onclick="quickSend('Quiero saber qué bancos financian y cuánto es la cuota mensual.')">
+        🏦 3. Financiamiento Bancario
+      </button>
+    </div>
+    <div class="sim-input-box">
+      <input type="text" id="simUserInput" class="form-input" placeholder="Escribe un mensaje de prueba..." onkeypress="if(event.key==='Enter') sendSimMessage()">
+      <button class="crm-btn crm-btn-lime" onclick="sendSimMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="crm-toast" id="crmToast">
+    <i class="fa-solid fa-circle-check" style="color:var(--lime-primary); font-size:1.1rem;"></i>
+    <div id="toastMsg">Acción completada con éxito.</div>
+  </div>
+
+  <script src="app_crm.js"></script>
+</body>
+</html>

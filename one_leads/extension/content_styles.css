@@ -1,0 +1,180 @@
+/* =========================================================
+   OneLeads - Injected Styles for WhatsApp Web
+   ========================================================= */
+
+#oneleads-widget-toggle {
+  position: fixed;
+  top: 14px;
+  right: 80px;
+  z-index: 999999;
+  background: #a3e635;
+  color: #0f172a;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(163, 230, 53, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+#oneleads-widget-toggle:hover {
+  background: #bef264;
+  transform: scale(1.04);
+}
+
+/* Floating Kanban Sidebar inside WhatsApp Web */
+#oneleads-sidebar {
+  position: fixed;
+  top: 0;
+  right: -380px;
+  width: 360px;
+  height: 100vh;
+  background: #0f151c;
+  border-left: 1px solid #243140;
+  box-shadow: -8px 0 25px rgba(0,0,0,0.7);
+  z-index: 999998;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #f8fafc;
+}
+
+#oneleads-sidebar.open {
+  right: 0;
+}
+
+.oneleads-header {
+  padding: 14px 16px;
+  background: #161e27;
+  border-bottom: 1px solid #243140;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.oneleads-title {
+  font-weight: 800;
+  font-size: 14px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.oneleads-title span {
+  color: #a3e635;
+}
+
+.oneleads-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  cursor: pointer;
+}
+.oneleads-close:hover {
+  color: #fff;
+}
+
+.oneleads-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.oneleads-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.oneleads-stage-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.oneleads-stage-btn {
+  background: #19222d;
+  border: 1px solid #243140;
+  color: #cbd5e1;
+  padding: 8px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.oneleads-stage-btn:hover,
+.oneleads-stage-btn.active {
+  background: #243140;
+  border-color: #a3e635;
+  color: #a3e635;
+}
+
+/* Quick Response Buttons */
+.oneleads-templates-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.oneleads-tpl-btn {
+  background: #19222d;
+  border: 1px solid #243140;
+  color: #f1f5f9;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.oneleads-tpl-btn:hover {
+  background: #222e3c;
+  border-color: #a3e635;
+}
+
+.oneleads-footer {
+  padding: 12px;
+  background: #161e27;
+  border-top: 1px solid #243140;
+  text-align: center;
+}
+
+.oneleads-open-full {
+  background: #a3e635;
+  color: #0f172a;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  width: 100%;
+  text-decoration: none;
+  display: block;
+}
+.oneleads-open-full:hover {
+  background: #bef264;
+}

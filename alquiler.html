@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Propiedades en Alquiler | Realty ONE Group Bolivia</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+</head>
+
+<body>
+
+    <!-- Topbar Superior Funcional -->
+    <div class="topbar" id="topbar">
+        <div class="topbar-container">
+            <div class="topbar-left">
+                <a href="tel:+59160937050" class="topbar-item" title="Llamar o contactar">
+                    <i class="fas fa-phone-alt"></i> <span>+591 60937050</span>
+                </a>
+                <a href="mailto:info@realtyonegroup.com.bo?subject=Consulta%20Inmobiliaria%20Realty%20ONE%20Bolivia" class="topbar-item" title="Enviar correo">
+                    <i class="fas fa-envelope"></i> <span>info@realtyonegroup.com.bo</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <div class="topbar-socials">
+                    <a href="https://www.facebook.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Facebook" title="Facebook">
+                        <i class="fab fa-facebook-f"></i>
+                    </a>
+                    <a href="https://www.instagram.com/realtyonegroupbolivia" target="_blank" rel="noopener noreferrer" class="topbar-social" aria-label="Instagram" title="Instagram">
+                        <i class="fab fa-instagram"></i>
+                    </a>
+                </div>
+                <div class="topbar-auth" id="topbar-auth">
+                    <a href="javascript:void(0)" onclick="openAuthModal('login')" class="topbar-auth-btn" id="btn-topbar-login">
+                        <i class="fas fa-user"></i> <span>Iniciar Sesión</span>
+                    </a>
+                    <a href="javascript:void(0)" onclick="openAuthModal('register')" class="topbar-auth-btn" id="btn-topbar-register">
+                        <i class="fas fa-user-plus"></i> <span>Registrarse</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <header id="header">
+        <a href="index.html" class="logo">
+            <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" id="main-logo">
+        </a>
+        <nav id="nav-menu">
+            <ul>
+                <li><a href="index.html#inicio">Inicio</a></li>
+                <li class="dropdown">
+                    <a href="index.html#propiedades">Propiedades <i class="fas fa-chevron-down" style="font-size: 0.7rem;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="venta.html" target="_blank">Venta</a></li>
+                        <li><a href="alquiler.html" target="_blank">Alquiler</a></li>
+                        <li><a href="anticretico.html" target="_blank">Anticrético</a></li>
+                        <li><a href="terrenos.html" target="_blank">Terrenos</a></li>
+                    </ul>
+                </li>
+                <li class="dropdown">
+                    <a href="index.html#proyectos">Proyectos <i class="fas fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></a>
+                    <ul class="dropdown-menu">
+                        <li><a href="index.html#proyectos">Urub&oacute; Green Park</a></li>
+                        <li><a href="mapa.html" target="_blank"><i class="fas fa-map-marked-alt" style="margin-right:6px;"></i>Plano UGP</a></li>
+                    </ul>
+                </li>
+                <li><a href="index.html#nosotros">Nosotros</a></li>
+                <li><a href="index.html#contacto">Contacto</a></li>
+            </ul>
+        </nav>
+        <div class="header-btns">
+            <button id="menu-toggle" class="menu-btn"><i class="fas fa-bars"></i></button>
+        </div>
+    </header>
+
+    <section class="section-hero">
+        <div class="section-title" data-aos="fade-up">
+            <h2 id="cat-title">Propiedades en <span>Alquiler</span></h2>
+            <p id="cat-desc" style="margin-top: 20px; color: #888;">Encuentra el espacio perfecto para vivir o trabajar en las mejores zonas del país.</p>
+            
+            <div style="margin-top: 30px;">
+                <a href="index.html#propiedades" class="btn-search" style="display: inline-flex; align-items: center; gap: 10px; text-decoration: none; padding: 12px 25px;">
+                    <i class="fas fa-arrow-left"></i> VOLVER A PROPIEDADES
+                </a>
+            </div>
+        </div>
+
+        <div class="property-grid" id="property-container">
+            <!-- Cargado dinámicamente -->
+        </div>
+    </section>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <a href="index.html" class="logo">
+                    <img src="assets/logo_bolivia.png" alt="Realty ONE Group Bolivia" style="max-height: 40px;" id="footer-logo">
+                </a>
+                <p style="margin-top: 20px; color: #888;" id="footer-text">La franquicia inmobiliaria de más rápido crecimiento en el mundo. El estilo de vida ONE ha llegado a Bolivia.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Enlaces Rápidos</h4>
+                <ul>
+                    <li><a href="index.html">Inicio</a></li>
+                    <li><a href="venta.html">Venta</a></li>
+                    <li><a href="alquiler.html">Alquiler</a></li>
+                    <li><a href="terrenos.html">Terrenos</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contacto</h4>
+                <ul>
+                    <li><i class="fas fa-envelope" style="color: var(--primary-color);"></i> <span id="contact-email-footer">info@realtyonegroup.com.bo</span></li>
+                    <li><i class="fas fa-phone" style="color: var(--primary-color);"></i> <span id="contact-phone-footer">+591 60937050</span></li>
+                    <li><i class="fas fa-map-marker-alt" style="color: var(--primary-color);"></i> <span id="contact-address-footer">Santa Cruz, Bolivia</span></li>
+                </ul>
+            </div>
+        </div>
+            <span id="copyright-text"></span>
+        </div>
+
+    </footer>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+            <div class="modal-header">
+                <h2 style="color: var(--primary-color);">Acceso Restringido</h2>
+                <span class="close-modal" onclick="toggleLoginModal()">&times;</span>
+            </div>
+            <p style="margin-bottom: 20px; color: #888;">Ingresa tu código de acceso para gestionar el inventario.</p>
+            <div class="form-group">
+                <input type="password" id="access-code" placeholder="Código Secreto" style="text-align: center; font-size: 1.2rem; width: 100%; padding: 10px; background: #111; color: #fff; border: 1px solid #333; margin-bottom: 20px;">
+            </div>
+            <button class="btn-submit" onclick="validateAccess()" style="width: 100%; margin-top: 10px;">ACCEDER AL PANEL</button>
+            <div id="login-error" style="color: #ff4444; margin-top: 15px; display: none;">Código incorrecto. Intenta de nuevo.</div>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-content" style="max-width: 1080px; padding: 0; border: none; overflow: hidden;">
+            <div class="admin-header-luxury">
+                <div class="admin-header-title">
+                    <img src="assets/logo_one_circle.png" alt="ONE" style="width: 32px; height: 32px; object-fit: contain;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: 1.5px; color: #fff;">
+                            PANEL DE <span style="color: var(--primary-color);">GESTIÓN ONE</span>
+                        </h2>
+                        <span style="font-size: 0.72rem; color: #888; font-weight: 500;">Gestor de Contenidos & Administrador Global</span>
+                    </div>
+                    <span class="admin-badge-v2" style="margin-left: 10px;"><i class="fas fa-bolt" style="color: var(--primary-color);"></i> CMS v2.0</span>
+                </div>
+                <div class="admin-close-btn" onclick="toggleAdminPanel()" title="Cerrar Panel">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+
+            <div class="admin-body" style="display: flex; height: 72vh;">
+                <!-- Sidebar Tabs -->
+                <div class="admin-sidebar" id="admin-tabs" style="width: 250px;">
+                    <!-- Cargado por JS -->
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="admin-main" style="flex: 1;">
+                    <div id="tab-content">
+                        <!-- Cargado por JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden Export Section (Access only when saving) -->
+            <div id="export-section" style="display: none; padding: 18px 24px; background: #0c0c10; border-top: 1px solid rgba(255,255,255,0.08);">
+                <h3 style="color: var(--primary-color); font-size: 0.95rem; margin-bottom: 6px;"><i class="fas fa-code"></i> Código de Persistencia:</h3>
+                <textarea id="export-code" style="width: 100%; height: 90px; background: #141419; color: #a3e635; border: 1px solid rgba(255,255,255,0.12); padding: 10px; font-family: monospace; font-size: 0.78rem; border-radius: 8px;"></textarea>
+                <button class="cms-btn-primary" onclick="copyCode()" style="margin-top: 10px; width: 100%;"><i class="fas fa-copy"></i> COPIAR Y CERRAR</button>
+            </div>
+
+            <div class="modal-footer" style="padding: 12px 24px; background: #09090c; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.75rem; color: #888;">
+                    <span style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 8px #22c55e;"></span>
+                    <span>Cambios sincronizados en vivo con SiteGround</span>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="cms-btn-secondary" onclick="showSaveOption()">
+                        <i class="fas fa-code"></i> Exportar Código
+                    </button>
+                    <button class="cms-btn-primary" onclick="saveToFile()">
+                        <i class="fas fa-check-double"></i> Guardar Todo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+    <script>
+        AOS.init({ duration: 1000, once: true });
+    </script>
+</body>
+</html>
