@@ -258,8 +258,7 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
 
   // 2. PASO 1 OBLIGATORIO PARA TODAS LAS PUBLICACIONES: SOLICITAR FORMULARIO DE DATOS
   if ((isAdEntry || !session.fichaEntregada) && !hasEmail && !hasCommaData && !msg.includes('foto') && !msg.includes('medida') && !msg.includes('precio') && !msg.includes('ubicacion')) {
-    return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🌊✨\n\n` +
-      `Nos alegra mucho tu interés en el *${campaign.titulo_campana}*.\n\n` +
+    return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
       `Para brindarte la ficha técnica detallada, planos y asignarte atención prioritaria con nuestro asesor especialista, por favor compártenos tus datos en un solo mensaje:\n\n` +
       `1. 👤 *Nombre y Apellido completo:*\n` +
       `2. 📱 *Número de Celular o WhatsApp:*\n` +
@@ -467,7 +466,7 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   // 11. FICHA COMPLETA POR DEFECTO
   const precioPrincipal = data.precio_usd || data.precio_bs || 'Consultar con asesor';
 
-  return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre}* 🦁✨\n\n` +
+  return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre}* 🦁\n\n` +
     `Detalles de la propiedad *${campaign.titulo_campana}*:\n\n` +
     `📍 *Ubicación:* ${data.ubicacion}\n` +
     `📐 *Superficie Total:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +

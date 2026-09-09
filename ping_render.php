@@ -4,7 +4,7 @@
  * Mantiene la instancia de Render despierta 24/7 sin dormirse.
  */
 
-$RENDER_URL = isset($_GET['url']) ? trim($_GET['url']) : 'https://realty-one-whatsapp-bot.onrender.com';
+$RENDER_URL = isset($_GET['url']) ? trim($_GET['url']) : 'https://realty-one-bolivia.onrender.com';
 
 $ch = curl_init($RENDER_URL . '/api/health');
 curl_setopt_array($ch, [

@@ -876,8 +876,7 @@ function getRespuestaParqueIndustrial($userMsg, $sender = '', $clientName = '', 
     // PASO 1: Si es primer contacto y no tenemos sus datos, pedir Nombre, Celular y Correo
     if ($isInitial && !$hasCapturedData) {
         $session['step'] = 'esperando_datos_g77';
-        return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* ✨\n\n" .
-               "Nos alegra tu interés en el *Terreno Industrial de 7.000 m² en Parque Industrial (Salida G77)*.\n\n" .
+        return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n" .
                "Para brindarte la ficha técnica completa, plano aprobado y asignarte atención prioritaria con nuestro asesor industrial, por favor compártenos tus datos en un solo mensaje:\n\n" .
                "1. 👤 *Nombre y Apellido:* \n" .
                "2. 📱 *Número de Celular o WhatsApp:* \n" .
@@ -993,7 +992,7 @@ function getRespuestaParqueIndustrial($userMsg, $sender = '', $clientName = '', 
     }
 
     // 8. Ficha completa
-    return "¡Hola{$saludoNom}! Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁✨\n\n" .
+    return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n" .
            "Detalles del *Terreno Industrial de 7.000 m² en Parque Industrial (Salida G77)*:\n\n" .
            "📍 *Ubicación:* Parque Industrial, 1ra Transversal Norte S/N, Mza. PI-46 (Salida directa a Av. G77)\n" .
            "📐 *Superficie:* *7.000 m²* (185 m de frente × 150 m de fondo)\n" .
@@ -1094,8 +1093,7 @@ function getRespuestaMarAdentro($userMsg, $sender = '', $clientName = '', &$sess
     // PASO 1: Si es primer contacto y no tenemos sus datos, pedir Nombre, Celular y Correo
     if ($isInitial && !$hasCapturedData) {
         $session['step'] = 'esperando_datos_mar_adentro';
-        return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🌊✨\n\n" .
-               "Nos alegra mucho tu interés en el *Lote de 450 m² en Condominio Mar Adentro* (a solo 300 m de la Laguna Cristalina navegable).\n\n" .
+        return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n" .
                "Para brindarte la ficha técnica detallada, planos y asignarte atención personalizada con nuestro asesor especialista, por favor compártenos tus datos en un solo mensaje:\n\n" .
                "1. 👤 *Nombre y Apellido:* \n" .
                "2. 📱 *Número de Celular o WhatsApp:* \n" .
@@ -1223,7 +1221,7 @@ function getRespuestaMarAdentro($userMsg, $sender = '', $clientName = '', &$sess
     }
 
     // 9. Ficha completa
-    return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🌊✨\n\n" .
+    return "¡Hola{$saludoNom}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n" .
            "Detalles del *Lote de 450 m² en Condominio Mar Adentro*:\n\n" .
            "📍 *Ubicación:* Condominio Mar Adentro (a solo 300 m de la laguna cristalina)\n" .
            "📐 *Superficie:* *450 m²* (15 m de frente × 30 m de fondo)\n" .

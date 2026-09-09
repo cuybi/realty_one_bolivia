@@ -543,8 +543,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     }
 
     const nomSaludo = pushName ? ` ${pushName}` : '';
-    return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁✨\n\n` +
-      `Nos alegra mucho tu interés en: *${adTitle}* 🏡\n\n` +
+    return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n` +
       `Para brindarte la ficha técnica y coordinar tu visita presencial en el horario que más te convenga, por favor completa tu formulario oficial:\n\n` +
       `📋 *Completar Formulario & Elegir Horario:*\n` +
       `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com/registro.html*\n\n` +
@@ -598,7 +597,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     userFlowSessions.set(userId, session);
 
     const nomSaludo = pushName ? ` ${pushName}` : '';
-    return `¡Hola${nomSaludo}! 👋 Te damos una cordial bienvenida a *Realty ONE Group Bolivia* 🦁✨\n\n` +
+    return `¡Hola${nomSaludo}! 👋 Te damos una cordial bienvenida a *Realty ONE Group Itaguazú* 🦁\n\n` +
       `Para empezar, asignarte a un asesor especializado y coordinar tu visita en el día y horario que más te convenga, por favor completa tu formulario de registro en el siguiente enlace:\n\n` +
       `📋 *Completar Formulario de Visita:*\n` +
       `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com/registro.html*\n\n` +
