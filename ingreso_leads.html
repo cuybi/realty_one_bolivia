@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Ingreso de Leads & Atención de e-Realtors - Realty ONE Group Bolivia</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'%3E%3Ccircle cx='500' cy='500' r='500' fill='%23CAA65E'/%3E%3Cg fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z'/%3E%3Crect x='432' y='362' width='58' height='276'/%3E%3Cpolygon points='432,362 490,362 650,638 592,638'/%3E%3Crect x='592' y='362' width='58' height='276'/%3E%3Crect x='708' y='362' width='58' height='276'/%3E%3Crect x='766' y='362' width='110' height='58'/%3E%3Crect x='766' y='471' width='84' height='58'/%3E%3Crect x='766' y='580' width='110' height='58'/%3E%3C/g%3E%3Cpolygon points='585,440 658,367 658,396 585,469' fill='%23CAA65E'/%3E%3C/svg%3E">
   <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000'%3E%3Ccircle cx='500' cy='500' r='500' fill='%23CAA65E'/%3E%3Cg fill='%23000000'%3E%3Cpath fill-rule='evenodd' d='M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z'/%3E%3Crect x='432' y='362' width='58' height='276'/%3E%3Cpolygon points='432,362 490,362 650,638 592,638'/%3E%3Crect x='592' y='362' width='58' height='276'/%3E%3Crect x='708' y='362' width='58' height='276'/%3E%3Crect x='766' y='362' width='110' height='58'/%3E%3Crect x='766' y='471' width='84' height='58'/%3E%3Crect x='766' y='580' width='110' height='58'/%3E%3C/g%3E%3Cpolygon points='585,440 658,367 658,396 585,469' fill='%23CAA65E'/%3E%3C/svg%3E">
@@ -11,6 +14,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    /* ponytail: anular por completo selector si queda en cache */
+    #simPhoneSelect, select[id*="simPhone"] {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
     :root {
       --bg-main: #0b0f12;
       --bg-card: #12191f;
@@ -984,20 +993,14 @@
             <div class="sim-header-info">
               <div class="sim-avatar">ONE</div>
               <div>
-                <div style="font-weight:700; font-size:0.86rem; color:#fff;">ONEBot en Vivo & Asignación</div>
+                <div style="font-weight:700; font-size:0.86rem; color:#fff;">ONEBot en Vivo <span style="font-size:0.68rem; background:var(--gold-primary); color:#000; padding:1px 5px; border-radius:4px; font-weight:800; margin-left:4px;">ACTUALIZADO</span></div>
                 <div style="font-size:0.7rem; color:#25d366;"><i class="fa-solid fa-circle" style="font-size:6px;"></i> Motor IA Conectado</div>
               </div>
             </div>
 
             <div style="display:flex; align-items:center; gap:6px;">
-              <select id="simPhoneSelect" class="filter-select" style="padding:4px 6px; font-size:0.75rem;" onchange="changeSimUser()">
-                <option value="+59177012345">📱 +591 77012345 (Marcos A.)</option>
-                <option value="+59170234567">📱 +591 70234567 (Elena R.)</option>
-                <option value="+59170345678">📱 +591 70345678 (Ing. Mario)</option>
-                <option value="+59170099887" selected>📱 +591 70099887 (Nuevo)</option>
-              </select>
               <button class="btn btn-secondary" style="padding:4px 8px; font-size:0.75rem;" onclick="resetSimChat()" title="Reiniciar chat">
-                <i class="fa-solid fa-arrow-rotate-right"></i>
+                <i class="fa-solid fa-arrow-rotate-right"></i> Reiniciar
               </button>
             </div>
           </div>
@@ -1176,12 +1179,15 @@
       }
     ];
 
+    const IS_LOCAL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
     let allLeads = [];
     let activeLeadId = null;
     let isPolling = false;
     let isDeleting = false;
+    let deletingTimer = null;
 
-    // Blacklist persistente en localStorage (solo IDs exactos borrados, sin bloquear números de teléfono)
+    // Blacklist persistente en localStorage (solo IDs exactos borrados)
     function getDeletedBlacklist() {
       try {
         const raw = localStorage.getItem('crm_deleted_leads_v4');
@@ -1193,6 +1199,8 @@
     function addToDeletedBlacklist(id) {
       const bl = getDeletedBlacklist();
       if (id && !bl.ids.includes(id)) bl.ids.push(id);
+      // Limitar blacklist a los últimos 500 IDs para no crecer indefinidamente
+      if (bl.ids.length > 500) bl.ids = bl.ids.slice(-500);
       localStorage.setItem('crm_deleted_leads_v4', JSON.stringify(bl));
     }
 
@@ -1219,17 +1227,18 @@
         const cacheBuster = `t=${Date.now()}`;
         let data = null;
 
-        // ponytail: Probar API en vivo (Render o Localhost o Nube) antes de archivos estáticos
+        // En SiteGround solo usar rutas PHP. /api solo si estamos en localhost.
         const candidateUrls = [
-          `/api/whatsapp/leads?${cacheBuster}`,
-          `https://realty-one-bolivia.onrender.com/api/whatsapp/leads?${cacheBuster}`,
-          `save_leads_sync.php?${cacheBuster}`,
-          `leads.json?${cacheBuster}`
+          `leads.json?${cacheBuster}`,
+          `save_leads_sync.php?${cacheBuster}`
         ];
+        if (IS_LOCAL) {
+          candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
+        }
 
         for (const u of candidateUrls) {
           try {
-            const res = await fetch(u, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+            const res = await fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined, cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
             if (res.ok) {
               const d = await res.json();
               const items = d?.leads || d;
@@ -1238,7 +1247,7 @@
                 break;
               }
             }
-          } catch(e) {}
+          } catch(e) { /* timeout o red, intentar siguiente */ }
         }
 
         let rawLeads = [];
@@ -1264,8 +1273,10 @@
         });
 
         const prevCount = allLeads.length;
-        const prevSnapshot = JSON.stringify(allLeads.map(l => ({ id: l.id, msg: l.ultimo_mensaje, count: (l.historial || []).length, stage: l.etapa_embudo })));
-        const newSnapshot  = JSON.stringify(newLeads.map(l => ({ id: l.id, msg: l.ultimo_mensaje, count: (l.historial || []).length, stage: l.etapa_embudo })));
+        // Comparar ids + ultimo mensaje + cantidad historial + etapa — detecta nuevos, borrados y actualizados
+        const snapshotFn = arr => arr.map(l => `${l.id}|${l.ultimo_mensaje || ''}|${(l.historial || []).length}|${l.etapa_embudo || ''}`).sort().join(';;');
+        const prevSnapshot = snapshotFn(allLeads);
+        const newSnapshot  = snapshotFn(newLeads);
         const hasChanged = prevSnapshot !== newSnapshot;
 
         if (hasChanged || isManual) {
@@ -1529,26 +1540,24 @@
       }
 
       Object.assign(lead, updatedData);
-      
-      // Actualizar en backend Node si está activo
-      try {
-        await fetch(`/api/whatsapp/leads/${activeLeadId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updatedData)
-        });
-      } catch(e) {}
 
-      // Sincronizar en SiteGround
-      try {
-        const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
-        const syncUrl = isSiteGround ? 'save_leads_sync.php' : 'https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php';
-        fetch(syncUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(allLeads)
-        }).catch(() => {});
-      } catch(e) {}
+      // Actualizar en backend Node si estamos en local
+      if (IS_LOCAL) {
+        try {
+          await fetch(`/api/whatsapp/leads/${activeLeadId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedData)
+          });
+        } catch(e) {}
+      }
+
+      // Sincronizar en SiteGround (siempre, ruta relativa)
+      fetch('save_leads_sync.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(allLeads)
+      }).catch(() => {});
 
       updateKPIs();
       applyFilters();
@@ -1566,55 +1575,45 @@
       if (!confirm(`¿Estás seguro de eliminar a "${name}" de la lista?`)) return;
 
       isDeleting = true;
+      // Resetear flag cuando el sync termine (no hardcodear 2500ms)
+      if (deletingTimer) clearTimeout(deletingTimer);
 
-      // Guardar en Blacklist
-      addToDeletedBlacklist(id, cleanPhone);
+      // Guardar en Blacklist PRIMERO (antes de cualquier await)
+      addToDeletedBlacklist(id);
 
-      // Eliminar de memoria
-      allLeads = allLeads.filter(l => {
-        if (l.id === id) return false;
-        if (cleanPhone) {
-          const p1 = String(l.numero_celular || '').replace(/\D/g, '');
-          const p2 = String(l.formulario_datos?.telefono || '').replace(/\D/g, '');
-          if (p1 && (p1 === cleanPhone || (shortPhone && p1.includes(shortPhone)))) return false;
-          if (p2 && (p2 === cleanPhone || (shortPhone && p2.includes(shortPhone)))) return false;
-        }
-        return true;
-      });
+      // Eliminar de memoria local — solo por ID exacto para no eliminar contactos distintos
+      allLeads = allLeads.filter(l => l.id !== id);
 
       updateKPIs();
       applyFilters();
       showToast(`🗑️ Prospecto "${name}" eliminado.`);
 
-      // Sincronización en paralelo
-      const isSiteGround = window.location.hostname.includes('e-techgroupbolivia.com');
-      const baseDelUrl = isSiteGround ? `delete_lead.php` : `https://realyonegroupbolivia.e-techgroupbolivia.com/delete_lead.php`;
-      const baseSyncUrl = isSiteGround ? `save_leads_sync.php` : `https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php`;
-
+      // Sync en paralelo: delete_lead.php (elimina por id) + save_leads_sync.php (sincroniza estado completo)
       const payload = { id: id, phone: cleanPhone, all_leads: allLeads };
 
       const syncPromises = [
-        fetch(`${baseDelUrl}?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&t=${Date.now()}`, {
+        fetch(`delete_lead.php?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&t=${Date.now()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         }).catch(() => {}),
-        fetch(`${baseSyncUrl}?t=${Date.now()}`, {
+        fetch(`save_leads_sync.php?t=${Date.now()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(allLeads)
         }).catch(() => {})
       ];
 
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        syncPromises.push(fetch(`http://localhost:3000/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {}));
+      if (IS_LOCAL) {
+        syncPromises.push(
+          fetch(`http://localhost:3000/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
+        );
       }
 
       await Promise.allSettled(syncPromises);
 
-      setTimeout(() => {
-        isDeleting = false;
-      }, 2500);
+      // Desbloquear polling solo después de que el sync haya terminado
+      isDeleting = false;
     }
 
     function deleteCurrentLead() {
@@ -1670,29 +1669,10 @@
       });
     }
 
-    // Simulador
-    function changeSimUser() {
-      const selectedPhone = document.getElementById('simPhoneSelect').value;
-      const lead = allLeads.find(l => l.numero_celular === selectedPhone);
-      const chatBox = document.getElementById('simChatBox');
-      chatBox.innerHTML = '';
-
-      if (lead && lead.historial && lead.historial.length > 0) {
-        lead.historial.forEach(m => {
-          const div = document.createElement('div');
-          div.className = `bubble ${m.rol === 'usuario' ? 'bubble-user' : 'bubble-bot'}`;
-          div.innerText = m.texto;
-          chatBox.appendChild(div);
-        });
-      } else {
-        chatBox.innerHTML = `<div class="bubble bubble-bot">✨ ¡Hola! Conversación para ${selectedPhone}. Escribe un mensaje o usa las fichas rápidas.</div>`;
-      }
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
+    // ponytail: simulador puro sin select de numeros ni asignacion forzada
     function resetSimChat() {
       const chatBox = document.getElementById('simChatBox');
-      chatBox.innerHTML = `<div class="bubble bubble-bot">✨ ¡Chat reiniciado! Escribe un mensaje para activar el embudo.</div>`;
+      chatBox.innerHTML = `<div class="bubble bubble-bot">✨ ¡Chat reiniciado! Escribe un mensaje o usa las opciones rápidas.</div>`;
     }
 
     function quickSend(text) {
@@ -1706,7 +1686,6 @@
       if (!text) return;
       input.value = '';
 
-      const phone = document.getElementById('simPhoneSelect').value;
       const chatBox = document.getElementById('simChatBox');
 
       const userBubble = document.createElement('div');
@@ -1720,7 +1699,7 @@
         const res = await fetch('/api/whatsapp/simular', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mensaje: text, usuarioId: phone })
+          body: JSON.stringify({ mensaje: text, usuarioId: 'sim_test' })
         });
         if (res.ok) {
           const data = await res.json();
@@ -1737,14 +1716,6 @@
       botBubble.innerText = botReply;
       chatBox.appendChild(botBubble);
       chatBox.scrollTop = chatBox.scrollHeight;
-
-      const classifiedLead = processAndClassifyLiveLead(phone, text, botReply);
-      
-      updateKPIs();
-      applyFilters();
-      renderTable(allLeads, classifiedLead.id);
-
-      showToast(`⚡ Lead ${classifiedLead.cliente_nombre} registrado en tiempo real.`);
     }
 
     function generateLocalBotReply(msg) {
@@ -1844,24 +1815,19 @@
         lead.score = 100;
       }
 
-      // Sincronizar con backend (Render API primero, luego fallback)
-      try {
-        const syncUrls = [
-          '/api/whatsapp/leads',
-          'https://realty-one-bolivia.onrender.com/api/whatsapp/leads',
-          'save_leads_sync.php'
-        ];
-        for (const sUrl of syncUrls) {
-          try {
-            fetch(sUrl, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(allLeads)
-            }).catch(() => {});
-            break;
-          } catch(e) {}
-        }
-      } catch(e) {}
+      // Sincronizar: siempre save_leads_sync.php (PHP relativo). Si local, también Node.
+      fetch('save_leads_sync.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(allLeads)
+      }).catch(() => {});
+      if (IS_LOCAL) {
+        fetch('/api/whatsapp/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(allLeads)
+        }).catch(() => {});
+      }
 
       return lead;
     }

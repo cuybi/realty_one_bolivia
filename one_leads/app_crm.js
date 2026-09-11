@@ -475,16 +475,18 @@ function renderTable(filteredLeads) {
         "${lead.ultimo_mensaje || lead.notas || 'Sin mensajes registrados'}"
       </td>
       <td>
-        <div style="display:flex; gap:6px;">
-          <a href="${waUrl}" target="_blank" class="btn-wa-direct" style="padding:4px 8px; font-size:0.72rem;" title="Abrir WhatsApp">
-            <i class="fa-brands fa-whatsapp"></i> Chat
+        <div style="display:flex; flex-direction:column; gap:5px; min-width:105px;">
+          <a href="${waUrl}" target="_blank" class="btn-wa-action" title="Atender cliente vía WhatsApp">
+            <i class="fa-brands fa-whatsapp"></i> Atender
           </a>
-          <button class="btn-card-icon" onclick="openEditLeadModal('${lead.id}')" title="Editar Ficha">
-            <i class="fa-solid fa-pen"></i>
-          </button>
-          <button class="btn-card-icon btn-card-delete" onclick="deleteLeadById('${lead.id}')" title="Eliminar">
-            <i class="fa-solid fa-trash"></i>
-          </button>
+          <div style="display:flex; gap:4px;">
+            <button class="action-btn" onclick="openEditLeadModal('${lead.id}')" style="background:#1c2730; font-size:0.74rem; padding:4px 8px; flex:1;" title="Ver Ficha">
+              <i class="fa-solid fa-pen-to-square"></i> Ficha
+            </button>
+            <button class="action-btn" onclick="deleteLeadById('${lead.id}')" style="background:rgba(255,77,79,0.15); color:#ff4d4f; border:1px solid rgba(255,77,79,0.3); font-size:0.74rem; padding:4px 8px;" title="Eliminar">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         </div>
       </td>
     `;
@@ -831,7 +833,7 @@ function sendSimMessage() {
     } else if (lower.includes('banco') || lower.includes('crédito')) {
       botBubble.innerText = '🦁 Trabajamos con todos los bancos en Bolivia (BNB, Mercantil, BCP, Bisa, Banco Unión). ¿Cuentas con cuota inicial del 20%?';
     } else {
-      botBubble.innerText = '🦁 ¡Hola! Gracias por tu interés. Tu consulta ha sido registrada con éxito en el embudo OneLeads CRM. ✨';
+      botBubble.innerText = '🦁 ¡Hola! Gracias por tu interés. Tu consulta ha sido registrada con éxito en el embudo OneLeads. ✨';
     }
 
     chatBox.appendChild(botBubble);

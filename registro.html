@@ -175,6 +175,46 @@
             margin-top: 16px;
             font-size: 14px;
         }
+
+        /* Panel de diagnóstico */
+        #diagPanel {
+            display: none;
+            background: #0d1f0d;
+            border: 1px solid #2a4a2a;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-top: 14px;
+            font-size: 12px;
+            text-align: left;
+        }
+        #diagPanel h4 {
+            color: #7fff7f;
+            margin-bottom: 8px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .diag-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #1a2e1a;
+            gap: 8px;
+        }
+        .diag-row:last-child { border-bottom: none; }
+        .diag-url { color: #8696a0; flex: 1; word-break: break-all; font-size: 11px; }
+        .diag-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 11px;
+            white-space: nowrap;
+        }
+        .badge-ok  { background: rgba(0,168,132,0.2); color: #00a884; border: 1px solid #00a884; }
+        .badge-err { background: rgba(255,77,79,0.15); color: #ff4d4f; border: 1px solid #ff4d4f; }
+        .badge-wait{ background: rgba(197,165,96,0.15); color: #c5a560; border: 1px solid #c5a560; }
+        .diag-detail { color: #aaa; font-size: 10px; margin-top: 2px; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -284,6 +324,12 @@
             <button type="submit" class="btn-submit">✅ Confirmar y Agendar Visita</button>
         </form>
 
+        <!-- Panel de diagnóstico (se muestra al enviar) -->
+        <div id="diagPanel">
+            <h4>📡 Estado del envío</h4>
+            <div id="diagBody"></div>
+        </div>
+
         <div id="successBox" class="success-box">
             <div class="success-icon">✅</div>
             <h2 style="font-size: 18px; margin-bottom: 8px;">¡Visita Registrada con Éxito!</h2>
@@ -324,15 +370,18 @@
             }
         }
 
-        document.getElementById('visitaForm').addEventListener('submit', function(e) {
+        document.getElementById('visitaForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+            const submitBtn = this.querySelector('.btn-submit');
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Guardando...';
+
             const nombre = document.getElementById('nombre').value.trim();
             const telefono = document.getElementById('telefono').value.trim();
             const email = document.getElementById('email').value.trim();
             const fecha = dateInput.value;
             const hora = document.getElementById('horaVisita').value;
 
-            // Guardar en backend (Render API y SiteGround)
             const leadPayload = {
                 nombre,
                 telefono,
@@ -345,26 +394,103 @@
                 etapa_embudo: 'VISITA_AGENDADA',
                 prioridad: 'POTENCIAL'
             };
-            fetch('/api/whatsapp/leads', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(leadPayload)
-            }).catch(() => {});
-            fetch('https://realty-one-bolivia.onrender.com/api/whatsapp/leads', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(leadPayload)
-            }).catch(() => {});
-            fetch('save_leads_sync.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(leadPayload)
-            }).catch(() => {});
 
-            // Ocultar form y mostrar éxito
-            document.getElementById('visitaForm').style.display = 'none';
-            const sBox = document.getElementById('successBox');
-            sBox.classList.add('active');
+            // Endpoints a probar
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const endpoints = [
+                { label: 'save_leads_sync.php (SiteGround)', url: 'save_leads_sync.php', primary: true },
+                { label: 'Render API', url: 'https://realty-one-bolivia.onrender.com/api/whatsapp/leads', primary: false }
+            ];
+            if (isLocal) {
+                endpoints.push({ label: 'API local (/api)', url: '/api/whatsapp/leads', primary: false });
+            }
+
+            // Panel diagnóstico (solo activo si hay debug o fallo)
+            const showDebug = isLocal || new URLSearchParams(window.location.search).has('debug');
+            const diagPanel = document.getElementById('diagPanel');
+            const diagBody  = document.getElementById('diagBody');
+            if (showDebug) {
+                diagPanel.style.display = 'block';
+                diagBody.innerHTML = '';
+            }
+
+            function addDiagRow(label, status, detail) {
+                if (!showDebug && status === 'ok') return;
+                const cls = status === 'ok' ? 'badge-ok' : status === 'err' ? 'badge-err' : 'badge-wait';
+                const txt = status === 'ok' ? '✅ OK' : status === 'err' ? '❌ ERROR' : '⏳ ...';
+                diagBody.innerHTML += `
+                    <div class="diag-row">
+                        <span class="diag-url">${label}</span>
+                        <span class="diag-badge ${cls}">${txt}</span>
+                    </div>
+                    ${detail ? `<div class="diag-detail">${detail}</div>` : ''}
+                `;
+            }
+
+            // Mostrar "esperando" para todos
+            if (showDebug) {
+                endpoints.forEach(ep => addDiagRow(ep.label, 'wait', ''));
+            }
+
+            // Llamar a todos en paralelo
+            let phpOk = false;
+            const results = await Promise.allSettled(
+                endpoints.map(ep =>
+                    fetch(ep.url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(leadPayload)
+                    }).then(async r => {
+                        const text = await r.text();
+                        return { ep, ok: r.ok, status: r.status, body: text };
+                    })
+                )
+            );
+
+            // Actualizar panel con resultados reales
+            if (showDebug) diagBody.innerHTML = '';
+            results.forEach((res, i) => {
+                const ep = endpoints[i];
+                if (res.status === 'fulfilled') {
+                    const { ok, status, body } = res.value;
+                    let detail = '';
+                    try { const j = JSON.parse(body); detail = j.message || j.error || body.slice(0,120); } catch { detail = body.slice(0,120); }
+                    if (ep.primary && ok) phpOk = true;
+                    addDiagRow(ep.label, ok ? 'ok' : 'err', `HTTP ${status}: ${detail}`);
+                } else {
+                    addDiagRow(ep.label, 'err', res.reason?.message || 'Sin respuesta (red o CORS)');
+                }
+            });
+
+            // Mostrar resultado al usuario
+            if (phpOk) {
+                document.getElementById('visitaForm').style.display = 'none';
+                const sBox = document.getElementById('successBox');
+                sBox.classList.add('active');
+                if (showDebug) {
+                    sBox.appendChild(diagPanel);
+                } else {
+                    diagPanel.style.display = 'none';
+                }
+            } else {
+                // PHP falló: mostrar error pero no ocultar el form
+                submitBtn.disabled = false;
+                submitBtn.textContent = '⚠️ Error al guardar — ver diagnóstico abajo';
+                submitBtn.style.background = 'linear-gradient(135deg,#ff4d4f,#a01010)';
+                submitBtn.style.color = '#fff';
+                // Añadir botón manual de WhatsApp como fallback
+                if (!document.getElementById('waFallback')) {
+                    const waMsg = encodeURIComponent(`Formulario completado: ${nombre}, ${telefono}, ${email}, Visita: ${fecha} ${hora}`);
+                    const fallback = document.createElement('a');
+                    fallback.id = 'waFallback';
+                    fallback.href = `https://wa.me/59160937050?text=${waMsg}`;
+                    fallback.className = 'btn-wa-direct';
+                    fallback.style.display = 'block';
+                    fallback.style.marginTop = '10px';
+                    fallback.textContent = '📲 Enviar igual por WhatsApp';
+                    document.getElementById('visitaForm').appendChild(fallback);
+                }
+            }
 
             const waMsg = encodeURIComponent(`Formulario completado: ${nombre}, ${telefono}, ${email}, Visita: ${fecha} ${hora}`);
             document.getElementById('btnWaRedirect').href = `https://wa.me/59160937050?text=${waMsg}`;
