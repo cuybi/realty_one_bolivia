@@ -156,38 +156,28 @@ function getLeads() {
  * el archivo local está vacío (ej: tras restart de Render).
  */
 async function getLeadsAsync() {
-  // Cache en memoria vigente
+  // 1. Cache en memoria vigente
   if (_memoryCache !== null && _memoryCache.length > 0 && (Date.now() - _memoryCacheTime) < CACHE_TTL_MS) {
     return _memoryCache;
   }
 
-  // Archivo local con datos
+  // 2. SiteGround es la fuente de verdad activa
   try {
-    if (fs.existsSync(LEADS_FILE)) {
-      const data = fs.readFileSync(LEADS_FILE, 'utf8');
-      const parsed = JSON.parse(data || '[]');
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        _memoryCache = parsed;
-        _memoryCacheTime = Date.now();
-        return parsed;
-      }
+    const remote = await fetchLeadsFromSiteGround();
+    if (Array.isArray(remote) && remote.length > 0) {
+      _memoryCache = remote;
+      _memoryCacheTime = Date.now();
+      try {
+        fs.writeFileSync(LEADS_FILE, JSON.stringify(remote, null, 2), 'utf8');
+      } catch (e) {}
+      return remote;
     }
   } catch (e) {
-    console.warn('[getLeadsAsync] Error leyendo local:', e.message);
+    console.warn('[getLeadsAsync] Fallback a local:', e.message);
   }
 
-  // Archivo local vacío o inexistente → SiteGround es la fuente de verdad
-  console.log('[getLeadsAsync] Cache local vacío. Cargando desde SiteGround...');
-  const remote = await fetchLeadsFromSiteGround();
-  if (remote.length > 0) {
-    // Repoblar cache local para futuras lecturas síncronas
-    try {
-      fs.writeFileSync(LEADS_FILE, JSON.stringify(remote, null, 2), 'utf8');
-    } catch (e) {}
-    _memoryCache = remote;
-    _memoryCacheTime = Date.now();
-  }
-  return remote;
+  // 3. Fallback a cache local si SiteGround no responde
+  return getLeads();
 }
 
 /**
