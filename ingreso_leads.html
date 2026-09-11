@@ -1179,7 +1179,7 @@
       }
     ];
 
-    const IS_LOCAL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const IS_NODE_BACKEND = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('onrender.com'));
 
     let allLeads = [];
     let activeLeadId = null;
@@ -1227,12 +1227,14 @@
         const cacheBuster = `t=${Date.now()}`;
         let data = null;
 
-        // En SiteGround solo usar rutas PHP. /api solo si estamos en localhost.
-        const candidateUrls = [
-          `leads.json?${cacheBuster}`,
-          `save_leads_sync.php?${cacheBuster}`
-        ];
-        if (IS_LOCAL) {
+        // En Render o Node local consultar /api/whatsapp/leads primero. En SiteGround usar PHP.
+        const candidateUrls = [];
+        if (IS_NODE_BACKEND) {
+          candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
+        }
+        candidateUrls.push(`save_leads_sync.php?${cacheBuster}`);
+        candidateUrls.push(`leads.json?${cacheBuster}`);
+        if (!IS_NODE_BACKEND) {
           candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
         }
 
@@ -1541,8 +1543,8 @@
 
       Object.assign(lead, updatedData);
 
-      // Actualizar en backend Node si estamos en local
-      if (IS_LOCAL) {
+      // Actualizar en backend Node si estamos en local o Render
+      if (IS_NODE_BACKEND) {
         try {
           await fetch(`/api/whatsapp/leads/${activeLeadId}`, {
             method: 'PUT',
@@ -1604,9 +1606,9 @@
         }).catch(() => {})
       ];
 
-      if (IS_LOCAL) {
+      if (IS_NODE_BACKEND) {
         syncPromises.push(
-          fetch(`http://localhost:3000/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
+          fetch(`/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
         );
       }
 
@@ -1821,7 +1823,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(allLeads)
       }).catch(() => {});
-      if (IS_LOCAL) {
+      if (IS_NODE_BACKEND) {
         fetch('/api/whatsapp/leads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
