@@ -1187,21 +1187,16 @@
     let isDeleting = false;
     let deletingTimer = null;
 
-    // Blacklist persistente en localStorage (solo IDs exactos borrados)
+    // ponytail: blacklist solo en memoria de sesion para no ocultar leads historicos
+    const sessionDeletedIds = new Set();
+    try { localStorage.removeItem('crm_deleted_leads_v4'); } catch(e) {}
+
     function getDeletedBlacklist() {
-      try {
-        const raw = localStorage.getItem('crm_deleted_leads_v4');
-        if (raw) return JSON.parse(raw);
-      } catch(e) {}
-      return { ids: [] };
+      return { ids: Array.from(sessionDeletedIds) };
     }
 
     function addToDeletedBlacklist(id) {
-      const bl = getDeletedBlacklist();
-      if (id && !bl.ids.includes(id)) bl.ids.push(id);
-      // Limitar blacklist a los últimos 500 IDs para no crecer indefinidamente
-      if (bl.ids.length > 500) bl.ids = bl.ids.slice(-500);
-      localStorage.setItem('crm_deleted_leads_v4', JSON.stringify(bl));
+      if (id) sessionDeletedIds.add(id);
     }
 
     // Helper: detectar si un lead tiene visita válida agendada
