@@ -12,9 +12,9 @@ const db = require('../database');
 const campaignService = require('./campaignService');
 const leadClassifier = require('./leadClassifier');
 
-// ponytail: despedida humana según hora Bolivia (TZ ya configurado en proceso)
+// ponytail: despedida humana según hora exacta Bolivia (Intl nativo, infalible en Render)
 function despedidaSegunHora() {
-  const h = new Date().getHours();
+  const h = parseInt(new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false }).format(new Date()), 10);
   if (h >= 5 && h < 12)  return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente mañana!*';
   if (h >= 12 && h < 19) return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente tarde!*';
   return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente noche!*';
