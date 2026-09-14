@@ -54,9 +54,10 @@ const staticPath = fs.existsSync(path.join(__dirname, 'qr_connect.html'))
   ? __dirname
   : path.join(__dirname, '..');
 
-// Proteger vista de vinculacion QR con autenticacion
-app.get('/qr_connect.html', requireQRAuth, (req, res) => {
-  res.sendFile(path.join(staticPath, 'qr_connect.html'));
+// Proteger vistas administrativas (QR y CRM Leads) con autenticacion
+app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
+  const file = req.path.replace(/^\//, '');
+  res.sendFile(path.join(staticPath, file));
 });
 
 app.use(express.static(staticPath));

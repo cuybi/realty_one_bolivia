@@ -96,9 +96,10 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/whatsapp', whatsappRoutes);
 
-// Proteger vista de vinculacion QR con autenticacion
-app.get('/qr_connect.html', requireQRAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'qr_connect.html'));
+// Proteger vistas administrativas (QR y CRM Leads) con autenticacion
+app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
+  const file = req.path.replace(/^\//, '');
+  res.sendFile(path.join(__dirname, '..', file));
 });
 
 app.use(express.static(path.join(__dirname, '..')));
