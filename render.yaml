@@ -18,6 +18,10 @@ services:
         value: America/La_Paz
       - key: ADMIN_KEY
         value: ONE2026
+      - key: QR_USER
+        value: admin
+      - key: QR_PASS
+        value: ONE2026
       # ── Secretos: poner en Render Dashboard → Environment ──
       - key: RENDER_EXTERNAL_URL
         sync: false

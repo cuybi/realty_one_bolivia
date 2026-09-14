@@ -72,11 +72,35 @@ let reconnectAttempts = 0; // ponytail: backoff counter
 let activeSock = null; // ponytail: track live socket for health checks
 let mongoClientSingleton = null; // ponytail: una sola conexión Mongo reutilizada en reconexiones
 
+// ponytail: Basic Auth nativo HTTP sin dependencias para proteger QR
+const QR_USER = process.env.QR_USER || 'admin';
+const QR_PASS = process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
+
+function requireQRAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+    return res.status(401).send('Acceso denegado: credenciales requeridas.');
+  }
+  const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+  if (user === QR_USER && passParts.join(':') === QR_PASS) {
+    return next();
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+  return res.status(401).send('Credenciales incorrectas.');
+}
+
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/whatsapp', whatsappRoutes);
+
+// Proteger vista de vinculacion QR con autenticacion
+app.get('/qr_connect.html', requireQRAuth, (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'qr_connect.html'));
+});
+
 app.use(express.static(path.join(__dirname, '..')));
 
 app.get('/api/ping', (req, res) => res.send('pong'));
@@ -89,7 +113,7 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.get('/api/whatsapp/qr-real', (req, res) => {
+app.get('/api/whatsapp/qr-real', requireQRAuth, (req, res) => {
   res.json({
     status: connectionStatus,
     qr: currentQR,
@@ -97,7 +121,7 @@ app.get('/api/whatsapp/qr-real', (req, res) => {
   });
 });
 
-app.post('/api/whatsapp/desconectar', (req, res) => {
+app.post('/api/whatsapp/desconectar', requireQRAuth, (req, res) => {
   try {
     const authFolder = path.join(__dirname, 'baileys_auth');
     if (fs.existsSync(authFolder)) {

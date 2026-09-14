@@ -31,10 +31,33 @@ app.get(['/index.html'], (req, res) => {
   res.redirect('https://realyonegroupbolivia.e-techgroupbolivia.com/');
 });
 
+// ponytail: Basic Auth nativo HTTP sin dependencias para proteger QR
+const QR_USER = process.env.QR_USER || 'admin';
+const QR_PASS = process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
+
+function requireQRAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+    return res.status(401).send('Acceso denegado: credenciales requeridas.');
+  }
+  const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+  if (user === QR_USER && passParts.join(':') === QR_PASS) {
+    return next();
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+  return res.status(401).send('Credenciales incorrectas.');
+}
+
 // Servir archivos estáticos desde la raíz del proyecto
 const staticPath = fs.existsSync(path.join(__dirname, 'qr_connect.html'))
   ? __dirname
   : path.join(__dirname, '..');
+
+// Proteger vista de vinculacion QR con autenticacion
+app.get('/qr_connect.html', requireQRAuth, (req, res) => {
+  res.sendFile(path.join(staticPath, 'qr_connect.html'));
+});
 
 app.use(express.static(staticPath));
 
@@ -57,7 +80,7 @@ let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'con
 let connectedNumber = null;
 
 // Endpoints QR para qr_connect.html
-app.get('/api/whatsapp/qr-real', (req, res) => {
+app.get('/api/whatsapp/qr-real', requireQRAuth, (req, res) => {
   res.json({
     status: connectionStatus,
     qr: currentQR,
@@ -65,7 +88,7 @@ app.get('/api/whatsapp/qr-real', (req, res) => {
   });
 });
 
-app.post('/api/whatsapp/desconectar', (req, res) => {
+app.post('/api/whatsapp/desconectar', requireQRAuth, (req, res) => {
   try {
     const authFolder = fs.existsSync(path.join(__dirname, 'backend', 'baileys_auth'))
       ? path.join(__dirname, 'backend', 'baileys_auth')
