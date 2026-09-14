@@ -12,6 +12,14 @@ const db = require('../database');
 const campaignService = require('./campaignService');
 const leadClassifier = require('./leadClassifier');
 
+// ponytail: despedida humana según hora Bolivia (TZ ya configurado en proceso)
+function despedidaSegunHora() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12)  return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente mañana!*';
+  if (h >= 12 && h < 19) return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente tarde!*';
+  return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente noche!*';
+}
+
 // Memoria de conversación por cada usuario (número de teléfono)
 const conversationSessions = new Map();
 
@@ -382,7 +390,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       `🎧 *Aviso de agente:* En breve, nuestro asesor especializado (+591 60937050) se pondrá en contacto contigo para confirmar la dirección exacta y detalles de tu visita.\n\n` +
       `🌐 *Mientras tanto, puedes ver todo nuestro catálogo de inmuebles aquí:*\n` +
       `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com*\n\n` +
-      `👋 *¡Muchas gracias por tu tiempo y que tengas un excelente día!*`;
+      despedidaSegunHora();
   }
 
   // 3. SI LA CONVERSACIÓN YA FINALIZÓ TRAS LA DESPEDIDA, SILENCIO TOTAL
