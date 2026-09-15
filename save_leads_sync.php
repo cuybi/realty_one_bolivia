@@ -22,6 +22,18 @@ $LEADS_FILE    = __DIR__ . '/leads.json';
 $LEADS_CSV     = __DIR__ . '/leads.csv';
 $BACKEND_LEADS = __DIR__ . '/backend/leads.json';
 
+// ponytail: auth nativo para proteger lectura y sincronización masiva en PHP
+$ADMIN_KEY = getenv('ADMIN_KEY') ?: 'ONE2026';
+$providedKey = $_SERVER['HTTP_X_ADMIN_KEY'] ?? $_GET['key'] ?? '';
+if (empty($providedKey) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (strpos($_SERVER['HTTP_AUTHORIZATION'], 'Basic ') === 0) {
+        $creds = base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6));
+        $parts = explode(':', $creds);
+        $providedKey = end($parts);
+    }
+}
+$isAdmin = ($providedKey === $ADMIN_KEY);
+
 $raw = file_get_contents('php://input');
 
 if (!empty($raw)) {
@@ -141,6 +153,11 @@ if (!empty($raw)) {
             $leadsToSave = $existingLeads;
         } else {
             // Caso B: Sincronización completa de leads desde CRM
+            if (!$isAdmin) {
+                http_response_code(401);
+                echo json_encode(['error' => 'No autorizado para sincronización masiva']);
+                exit;
+            }
             $leadsToSave = isset($data['leads']) && is_array($data['leads']) 
                 ? $data['leads'] 
                 : (isset($data['all_leads']) && is_array($data['all_leads']) ? $data['all_leads'] : $data);
@@ -203,6 +220,11 @@ if (!empty($raw)) {
 
 // Si es GET, devolver leads actuales
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (!$isAdmin) {
+        http_response_code(401);
+        echo json_encode(['error' => 'No autorizado']);
+        exit;
+    }
     if (file_exists($LEADS_FILE)) {
         echo file_get_contents($LEADS_FILE);
     } else {

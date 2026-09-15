@@ -1243,7 +1243,7 @@
         if (IS_NODE_BACKEND) {
           candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
         }
-        candidateUrls.push(`save_leads_sync.php?${cacheBuster}`);
+        candidateUrls.push(`save_leads_sync.php?key=ONE2026&${cacheBuster}`);
         candidateUrls.push(`leads.json?${cacheBuster}`);
         if (!IS_NODE_BACKEND) {
           candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
@@ -1251,7 +1251,7 @@
 
         for (const u of candidateUrls) {
           try {
-            const res = await fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined, cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
+            const res = await fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined, cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'x-admin-key': 'ONE2026' } });
             if (res.ok) {
               const d = await res.json();
               const items = d?.leads || d;
@@ -1559,7 +1559,7 @@
         try {
           await fetch(`/api/whatsapp/leads/${activeLeadId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
             body: JSON.stringify(updatedData)
           });
         } catch(e) {}
@@ -1568,7 +1568,7 @@
       // Sincronizar en SiteGround (siempre, ruta relativa)
       fetch('save_leads_sync.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
         body: JSON.stringify(allLeads)
       }).catch(() => {});
 
@@ -1607,19 +1607,19 @@
       const syncPromises = [
         fetch(`delete_lead.php?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&t=${Date.now()}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(payload)
         }).catch(() => {}),
         fetch(`save_leads_sync.php?t=${Date.now()}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(allLeads)
         }).catch(() => {})
       ];
 
       if (IS_NODE_BACKEND) {
         syncPromises.push(
-          fetch(`/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {})
+          fetch(`/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'x-admin-key': 'ONE2026' } }).catch(() => {})
         );
       }
 
@@ -1831,13 +1831,13 @@
       // Sincronizar: siempre save_leads_sync.php (PHP relativo). Si local, también Node.
       fetch('save_leads_sync.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
         body: JSON.stringify(allLeads)
       }).catch(() => {});
       if (IS_NODE_BACKEND) {
         fetch('/api/whatsapp/leads', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(allLeads)
         }).catch(() => {});
       }

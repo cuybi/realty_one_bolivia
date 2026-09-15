@@ -173,6 +173,39 @@ router.get('/status', (req, res) => {
 /**
  * 7. Endpoints de CRM de Leads, Clasificación y Exportación
  */
+// ponytail: auth nativo para operaciones administrativas sobre leads (header x-admin-key o Basic Auth)
+const ADMIN_KEY = process.env.ADMIN_KEY || 'ONE2026';
+const QR_PASS = process.env.QR_PASS || ADMIN_KEY;
+const QR_USER = process.env.QR_USER || 'admin';
+
+function requireLeadsAdmin(req, res, next) {
+  // Permitir registro individual público de clientes (registro.html / formulario web)
+  if (req.method === 'POST' && req.body && !Array.isArray(req.body) && !req.path.includes('sync')) {
+    return next();
+  }
+
+  const headerKey = req.headers['x-admin-key'];
+  if (headerKey && headerKey === ADMIN_KEY) return next();
+
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Basic ')) {
+    try {
+      const [u, ...p] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+      if ((u === QR_USER && p.join(':') === QR_PASS) || (p.join(':') === ADMIN_KEY)) {
+        return next();
+      }
+    } catch (e) {}
+  }
+
+  // Clave en query string para enlaces directos de descarga en navegador (Excel/CSV)
+  if (req.query.key && req.query.key === ADMIN_KEY) return next();
+
+  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Leads CRM"');
+  return res.status(401).json({ error: 'Acceso no autorizado: credenciales requeridas.' });
+}
+
+router.use('/leads', requireLeadsAdmin);
+
 router.get('/leads', async (req, res) => {
   try {
     let leads = await leadClassifier.getLeadsAsync();

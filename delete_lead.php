@@ -21,6 +21,22 @@ $LEADS_CSV     = __DIR__ . '/leads.csv';
 $BACKEND_LEADS = __DIR__ . '/backend/leads.json';
 $SESSIONS_FILE = __DIR__ . '/sessions.json';
 
+// ponytail: auth nativo para proteger eliminación en PHP
+$ADMIN_KEY = getenv('ADMIN_KEY') ?: 'ONE2026';
+$providedKey = $_SERVER['HTTP_X_ADMIN_KEY'] ?? $_GET['key'] ?? '';
+if (empty($providedKey) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (strpos($_SERVER['HTTP_AUTHORIZATION'], 'Basic ') === 0) {
+        $creds = base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6));
+        $parts = explode(':', $creds);
+        $providedKey = end($parts);
+    }
+}
+if ($providedKey !== $ADMIN_KEY) {
+    http_response_code(401);
+    echo json_encode(['error' => 'No autorizado']);
+    exit;
+}
+
 $id     = $_GET['id'] ?? $_POST['id'] ?? '';
 $phone  = $_GET['phone'] ?? $_POST['phone'] ?? '';
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
