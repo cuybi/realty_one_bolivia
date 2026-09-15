@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realty ONE CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 320px;
+      background: #0b0f12;
+      color: #e8e0cc;
+      font-family: 'Outfit', 'Segoe UI', sans-serif;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #18222a 0%, #0d1117 100%);
+      border-bottom: 2px solid #D4AF37;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header .lion { font-size: 28px; }
+
+    .header .brand {
+      flex: 1;
+    }
+
+    .header .brand h1 {
+      font-size: 13px;
+      font-weight: 700;
+      color: #D4AF37;
+      letter-spacing: 0.5px;
+    }
+
+    .header .brand p {
+      font-size: 10px;
+      color: #666;
+      margin-top: 1px;
+    }
+
+    .version {
+      font-size: 9px;
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      color: #D4AF37;
+      border-radius: 10px;
+      padding: 2px 7px;
+    }
+
+    .status-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .status-label {
+      font-size: 11px;
+      color: #888;
+    }
+
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #D4AF37;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .btn-group {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: 'Outfit', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #f3cf55 0%, #D4AF37 50%, #aa820a 100%);
+      color: #0d0d0d;
+    }
+
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #ccc;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(212, 175, 55, 0.08);
+      border-color: rgba(212,175,55,0.3);
+      color: #D4AF37;
+    }
+
+    .footer {
+      padding: 10px 16px;
+      text-align: center;
+      font-size: 9px;
+      color: #444;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+
+    #crm-url-input {
+      width: 100%;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: #ccc;
+      font-size: 10px;
+      font-family: monospace;
+      margin-top: 8px;
+    }
+
+    #crm-url-input:focus {
+      outline: none;
+      border-color: rgba(212,175,55,0.5);
+    }
+
+    #save-url-btn {
+      margin-top: 6px;
+    }
+
+    .url-section {
+      padding: 0 16px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .url-label {
+      font-size: 10px;
+      color: #666;
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    #saved-msg {
+      font-size: 10px;
+      color: #4caf50;
+      text-align: center;
+      padding: 4px 0;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="lion">🦁</span>
+    <div class="brand">
+      <h1>Realty ONE CRM</h1>
+      <p>Panel integrado en WhatsApp</p>
+    </div>
+    <span class="version">v1.0</span>
+  </div>
+
+  <div class="status-section">
+    <div class="status-row">
+      <span class="status-label">Estado del panel</span>
+      <span class="status-dot" id="status-text">
+        <span class="dot"></span> Activo
+      </span>
+    </div>
+    <div class="status-row">
+      <span class="status-label">Servidor CRM</span>
+      <span id="server-status" class="status-label" style="color:#666;">Verificando...</span>
+    </div>
+  </div>
+
+  <div class="url-section">
+    <label class="url-label">URL del CRM (Render o local)</label>
+    <input id="crm-url-input" type="text" placeholder="https://tu-servidor.onrender.com/ingreso_leads.html">
+    <p id="saved-msg">✅ URL guardada</p>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" id="open-panel-btn">
+      📋 Abrir panel CRM en WhatsApp
+    </button>
+    <button class="btn btn-secondary" id="save-url-btn">
+      💾 Guardar URL del servidor
+    </button>
+    <button class="btn btn-secondary" id="open-tab-btn">
+      🔗 Abrir CRM en pestaña nueva
+    </button>
+  </div>
+
+  <div class="footer">
+    Realty ONE Group Bolivia — Extensión CRM v1.0
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
