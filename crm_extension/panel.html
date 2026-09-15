@@ -35,27 +35,27 @@
         <span id="active-contact-phone" class="phone-label"></span>
       </div>
 
-      <!-- Quick Lead Form (si el contacto está seleccionado) -->
+      <!-- Quick Lead Form -->
       <div id="active-lead-controls" class="lead-controls hidden">
         <div class="control-row">
           <div class="control-group">
-            <label for="lead-stage">Etapa</label>
+            <label for="lead-stage">Etapa Embudo</label>
             <select id="lead-stage">
-              <option value="NUEVO">✨ Nuevo Lead</option>
+              <option value="SOLICITUD">✨ Solicitud / Nuevo</option>
               <option value="CONTACTADO">📞 Contactado</option>
-              <option value="CALIFICADO">⭐ Calificado</option>
-              <option value="VISITA_PROGRAMADA">📅 Visita Programada</option>
-              <option value="PROPUESTA">📝 Propuesta / Oferta</option>
-              <option value="CERRADO">🏆 Cerrado / Ganado</option>
+              <option value="VISITA_AGENDADA">📅 Visita Agendada</option>
+              <option value="PROPUESTA">📝 Propuesta / Negociación</option>
+              <option value="CIERRE">🏆 Cerrado / Ganado</option>
               <option value="PERDIDO">❌ Descartado</option>
             </select>
           </div>
           <div class="control-group">
             <label for="lead-priority">Prioridad</label>
             <select id="lead-priority">
-              <option value="ALTA">🔥 Alta</option>
-              <option value="MEDIA">⚡ Media</option>
-              <option value="BAJA">☕ Baja</option>
+              <option value="POTENCIAL">🔥 Potencial (Alta)</option>
+              <option value="INDECISO">⚡ Indeciso (Media)</option>
+              <option value="PASIVO">❄️ Pasivo (Baja)</option>
+              <option value="PROPIETARIO">💼 Propietario (Captación)</option>
             </select>
           </div>
         </div>
@@ -64,17 +64,18 @@
           <div class="control-group full-width">
             <label for="lead-realtor">e-Realtor Asignado</label>
             <select id="lead-realtor">
-              <option value="Sin Asignar">Sin Asignar</option>
-              <option value="Mauricio V.">Mauricio V.</option>
-              <option value="Carla S.">Carla S.</option>
-              <option value="Fernando P.">Fernando P.</option>
-              <option value="Alejandra M.">Alejandra M.</option>
+              <option value="">Sin Asignar</option>
+              <option value="carlos_rodriguez">Carlos Rodríguez (Venta de Lujo & Casas)</option>
+              <option value="valeria_suarez">Valeria Suárez (Alquileres & Deptos)</option>
+              <option value="andres_montano">Andrés Montaño (Terrenos & Parque Ind.)</option>
+              <option value="lucia_vaca">Lucía Vaca (Anticréticos & Asesoría Legal)</option>
+              <option value="robert_oliva">Robert Oliva (Master Broker / Inversión VIP)</option>
             </select>
           </div>
         </div>
 
         <div class="note-box">
-          <input type="text" id="quick-note-input" placeholder="Escribir nota rápida sobre este prospecto..." />
+          <input type="text" id="quick-note-input" placeholder="Guardar nota o registrar prospecto..." />
           <button id="btn-save-note" class="gold-btn">Guardar</button>
         </div>
 
@@ -98,20 +99,19 @@
     <!-- Pipeline Tabs & Search -->
     <section class="pipeline-section">
       <div class="search-bar">
-        <input type="text" id="leads-search" placeholder="🔍 Buscar por nombre, teléfono o proyecto..." />
+        <input type="text" id="leads-search" placeholder="🔍 Buscar por nombre, celular o zona..." />
       </div>
 
       <div class="filter-pills">
         <button class="pill active" data-filter="TODAS">Todos (<span id="count-all">0</span>)</button>
-        <button class="pill" data-filter="ALTA">🔥 Alta (<span id="count-alta">0</span>)</button>
-        <button class="pill" data-filter="NUEVO">✨ Nuevos</button>
-        <button class="pill" data-filter="CALIFICADO">⭐ Calificados</button>
-        <button class="pill" data-filter="VISITA_PROGRAMADA">📅 Visitas</button>
+        <button class="pill" data-filter="POTENCIAL">🔥 Potencial (<span id="count-potencial">0</span>)</button>
+        <button class="pill" data-filter="VISITA_AGENDADA">📅 Visitas</button>
+        <button class="pill" data-filter="INDECISO">⚡ Seguimiento</button>
+        <button class="pill" data-filter="PROPIETARIO">💼 Captaciones</button>
       </div>
 
       <!-- Leads List -->
       <div id="leads-list" class="leads-list">
-        <!-- Rendered by panel.js -->
         <div class="loading-state">
           <div class="spinner"></div>
           <span>Cargando prospectos de Realty ONE...</span>

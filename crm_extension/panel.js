@@ -28,8 +28,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCachedLeads();
   fetchFreshLeads();
 
-  // Polling silencioso cada 10s para mantener leads sincronizados
-  setInterval(fetchFreshLeads, 10000);
+  // Polling silencioso cada 12s para mantener leads sincronizados
+  setInterval(fetchFreshLeads, 12000);
 });
 
 function initUI() {
@@ -70,7 +70,7 @@ function initUI() {
   });
 
   document.getElementById('lead-realtor').addEventListener('change', (e) => {
-    updateActiveLeadField('e_realtor_asignado', e.target.value);
+    updateActiveLeadField('e_realtor_id', e.target.value);
   });
 
   document.getElementById('btn-save-note').addEventListener('click', saveQuickNote);
@@ -116,7 +116,7 @@ function setSyncStatus(status, text) {
 function loadCachedLeads() {
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get([CACHE_KEY], (res) => {
-      if (res[CACHE_KEY] && Array.isArray(res[CACHE_KEY])) {
+      if (res[CACHE_KEY] && Array.isArray(res[CACHE_KEY]) && res[CACHE_KEY].length > 0) {
         allLeads = res[CACHE_KEY];
         renderLeadsList();
         updateCounters();
@@ -136,24 +136,37 @@ async function fetchFreshLeads() {
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    const leads = await res.json();
-    if (Array.isArray(leads)) {
-      allLeads = leads;
-      setSyncStatus('online', 'En Línea 🟢');
-      if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.set({ [CACHE_KEY]: allLeads });
-      }
-      renderLeadsList();
-      updateCounters();
+    const rawData = await res.json();
+    
+    // El backend devuelve { exito: true, stats: {...}, totalFiltrados: N, leads: [...] } o array directo
+    let leadsList = [];
+    if (Array.isArray(rawData)) {
+      leadsList = rawData;
+    } else if (rawData && Array.isArray(rawData.leads)) {
+      leadsList = rawData.leads;
+    }
 
-      // Si hay un contacto activo, refrescar su ficha
-      if (activeContactData) {
-        matchOrCreateActiveLead(activeContactData.name, activeContactData.phone);
-      }
+    allLeads = leadsList;
+    setSyncStatus('online', 'En Línea 🟢');
+
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      chrome.storage.local.set({ [CACHE_KEY]: allLeads });
+    }
+
+    renderLeadsList();
+    updateCounters();
+
+    // Si hay un contacto activo, refrescar su ficha
+    if (activeContactData) {
+      matchOrCreateActiveLead(activeContactData.name, activeContactData.phone);
     }
   } catch (err) {
     console.warn('[Realty ONE CRM] Sync notice:', err.message);
     setSyncStatus('offline', 'Reconectando...');
+    // Si la lista está vacía y falló, limpiar estado de carga para no dejar spinner infinito
+    if (allLeads.length === 0) {
+      renderLeadsList();
+    }
   }
 }
 
@@ -170,15 +183,16 @@ function handleActiveContactFromWA(name, phone = '') {
 }
 
 function matchOrCreateActiveLead(name, phone) {
-  const normName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanPhone = phone.replace(/[^0-9]/g, '');
+  const normName = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
 
   // Buscar coincidencia en la lista de leads
   let match = allLeads.find(l => {
-    const lName = (l.nombre || l.cliente || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const lPhone = (l.telefono || l.telefono_cliente || '').replace(/[^0-9]/g, '');
-    if (cleanPhone && lPhone && (lPhone.includes(cleanPhone) || cleanPhone.includes(lPhone))) return true;
-    if (normName && lName && (lName.includes(normName) || normName.includes(lName))) return true;
+    const lName = (l.cliente_nombre || l.nombre || l.cliente || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const lPhone = (l.numero_celular || l.telefono || l.telefono_cliente || '').replace(/[^0-9]/g, '');
+    
+    if (cleanPhone && cleanPhone.length >= 7 && lPhone && (lPhone.includes(cleanPhone) || cleanPhone.includes(lPhone))) return true;
+    if (normName && normName.length >= 4 && lName && (lName.includes(normName) || normName.includes(lName))) return true;
     return false;
   });
 
@@ -191,18 +205,20 @@ function matchOrCreateActiveLead(name, phone) {
     controls.classList.remove('hidden');
     noMsg.style.display = 'none';
 
-    // Rellenar controles
-    document.getElementById('lead-stage').value = activeLead.etapa_embudo || 'NUEVO';
-    document.getElementById('lead-priority').value = (activeLead.prioridad || 'MEDIA').toUpperCase();
-    document.getElementById('lead-realtor').value = activeLead.e_realtor_asignado || 'Sin Asignar';
+    // Rellenar controles con datos del backend
+    document.getElementById('lead-stage').value = activeLead.etapa_embudo || 'SOLICITUD';
+    document.getElementById('lead-priority').value = (activeLead.prioridad || 'POTENCIAL').toUpperCase();
+    document.getElementById('lead-realtor').value = activeLead.e_realtor_id || '';
     document.getElementById('quick-note-input').value = '';
+    document.getElementById('quick-note-input').placeholder = 'Escribir nueva nota sobre este prospecto...';
   } else {
-    // Si no está registrado en el CRM, mostrar opción de registro rápido
+    // Si no está registrado en el CRM, mostrar formulario listo para crear
     controls.classList.remove('hidden');
     noMsg.style.display = 'none';
-    document.getElementById('lead-stage').value = 'NUEVO';
-    document.getElementById('lead-priority').value = 'ALTA';
-    document.getElementById('lead-realtor').value = 'Sin Asignar';
+    document.getElementById('lead-stage').value = 'SOLICITUD';
+    document.getElementById('lead-priority').value = 'POTENCIAL';
+    document.getElementById('lead-realtor').value = '';
+    document.getElementById('quick-note-input').value = '';
     document.getElementById('quick-note-input').placeholder = 'Guardar nota para registrar como nuevo prospecto...';
   }
 
@@ -212,7 +228,6 @@ function matchOrCreateActiveLead(name, phone) {
 
 async function updateActiveLeadField(field, value) {
   if (!activeLead) {
-    // Crear lead si no existía
     await createLeadFromActiveContact({ [field]: value });
     return;
   }
@@ -243,15 +258,17 @@ async function saveQuickNote() {
   btn.textContent = 'Guardando...';
 
   if (!activeLead) {
-    await createLeadFromActiveContact({ notas: note });
+    await createLeadFromActiveContact({ notas_asesor: note });
     input.value = '';
-    btn.textContent = 'Guardar';
+    btn.textContent = '¡Registrado! ✓';
+    setTimeout(() => { btn.textContent = 'Guardar'; }, 1500);
     return;
   }
 
-  const existingNotes = activeLead.notas || '';
-  const newNotes = existingNotes ? `${existingNotes}\n[${new Date().toLocaleDateString()}] ${note}` : `[${new Date().toLocaleDateString()}] ${note}`;
-  activeLead.notas = newNotes;
+  const existingNotes = activeLead.notas_asesor || activeLead.notas || '';
+  const dateTag = new Date().toLocaleDateString();
+  const newNotes = existingNotes ? `${existingNotes}\n[${dateTag}] ${note}` : `[${dateTag}] ${note}`;
+  activeLead.notas_asesor = newNotes;
 
   try {
     await fetch(`${BACKEND_URL}/api/whatsapp/leads/${activeLead.id}?key=${ADMIN_KEY}`, {
@@ -260,7 +277,7 @@ async function saveQuickNote() {
         'Content-Type': 'application/json',
         'x-admin-key': ADMIN_KEY
       },
-      body: JSON.stringify({ notas: newNotes })
+      body: JSON.stringify({ notas_asesor: newNotes })
     });
     input.value = '';
     btn.textContent = '¡Listo! ✓';
@@ -275,14 +292,14 @@ async function createLeadFromActiveContact(extraFields = {}) {
   if (!activeContactData) return;
 
   const newLeadData = {
-    id: `lead_${Date.now()}`,
-    nombre: activeContactData.name || 'Prospecto WhatsApp',
-    telefono: activeContactData.phone || '',
-    canal: 'WHATSAPP',
-    prioridad: document.getElementById('lead-priority').value || 'ALTA',
-    etapa_embudo: document.getElementById('lead-stage').value || 'NUEVO',
-    e_realtor_asignado: document.getElementById('lead-realtor').value || 'Sin Asignar',
-    fecha_ingreso: new Date().toISOString(),
+    id: `lead_${Date.now()}_ext`,
+    cliente_nombre: activeContactData.name || 'Prospecto WhatsApp',
+    numero_celular: activeContactData.phone || '',
+    canal_origen: 'WhatsApp Web Panel',
+    prioridad: document.getElementById('lead-priority').value || 'POTENCIAL',
+    etapa_embudo: document.getElementById('lead-stage').value || 'SOLICITUD',
+    e_realtor_id: document.getElementById('lead-realtor').value || '',
+    fecha_creacion: new Date().toISOString(),
     ...extraFields
   };
 
@@ -313,26 +330,28 @@ function renderLeadsList() {
   let filtered = allLeads;
 
   // Filtrado por tab
-  if (currentFilter === 'ALTA') {
-    filtered = filtered.filter(l => (l.prioridad || '').toUpperCase() === 'ALTA');
-  } else if (currentFilter !== 'TODAS') {
-    filtered = filtered.filter(l => (l.etapa_embudo || '').toUpperCase() === currentFilter);
+  if (currentFilter !== 'TODAS') {
+    filtered = filtered.filter(l => {
+      const p = (l.prioridad || '').toUpperCase();
+      const e = (l.etapa_embudo || '').toUpperCase();
+      return p === currentFilter || e === currentFilter;
+    });
   }
 
   // Filtrado por texto de búsqueda
   if (currentSearch) {
     filtered = filtered.filter(l => {
-      const name = (l.nombre || l.cliente || '').toLowerCase();
-      const phone = (l.telefono || l.telefono_cliente || '').toLowerCase();
-      const prop = (l.interes_propiedad || l.propiedad || l.notas || '').toLowerCase();
-      return name.includes(currentSearch) || phone.includes(currentSearch) || prop.includes(currentSearch);
+      const name = (l.cliente_nombre || l.nombre || l.cliente || '').toLowerCase();
+      const phone = (l.numero_celular || l.telefono || l.telefono_cliente || '').toLowerCase();
+      const zone = (l.zona_interes || l.tipo_interes || l.interes_propiedad || l.campana || '').toLowerCase();
+      return name.includes(currentSearch) || phone.includes(currentSearch) || zone.includes(currentSearch);
     });
   }
 
   if (filtered.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <span>No se encontraron prospectos</span>
+        <span>No se encontraron prospectos ${currentSearch ? `para "${currentSearch}"` : ''}</span>
       </div>
     `;
     return;
@@ -340,43 +359,45 @@ function renderLeadsList() {
 
   container.innerHTML = filtered.map(lead => {
     const isSelected = activeLead && activeLead.id === lead.id;
-    const name = lead.nombre || lead.cliente || 'Sin Nombre';
-    const phone = lead.telefono || lead.telefono_cliente || '';
-    const priority = (lead.prioridad || 'MEDIA').toUpperCase();
-    const stage = formatStage(lead.etapa_embudo || 'NUEVO');
+    const name = lead.cliente_nombre || lead.nombre || lead.cliente || 'Sin Nombre';
+    const phone = lead.numero_celular || lead.telefono || lead.telefono_cliente || '';
+    const priority = (lead.prioridad || 'INDECISO').toUpperCase();
+    const stage = formatStage(lead.etapa_embudo || 'SOLICITUD');
     const realtor = lead.e_realtor_asignado || '';
+    const zone = lead.zona_interes || lead.tipo_interes || '';
 
     return `
       <div class="lead-item ${isSelected ? 'selected' : ''}" data-lead-id="${lead.id}">
         <div class="lead-top">
           <span class="lead-name" title="${name}">${name}</span>
-          <span class="lead-priority ${priority}">${priority}</span>
+          <span class="lead-priority ${priority}">${formatPriorityBadge(priority)}</span>
         </div>
         <div class="lead-mid">
-          <span>${phone}</span>
+          <span>${phone || 'Sin Celular'}</span>
           <span class="stage-badge">${stage}</span>
         </div>
-        ${realtor && realtor !== 'Sin Asignar' ? `
+        ${(realtor || zone) ? `
           <div class="lead-bottom">
-            <span class="realtor-tag">👤 ${realtor}</span>
+            ${zone ? `<span class="zone-tag">📍 ${zone}</span>` : '<span></span>'}
+            ${realtor ? `<span class="realtor-tag">👤 ${realtor}</span>` : ''}
           </div>
         ` : ''}
       </div>
     `;
   }).join('');
 
-  // Eventos de click en items
+  // Eventos de click en items para sincronizar con el formulario activo
   container.querySelectorAll('.lead-item').forEach(item => {
     item.addEventListener('click', () => {
       const leadId = item.dataset.leadId;
       const found = allLeads.find(l => String(l.id) === String(leadId));
       if (found) {
         activeLead = found;
-        document.getElementById('active-contact-name').textContent = found.nombre || found.cliente;
-        document.getElementById('active-contact-phone').textContent = found.telefono || found.telefono_cliente || '';
-        document.getElementById('lead-stage').value = found.etapa_embudo || 'NUEVO';
-        document.getElementById('lead-priority').value = (found.prioridad || 'MEDIA').toUpperCase();
-        document.getElementById('lead-realtor').value = found.e_realtor_asignado || 'Sin Asignar';
+        document.getElementById('active-contact-name').textContent = found.cliente_nombre || found.nombre || found.cliente;
+        document.getElementById('active-contact-phone').textContent = found.numero_celular || found.telefono || '';
+        document.getElementById('lead-stage').value = found.etapa_embudo || 'SOLICITUD';
+        document.getElementById('lead-priority').value = (found.prioridad || 'POTENCIAL').toUpperCase();
+        document.getElementById('lead-realtor').value = found.e_realtor_id || '';
         document.getElementById('active-lead-controls').classList.remove('hidden');
         document.getElementById('no-contact-msg').style.display = 'none';
         highlightSelectedLeadItem(found.id);
@@ -396,19 +417,30 @@ function highlightSelectedLeadItem(leadId) {
 }
 
 function updateCounters() {
-  document.getElementById('count-all').textContent = allLeads.length;
-  document.getElementById('count-alta').textContent = allLeads.filter(l => (l.prioridad || '').toUpperCase() === 'ALTA').length;
+  const allEl = document.getElementById('count-all');
+  const potEl = document.getElementById('count-potencial');
+  if (allEl) allEl.textContent = allLeads.length;
+  if (potEl) potEl.textContent = allLeads.filter(l => (l.prioridad || '').toUpperCase() === 'POTENCIAL').length;
 }
 
 function formatStage(stage) {
   const map = {
-    'NUEVO': '✨ Nuevo',
+    'SOLICITUD': '✨ Solicitud',
     'CONTACTADO': '📞 Contactado',
-    'CALIFICADO': '⭐ Calificado',
-    'VISITA_PROGRAMADA': '📅 Visita',
+    'VISITA_AGENDADA': '📅 Visita',
     'PROPUESTA': '📝 Propuesta',
-    'CERRADO': '🏆 Cerrado',
+    'CIERRE': '🏆 Ganado',
     'PERDIDO': '❌ Descartado'
   };
   return map[stage] || stage;
+}
+
+function formatPriorityBadge(prioridad) {
+  const map = {
+    'POTENCIAL': '🔥 ALTA',
+    'INDECISO': '⚡ MEDIA',
+    'PASIVO': '❄️ BAJA',
+    'PROPIETARIO': '💼 CAPTACIÓN'
+  };
+  return map[prioridad] || prioridad;
 }
