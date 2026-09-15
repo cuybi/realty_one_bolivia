@@ -16,9 +16,9 @@ let activeContactData = null;
 
 // Plantillas de respuesta rápida para inmobiliaria
 const TEMPLATES = {
-  bienvenida: "¡Hola! Gracias por comunicarte con Realty ONE Group Bolivia 🦁. ¿En qué zona o tipo de propiedad (compra, alquiler, anticrético o inversión) estás interesado?",
-  mar_adentro: "🌊 *Condominio Mar Adentro (Urubó)*: Te comparto las opciones disponibles con playa de aguas cristalinas, club house y seguridad 24/7. ¿Prefieres departamento o terreno?",
+  bienvenida: "¡Hola! Gracias por comunicarte con Realty ONE Group Bolivia. ¿En qué tipo de propiedad o zona estás interesado?",
   agendar: "📅 ¡Con gusto coordinamos una visita! Disponemos de horarios hoy por la tarde o mañana en la mañana. ¿Qué horario te queda más cómodo?",
+  catalogo: "🏠 *Catálogo Inmobiliario Realty ONE Group*:\nDisponemos de casas, departamentos, terrenos y anticréticos exclusivos en Santa Cruz. ¿Qué características y rango de presupuesto buscas?",
   requisitos: "📋 *Requisitos generales para la operación*:\n1. Documento de Identidad vigente\n2. Comprobante de ingresos / precalificación bancaria\n3. Reserva formal para bloqueo de unidad."
 };
 
@@ -43,6 +43,13 @@ function initUI() {
     const fullUrl = `${BACKEND_URL}/ingreso_leads.html?key=${ADMIN_KEY}`;
     window.open(fullUrl, '_blank');
   });
+
+  // Botones para exportar a Excel
+  const exportBtn1 = document.getElementById('btn-export-excel');
+  if (exportBtn1) exportBtn1.addEventListener('click', exportToExcel);
+
+  const exportBtn2 = document.getElementById('btn-export-excel-banner');
+  if (exportBtn2) exportBtn2.addEventListener('click', exportToExcel);
 
   // Búsqueda en tiempo real
   document.getElementById('leads-search').addEventListener('input', (e) => {
@@ -75,23 +82,13 @@ function initUI() {
 
   document.getElementById('btn-save-note').addEventListener('click', saveQuickNote);
 
-  // Plantillas de respuesta rápida
+  // Plantillas de respuesta rápida (con copy + insert en WhatsApp Web garantizado)
   document.querySelectorAll('.chip-btn').forEach(chip => {
     chip.addEventListener('click', () => {
       const templateKey = chip.dataset.template;
       const text = TEMPLATES[templateKey];
       if (text) {
-        navigator.clipboard.writeText(text).then(() => {
-          const originalText = chip.textContent;
-          chip.textContent = '¡Copiado! ✓';
-          chip.style.borderColor = '#3fb950';
-          chip.style.color = '#3fb950';
-          setTimeout(() => {
-            chip.textContent = originalText;
-            chip.style.borderColor = '';
-            chip.style.color = '';
-          }, 1500);
-        });
+        copyAndInsertText(text, chip);
       }
     });
   });
@@ -444,3 +441,157 @@ function formatPriorityBadge(prioridad) {
   };
   return map[prioridad] || prioridad;
 }
+
+// ─── Funciones de Portapapeles y Respuesta Rápida ────────────────────────────
+function copyAndInsertText(text, chipElement) {
+  if (!text) return;
+
+  // 1. Copiar al portapapeles de forma segura (con fallback garantizado)
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (err) {
+    console.warn('[Realty ONE CRM] Fallback execCommand falló:', err);
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+
+  // 2. Notificar a content.js en WhatsApp Web para insertar en el chat activo
+  try {
+    window.parent.postMessage({
+      type: 'ROG_INSERT_WHATSAPP_CHAT',
+      text: text
+    }, '*');
+  } catch (e) {
+    console.warn('[Realty ONE CRM] Error notificando a WhatsApp Web:', e);
+  }
+
+  // 3. Feedback visual interactivo en el botón
+  if (chipElement) {
+    const originalText = chipElement.textContent;
+    chipElement.textContent = '¡Copiado! ✓';
+    chipElement.style.borderColor = '#25d366';
+    chipElement.style.color = '#25d366';
+    setTimeout(() => {
+      chipElement.textContent = originalText;
+      chipElement.style.borderColor = '';
+      chipElement.style.color = '';
+    }, 1400);
+  }
+}
+
+// ─── Exportar Leads a Excel (.xls SpreadsheetML) ────────────────────────────
+function exportToExcel() {
+  const leadsToExport = (allLeads && allLeads.length > 0) ? allLeads : [];
+  if (leadsToExport.length === 0) {
+    alert('No hay prospectos cargados en este momento para exportar.');
+    return;
+  }
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  const filename = `RealtyONE_Leads_${dateStr}.xls`;
+
+  let tableRows = '';
+  leadsToExport.forEach(lead => {
+    const id = lead.id || '';
+    const fecha = lead.fecha_creacion || lead.created_at || '';
+    const nombre = lead.cliente_nombre || lead.nombre || lead.cliente || 'Sin Nombre';
+    const celular = lead.numero_celular || lead.telefono || lead.telefono_cliente || '';
+    const prioridad = (lead.prioridad || 'INDECISO').toUpperCase();
+    const etapa = lead.etapa_embudo || lead.etapa || 'SOLICITUD';
+    const realtor = lead.e_realtor_asignado || lead.e_realtor_id || 'Sin Asignar';
+    const zona = lead.zona_interes || lead.tipo_interes || lead.campana || '';
+    const origen = lead.canal_origen || lead.fuente || 'WhatsApp Web Panel';
+    const notas = (lead.notas_asesor || lead.notas || lead.ultimo_mensaje || '').replace(/[\r\n]+/g, ' ');
+
+    tableRows += `
+      <tr>
+        <td>${escapeXml(id)}</td>
+        <td>${escapeXml(fecha)}</td>
+        <td>${escapeXml(nombre)}</td>
+        <td>${escapeXml(celular)}</td>
+        <td>${escapeXml(prioridad)}</td>
+        <td>${escapeXml(etapa)}</td>
+        <td>${escapeXml(realtor)}</td>
+        <td>${escapeXml(zona)}</td>
+        <td>${escapeXml(origen)}</td>
+        <td>${escapeXml(notas)}</td>
+      </tr>
+    `;
+  });
+
+  const excelXml = `
+    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+      <!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Leads Realty ONE</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+      <style>
+        th { background-color: #D4AF37; color: #000000; font-weight: bold; border: 1px solid #997A15; padding: 6px 12px; }
+        td { border: 1px solid #cccccc; padding: 5px 10px; font-family: Calibri, Arial, sans-serif; font-size: 11pt; }
+      </style>
+    </head>
+    <body>
+      <h2>Realty ONE Group Bolivia — Base de Datos de Leads</h2>
+      <p>Generado: ${new Date().toLocaleString()} | Total Leads: ${leadsToExport.length}</p>
+      <table border="1">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Fecha</th>
+            <th>Nombre del Cliente</th>
+            <th>Celular / WhatsApp</th>
+            <th>Prioridad</th>
+            <th>Etapa Embudo</th>
+            <th>e-Realtor Asignado</th>
+            <th>Zona / Interés</th>
+            <th>Origen</th>
+            <th>Notas / Historial</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob([excelXml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  // Feedback en botones
+  const bannerBtn = document.getElementById('btn-export-excel-banner');
+  if (bannerBtn) {
+    const originalText = bannerBtn.innerHTML;
+    bannerBtn.innerHTML = '<span class="excel-badge">✓ DESCARGADO</span><span>¡Excel Generado Exitosamente!</span>';
+    setTimeout(() => { bannerBtn.innerHTML = originalText; }, 2000);
+  }
+}
+
+function escapeXml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+

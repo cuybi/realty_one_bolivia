@@ -173,3 +173,44 @@ chrome.runtime.onMessage.addListener((msg) => {
     toggleSidebar();
   }
 });
+
+// ─── Escuchar mensajes del Iframe (panel.js) para inserción directa en WhatsApp Web ───
+window.addEventListener('message', (event) => {
+  if (!event.data || event.data.type !== 'ROG_INSERT_WHATSAPP_CHAT') return;
+  const text = event.data.text;
+  if (!text) return;
+
+  insertTextIntoWhatsAppInput(text);
+});
+
+function insertTextIntoWhatsAppInput(text) {
+  const selectors = [
+    '#main footer [contenteditable="true"][data-tab="10"]',
+    '#main footer div[contenteditable="true"]',
+    'footer div[contenteditable="true"]',
+    '[data-testid="conversation-compose-box-input"]',
+    'div[title="Escribe un mensaje aquí"]',
+    'div[title="Type a message"]'
+  ];
+
+  let inputEl = null;
+  for (const s of selectors) {
+    const el = document.querySelector(s);
+    if (el) {
+      inputEl = el;
+      break;
+    }
+  }
+
+  if (inputEl) {
+    inputEl.focus();
+    // 1. Usar execCommand para actualizar el estado reactivo de WhatsApp Web
+    const ok = document.execCommand('insertText', false, text);
+    if (!ok) {
+      // Fallback
+      inputEl.textContent = text;
+      inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: text }));
+    }
+  }
+}
+

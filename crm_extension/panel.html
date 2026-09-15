@@ -19,6 +19,7 @@
       </div>
       <div class="header-actions">
         <span id="sync-indicator" class="sync-badge syncing" title="Estado de conexión">Conectando...</span>
+        <button id="btn-export-excel" class="icon-btn" title="Exportar prospectos a Excel (.xlsx)" style="color:#25d366; border-color:rgba(37,211,102,0.4);">📊</button>
         <button id="btn-refresh" class="icon-btn" title="Recargar prospectos">🔄</button>
         <button id="btn-open-full" class="icon-btn" title="Abrir Ingreso Leads en nueva pestaña">↗</button>
       </div>
@@ -81,11 +82,11 @@
 
         <!-- Quick Response Templates -->
         <div class="templates-section">
-          <span class="section-title">Respuestas Rápidas (Copiar al portapapeles):</span>
+          <span class="section-title">Respuestas Rápidas (Copiar y pegar en WhatsApp):</span>
           <div class="template-chips">
             <button class="chip-btn" data-template="bienvenida">👋 Bienvenida</button>
-            <button class="chip-btn" data-template="mar_adentro">🌊 Mar Adentro</button>
             <button class="chip-btn" data-template="agendar">📅 Agendar Visita</button>
+            <button class="chip-btn" data-template="catalogo">🏠 Catálogo Inmuebles</button>
             <button class="chip-btn" data-template="requisitos">📋 Requisitos</button>
           </div>
         </div>
@@ -95,6 +96,14 @@
         Abre una conversación en WhatsApp Web para ver o registrar el lead automáticamente aquí.
       </div>
     </section>
+
+    <!-- Botón Excel Destacado -->
+    <div class="excel-download-container">
+      <button id="btn-export-excel-banner" class="excel-banner-btn" title="Descargar todos los prospectos en Excel oficial">
+        <span class="excel-badge">📊 EXCEL</span>
+        <span>Exportar Prospectos a Excel (.xlsx)</span>
+      </button>
+    </div>
 
     <!-- Pipeline Tabs & Search -->
     <section class="pipeline-section">

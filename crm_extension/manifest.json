@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Realty ONE — Ingreso Leads",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Panel de Ingreso de Leads de Realty ONE Group Bolivia integrado en WhatsApp Web",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "clipboardWrite", "clipboardRead"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
     "https://realty-one-bolivia.onrender.com/*",
