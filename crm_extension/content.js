@@ -1,17 +1,17 @@
 /**
  * content.js — Realty ONE CRM Extension
  * Inyecta botón + panel sidebar en web.whatsapp.com
- * ponytail: mínimo viable — botón toggle + iframe CRM + detección de chat activo
+ * Utiliza chrome.runtime.getURL('panel.html') para eludir CSP de Meta
  */
 
-const CRM_URL = 'https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026';
+const CRM_FRAME_URL = chrome.runtime.getURL('panel.html');
 const STORAGE_KEY = 'rog_crm_open';
 
 let sidebarOpen = false;
 let currentContact = '';
 
 // ─── Esperar a que WhatsApp cargue su UI ───────────────────────────────────
-function waitForWA(selector, cb, maxMs = 20000) {
+function waitForWA(selector, cb, maxMs = 25000) {
   const start = Date.now();
   const iv = setInterval(() => {
     const el = document.querySelector(selector);
@@ -53,13 +53,18 @@ function buildSidebar() {
 
   document.getElementById('rog-crm-close').addEventListener('click', toggleSidebar);
 
-  // Cargar iframe al abrir por primera vez
+  // Ocultar spinner cuando cargue el iframe local
   const frame = document.getElementById('rog-crm-frame');
   frame.addEventListener('load', () => {
-    document.getElementById('rog-crm-loading').classList.add('rog-hidden');
+    const loader = document.getElementById('rog-crm-loading');
+    if (loader) loader.classList.add('rog-hidden');
+    // Enviar el contacto activo de inmediato si ya lo tenemos
+    if (currentContact) {
+      notifyCRMFrame(currentContact);
+    }
   });
 
-  // Restaurar estado previo
+  // Restaurar estado previo (si estaba abierto)
   chrome.storage.local.get([STORAGE_KEY], (r) => {
     if (r[STORAGE_KEY]) openSidebar();
   });
@@ -71,9 +76,10 @@ function openSidebar() {
   const frame = document.getElementById('rog-crm-frame');
   if (!sidebar) return;
 
-  if (!frame.src) {
-    document.getElementById('rog-crm-loading').classList.remove('rog-hidden');
-    frame.src = CRM_URL;
+  if (!frame.src || frame.src === 'about:blank' || !frame.src.startsWith('chrome-extension://')) {
+    const loader = document.getElementById('rog-crm-loading');
+    if (loader) loader.classList.remove('rog-hidden');
+    frame.src = CRM_FRAME_URL;
   }
 
   sidebar.classList.add('rog-open');
@@ -95,28 +101,36 @@ function toggleSidebar() {
   sidebarOpen ? closeSidebar() : openSidebar();
 }
 
-// ─── Detectar chat activo y mostrarlo en el badge ─────────────────────────
+// ─── Detectar chat activo y sincronizar con CRM ───────────────────────────
 function observeActiveChat() {
-  // WhatsApp Web muestra el nombre del contacto activo en el encabezado del chat
-  const observer = new MutationObserver(() => {
-    // Selector del header del chat activo (nombre del contacto)
+  const checkActiveChat = () => {
+    // Selectores para el encabezado del chat activo en WhatsApp Web
     const nameEl =
       document.querySelector('[data-testid="conversation-header"] [data-testid="conversation-info-header-chat-title"] span') ||
       document.querySelector('header [data-testid="conversation-info-header"] span[title]') ||
       document.querySelector('#main header span[title]') ||
-      document.querySelector('#main header ._21S-L span');
+      document.querySelector('#main header ._21S-L span') ||
+      document.querySelector('#main header [role="button"] span[title]');
+
+    // Intentar extraer teléfono o subtexto si está visible
+    const phoneEl = document.querySelector('#main header span[data-testid="chat-subtitle"]') ||
+                    document.querySelector('#main header ._amid');
 
     const name = nameEl ? (nameEl.getAttribute('title') || nameEl.textContent || '').trim() : '';
+    const phone = phoneEl ? (phoneEl.textContent || '').trim() : '';
 
     if (name && name !== currentContact) {
       currentContact = name;
       updateChatBadge(name);
-      // Notificar al iframe del CRM para que filtre por ese contacto
-      notifyCRMFrame(name);
+      notifyCRMFrame(name, phone);
     }
-  });
+  };
 
+  const observer = new MutationObserver(checkActiveChat);
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // También polling cada 1.5s por robustez si las mutaciones son lentas
+  setInterval(checkActiveChat, 1500);
 }
 
 function updateChatBadge(name) {
@@ -130,33 +144,28 @@ function updateChatBadge(name) {
   }
 }
 
-function notifyCRMFrame(contactName) {
+function notifyCRMFrame(contactName, contactPhone = '') {
   const frame = document.getElementById('rog-crm-frame');
   if (!frame || !frame.contentWindow) return;
   try {
     frame.contentWindow.postMessage(
-      { type: 'ROG_ACTIVE_CONTACT', name: contactName },
+      { type: 'ROG_ACTIVE_CONTACT', name: contactName, phone: contactPhone },
       '*'
     );
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Realty ONE CRM] Error notifying frame:', e);
+  }
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────
+// ─── Inicialización al cargar WhatsApp Web ────────────────────────────────
 waitForWA('#app', () => {
   buildSidebar();
   observeActiveChat();
 });
 
-// ─── Escuchar mensajes del popup ───────────────────────────────────────────
+// ─── Escuchar mensajes del popup de la extensión ───────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'ROG_TOGGLE') {
     toggleSidebar();
-  } else if (msg.type === 'ROG_UPDATE_URL') {
-    const frame = document.getElementById('rog-crm-frame');
-    if (frame) {
-      frame.src = msg.url;
-      document.getElementById('rog-crm-loading')?.classList.remove('rog-hidden');
-    }
   }
 });
-

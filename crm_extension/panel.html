@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Realty ONE CRM Panel</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header class="panel-header">
+      <div class="brand">
+        <span class="lion-icon">🦁</span>
+        <div class="brand-text">
+          <span class="brand-title">Realty ONE CRM</span>
+          <span class="brand-sub">Bolivia • WhatsApp Sync</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <span id="sync-indicator" class="sync-badge syncing" title="Estado de conexión">Conectando...</span>
+        <button id="btn-refresh" class="icon-btn" title="Recargar prospectos">🔄</button>
+        <button id="btn-open-full" class="icon-btn" title="Abrir CRM completo en nueva pestaña">↗</button>
+      </div>
+    </header>
+
+    <!-- Active Chat Banner -->
+    <section class="active-chat-card" id="active-chat-card">
+      <div class="card-header">
+        <span class="badge-tag">CHAT ACTIVO</span>
+        <span id="active-contact-time" class="time-label"></span>
+      </div>
+      <div class="active-contact-info">
+        <h2 id="active-contact-name">Selecciona un chat en WhatsApp</h2>
+        <span id="active-contact-phone" class="phone-label"></span>
+      </div>
+
+      <!-- Quick Lead Form (si el contacto está seleccionado) -->
+      <div id="active-lead-controls" class="lead-controls hidden">
+        <div class="control-row">
+          <div class="control-group">
+            <label for="lead-stage">Etapa</label>
+            <select id="lead-stage">
+              <option value="NUEVO">✨ Nuevo Lead</option>
+              <option value="CONTACTADO">📞 Contactado</option>
+              <option value="CALIFICADO">⭐ Calificado</option>
+              <option value="VISITA_PROGRAMADA">📅 Visita Programada</option>
+              <option value="PROPUESTA">📝 Propuesta / Oferta</option>
+              <option value="CERRADO">🏆 Cerrado / Ganado</option>
+              <option value="PERDIDO">❌ Descartado</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="lead-priority">Prioridad</label>
+            <select id="lead-priority">
+              <option value="ALTA">🔥 Alta</option>
+              <option value="MEDIA">⚡ Media</option>
+              <option value="BAJA">☕ Baja</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-row">
+          <div class="control-group full-width">
+            <label for="lead-realtor">e-Realtor Asignado</label>
+            <select id="lead-realtor">
+              <option value="Sin Asignar">Sin Asignar</option>
+              <option value="Mauricio V.">Mauricio V.</option>
+              <option value="Carla S.">Carla S.</option>
+              <option value="Fernando P.">Fernando P.</option>
+              <option value="Alejandra M.">Alejandra M.</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="note-box">
+          <input type="text" id="quick-note-input" placeholder="Escribir nota rápida sobre este prospecto..." />
+          <button id="btn-save-note" class="gold-btn">Guardar</button>
+        </div>
+
+        <!-- Quick Response Templates -->
+        <div class="templates-section">
+          <span class="section-title">Respuestas Rápidas (Copiar al portapapeles):</span>
+          <div class="template-chips">
+            <button class="chip-btn" data-template="bienvenida">👋 Bienvenida</button>
+            <button class="chip-btn" data-template="mar_adentro">🌊 Mar Adentro</button>
+            <button class="chip-btn" data-template="agendar">📅 Agendar Visita</button>
+            <button class="chip-btn" data-template="requisitos">📋 Requisitos</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="no-contact-msg" class="no-contact-msg">
+        Abre una conversación en WhatsApp Web para ver o registrar el lead automáticamente aquí.
+      </div>
+    </section>
+
+    <!-- Pipeline Tabs & Search -->
+    <section class="pipeline-section">
+      <div class="search-bar">
+        <input type="text" id="leads-search" placeholder="🔍 Buscar por nombre, teléfono o proyecto..." />
+      </div>
+
+      <div class="filter-pills">
+        <button class="pill active" data-filter="TODAS">Todos (<span id="count-all">0</span>)</button>
+        <button class="pill" data-filter="ALTA">🔥 Alta (<span id="count-alta">0</span>)</button>
+        <button class="pill" data-filter="NUEVO">✨ Nuevos</button>
+        <button class="pill" data-filter="CALIFICADO">⭐ Calificados</button>
+        <button class="pill" data-filter="VISITA_PROGRAMADA">📅 Visitas</button>
+      </div>
+
+      <!-- Leads List -->
+      <div id="leads-list" class="leads-list">
+        <!-- Rendered by panel.js -->
+        <div class="loading-state">
+          <div class="spinner"></div>
+          <span>Cargando prospectos de Realty ONE...</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="panel.js"></script>
+</body>
+</html>

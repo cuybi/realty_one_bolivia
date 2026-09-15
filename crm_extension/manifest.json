@@ -1,16 +1,26 @@
 {
   "manifest_version": 3,
   "name": "Realty ONE CRM — WhatsApp Panel",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Panel CRM de Realty ONE Group Bolivia integrado en WhatsApp Web",
   "permissions": ["storage", "activeTab"],
-  "host_permissions": ["https://web.whatsapp.com/*"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://realty-one-bolivia.onrender.com/*",
+    "https://*.onrender.com/*"
+  ],
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
       "js": ["content.js"],
       "css": ["sidebar.css"],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["panel.html", "panel.js", "panel.css", "icons/*"],
+      "matches": ["https://web.whatsapp.com/*"]
     }
   ],
   "action": {

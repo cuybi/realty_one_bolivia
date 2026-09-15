@@ -27,8 +27,11 @@
 ```
 crm_extension/
 ├── manifest.json     ← Configuración extensión (Chrome MV3)
-├── content.js        ← Panel inyectado en WhatsApp Web
-├── sidebar.css       ← Estilos del panel lateral
+├── content.js        ← Inyección y puente con WhatsApp Web
+├── sidebar.css       ← Estilos del marco lateral
+├── panel.html        ← Panel CRM local (0ms carga, inmune a CSP)
+├── panel.js          ← Sincronización y lógica de leads
+├── panel.css         ← Diseño visual y responsive del panel
 ├── popup.html        ← Popup del ícono de Chrome
 ├── popup.js          ← Lógica del popup
 └── icons/
