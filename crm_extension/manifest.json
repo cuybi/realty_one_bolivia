@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Realty ONE CRM — WhatsApp Panel",
-  "version": "1.1.0",
-  "description": "Panel CRM de Realty ONE Group Bolivia integrado en WhatsApp Web",
+  "name": "Realty ONE — Ingreso Leads",
+  "version": "1.2.0",
+  "description": "Panel de Ingreso de Leads de Realty ONE Group Bolivia integrado en WhatsApp Web",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://web.whatsapp.com/*",
@@ -25,9 +25,9 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Realty ONE CRM"
+    "default_title": "Realty ONE — Ingreso Leads"
   },
   "icons": {
-    "128": "icons/icon128.jpg"
+    "128": "icons/logo_one.png"
   }
 }

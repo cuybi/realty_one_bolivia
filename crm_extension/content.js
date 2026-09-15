@@ -25,10 +25,14 @@ function buildSidebar() {
   if (document.getElementById('rog-crm-sidebar')) return;
 
   // Botón flotante toggle
+  const logoUrl = chrome.runtime.getURL('icons/logo_one.png');
   const toggle = document.createElement('button');
   toggle.id = 'rog-crm-toggle';
-  toggle.innerHTML = `<span class="rog-lion">🦁</span><span class="rog-label">CRM</span>`;
-  toggle.title = 'Abrir panel CRM — Realty ONE';
+  toggle.innerHTML = `
+    <img class="rog-logo" src="${logoUrl}" alt="ONE" />
+    <span class="rog-label">INGRESO LEADS</span>
+  `;
+  toggle.title = 'Realty ONE — Ingreso Leads';
   toggle.addEventListener('click', toggleSidebar);
   document.body.appendChild(toggle);
 
@@ -38,14 +42,14 @@ function buildSidebar() {
   sidebar.innerHTML = `
     <div id="rog-crm-header">
       <div class="rog-title">
-        <span>🦁</span> Realty ONE CRM
+        <img class="rog-header-logo" src="${logoUrl}" alt="ONE" /> Realty ONE • Ingreso Leads
       </div>
       <span id="rog-chat-badge"></span>
       <button id="rog-crm-close" title="Cerrar panel">✕</button>
     </div>
     <div id="rog-crm-loading">
       <div class="rog-spinner"></div>
-      <span>Cargando CRM...</span>
+      <span>Cargando Leads...</span>
     </div>
     <iframe id="rog-crm-frame" src="" allow="clipboard-read; clipboard-write"></iframe>
   `;

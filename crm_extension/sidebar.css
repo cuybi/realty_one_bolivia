@@ -8,40 +8,52 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: 99999;
-  width: 44px;
-  height: 80px;
-  background: linear-gradient(135deg, #f3cf55 0%, #D4AF37 50%, #aa820a 100%);
+  width: 46px;
+  height: 124px;
+  background: linear-gradient(135deg, #f3cf55 0%, #CAA65E 50%, #997A15 100%);
   border-radius: 12px 0 0 12px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  box-shadow: -3px 0 16px rgba(212, 175, 55, 0.4);
-  transition: width 0.2s ease;
+  gap: 6px;
+  box-shadow: -3px 0 16px rgba(202, 166, 94, 0.4);
+  transition: all 0.2s ease;
   border: none;
   user-select: none;
+  padding: 8px 0;
 }
 
 #rog-crm-toggle:hover {
-  width: 50px;
-  box-shadow: -4px 0 20px rgba(212, 175, 55, 0.6);
+  width: 52px;
+  box-shadow: -4px 0 22px rgba(202, 166, 94, 0.65);
 }
 
-#rog-crm-toggle .rog-lion {
-  font-size: 22px;
-  line-height: 1;
+#rog-crm-toggle .rog-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: contain;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 #rog-crm-toggle .rog-label {
   font-size: 8px;
-  font-weight: 800;
-  color: #0d0d0d;
-  letter-spacing: 0.5px;
+  font-weight: 900;
+  color: #000;
+  letter-spacing: 0.8px;
   writing-mode: vertical-rl;
   text-orientation: mixed;
   transform: rotate(180deg);
+  white-space: nowrap;
+}
+
+.rog-header-logo {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: contain;
 }
 
 /* ─── SIDEBAR PANEL ─── */
