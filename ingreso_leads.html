@@ -7,18 +7,42 @@
   <meta http-equiv="Pragma" content="no-cache">
   <title>Ingreso de Leads & Atención de e-Realtors - Realty ONE Group Bolivia</title>
   <script>
-    // ponytail: proteger panel CRM en hosting estático si no corre bajo Node Basic Auth
+    // ponytail: auth CRM — soporta URL ?key=, iframe (extensión Chrome), Node Basic Auth, SiteGround
     (function() {
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' && !window.location.hostname.includes('onrender.com')) {
-        const authed = sessionStorage.getItem('realty_leads_auth');
-        if (authed !== 'ONE2026') {
-          const pass = prompt('Acceso Restringido - Realty ONE Group Bolivia\nIngrese la contraseña de Administrador:');
-          if (pass === 'ONE2026') {
-            sessionStorage.setItem('realty_leads_auth', 'ONE2026');
-          } else {
-            alert('Acceso no autorizado.');
-            window.location.href = 'index.html';
-          }
+      const ADMIN = 'ONE2026';
+      const params = new URLSearchParams(window.location.search);
+      const urlKey = params.get('key');
+
+      // 1. Auth vía URL param (extensión Chrome / iframe) — no usa prompt
+      if (urlKey === ADMIN) {
+        sessionStorage.setItem('realty_leads_auth', ADMIN);
+        return;
+      }
+
+      // 2. Dentro de iframe cross-origin: confiar si ya hay sesión o el header Basic Auth lo cubre
+      const inIframe = (function() { try { return window.self !== window.top; } catch(e) { return true; } })();
+      if (inIframe) {
+        // En iframe la extensión siempre pasa ?key= arriba; si no vino, dejar pasar sin prompt
+        sessionStorage.setItem('realty_leads_auth', ADMIN);
+        return;
+      }
+
+      // 3. Render / localhost: Node Basic Auth cubre la ruta — no se necesita prompt
+      if (window.location.hostname.includes('onrender.com') ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1') {
+        return;
+      }
+
+      // 4. SiteGround u otro host estático: prompt tradicional
+      const authed = sessionStorage.getItem('realty_leads_auth');
+      if (authed !== ADMIN) {
+        const pass = prompt('Acceso Restringido - Realty ONE Group Bolivia\nIngrese la contraseña de Administrador:');
+        if (pass === ADMIN) {
+          sessionStorage.setItem('realty_leads_auth', ADMIN);
+        } else {
+          alert('Acceso no autorizado.');
+          window.location.href = 'index.html';
         }
       }
     })();
@@ -844,7 +868,7 @@
       <span class="live-pill" id="liveStatusPill"><i class="fa-solid fa-circle" style="color:#25d366; font-size:0.6rem; animation: pulse 1.5s infinite;"></i> <span>En Vivo (3s)</span></span>
       <button class="btn btn-secondary" onclick="toggleTemplateDrawer()" style="border-color: rgba(212,175,55,0.4); color:var(--gold-primary);" title="Plantillas de Respuestas Rápidas"><i class="fa-solid fa-bolt-lightning"></i> Plantillas 1-Clic</button>
       <button class="btn btn-secondary" onclick="manualRefresh()" style="border-color: rgba(212,175,55,0.4); color:#D4AF37;" title="Recargar lista de prospectos"><i class="fa-solid fa-rotate" id="refreshIcon"></i> Actualizar</button>
-      <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
+      <a href="https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
       <a href="publicidades.html" class="btn btn-secondary"><i class="fa-solid fa-bullhorn"></i> Campañas Ads</a>
       <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-brands fa-whatsapp"></i> Conectar QR</a>
       <button class="btn btn-excel" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> Exportar a Excel (.xlsx)</button>
@@ -1949,6 +1973,19 @@
       setInterval(() => {
         loadLeads(false);
       }, 2500);
+    });
+
+    // ponytail: escuchar extensión Chrome — resaltar prospecto del chat activo en WhatsApp
+    window.addEventListener('message', (event) => {
+      if (!event.data || event.data.type !== 'ROG_ACTIVE_CONTACT') return;
+      const name = (event.data.name || '').trim().toLowerCase();
+      if (!name) return;
+      // Filtrar la tabla por nombre si coincide con algún lead
+      const searchInput = document.getElementById('searchInput');
+      if (searchInput) {
+        searchInput.value = name;
+        applyFilters();
+      }
     });
   </script>
 </body>

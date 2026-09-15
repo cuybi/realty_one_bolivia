@@ -4,7 +4,7 @@
  * ponytail: mínimo viable — botón toggle + iframe CRM + detección de chat activo
  */
 
-const CRM_URL = 'https://realty-one-bolivia.onrender.com/ingreso_leads.html';
+const CRM_URL = 'https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026';
 const STORAGE_KEY = 'rog_crm_open';
 
 let sidebarOpen = false;

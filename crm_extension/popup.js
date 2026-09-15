@@ -3,7 +3,7 @@
  * ponytail: lógica mínima del popup — guardar URL, abrir panel, abrir pestaña
  */
 
-const DEFAULT_URL = 'https://realty-one-bolivia.onrender.com/ingreso_leads.html';
+const DEFAULT_URL = 'https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026';
 
 // Cargar URL guardada al abrir popup
 chrome.storage.local.get(['rog_crm_url'], (r) => {
