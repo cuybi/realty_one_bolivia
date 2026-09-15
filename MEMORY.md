@@ -289,3 +289,26 @@ GEMINI_API_KEY=<API_KEY_GOOGLE_AI_STUDIO>
 BAILEYS_PORT=3001
 ```
 
+---
+
+## 11. Módulo de Marketing Hub Automatizado & Envíos Masivos (15 de Septiembre, 2026)
+
+Se integró la suite de automatización de marketing en tiempo real para WhatsApp (`services/marketingHub.js` y `routes/marketingRoutes.js`):
+1. **Difusiones Masivas (Broadcasts):** Algoritmo con retardos aleatorios anti-baneo de 8 a 22 segundos por mensaje. Normalización automática de números bolivianos (prefijo 591).
+2. **Campañas Multimedia:** Soporte para imágenes, videos, audios de voz (PTT) y documentos PDF (brochures/fichas).
+3. **Embudos en 1 Clic (1-Click Funnels):** Activación de secuencias comerciales automáticas preconfiguradas.
+4. **Respuestas Automáticas & Árboles de Decisión:** Detección de palabras clave y derivación por etapas.
+5. **Historias de Estado (WhatsApp Status):** Publicación de anuncios en los estados de WhatsApp del número conectado.
+6. **Exportador a Excel (.xlsx/.xls):** Generación de reportes de campaña con métricas de entrega y lectura.
+
+---
+
+## 12. Extensión de Chrome: Realty ONE • Ingreso Leads v1.2.1
+
+- **Branding Oficial:** Incorporación del logo circular dorado ONE y renombrado integral a "Ingreso Leads".
+- **Botón de Exportación a Excel:** Banner prominente verde y acceso en barra superior que descarga los prospectos sincronizados en tiempo real en formato `.xls` nativo con caracteres UTF-8 limpios.
+- **Plantillas de Respuesta Rápida:** Inserción directa en el cuadro de redacción de WhatsApp Web (`ROG_INSERT_WHATSAPP_CHAT`) con respaldo de portapapeles y feedback visual instantáneo.
+- **Eliminación de "Mar Adentro":** Sustituido por el catálogo general inmobiliario a petición del usuario.
+- **Bitácora Detallada:** Para consultar el detalle paso a paso de los requerimientos y soluciones de esta sesión, ver [`BITACORA_SESION.md`](file:///c:/Users/etechadmin/.gemini/antigravity-ide/scratch/realty_one_bolivia/BITACORA_SESION.md).
+
+
