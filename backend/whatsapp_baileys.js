@@ -96,11 +96,15 @@ function requireQRAuth(req, res, next) {
   return res.status(401).send('Credenciales incorrectas.');
 }
 
+const marketingRoutes = require('./routes/marketingRoutes');
+const marketingHub = require('./services/marketingHub');
+
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/marketing', marketingRoutes);
 
 // Proteger vistas administrativas (QR y CRM Leads) con autenticacion
 app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
@@ -240,6 +244,7 @@ async function startWhatsAppClient() {
         connectionStatus = 'desconectado';
         currentQR = null;
         activeSock = null;
+        marketingHub.setBaileysSocket(null);
         if (isLoggedOut) {
           console.log('⚠️ Sesión de WhatsApp expirada o desvinculada en el teléfono.');
           console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
@@ -260,6 +265,7 @@ async function startWhatsAppClient() {
         currentQR = null;
         reconnectAttempts = 0; // ponytail: reset backoff on success
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        marketingHub.setBaileysSocket(sock);
         console.log(`\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!`);
         console.log(`✅ Número vinculado: +${connectedNumber}`);
         console.log(`🤖 El bot ahora responderá automáticamente a todos los mensajes entrantes.\n`);

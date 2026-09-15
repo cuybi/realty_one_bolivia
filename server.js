@@ -81,6 +81,19 @@ try {
   console.warn('Rutas de WhatsApp no cargadas:', e.message);
 }
 
+// Rutas de Marketing y Automatizaciones
+try {
+  let marketingRoutes;
+  if (fs.existsSync(path.join(__dirname, 'backend', 'routes', 'marketingRoutes.js'))) {
+    marketingRoutes = require('./backend/routes/marketingRoutes');
+  } else if (fs.existsSync(path.join(__dirname, 'routes', 'marketingRoutes.js'))) {
+    marketingRoutes = require('./routes/marketingRoutes');
+  }
+  if (marketingRoutes) app.use('/api/marketing', marketingRoutes);
+} catch (e) {
+  console.warn('Rutas de Marketing no cargadas:', e.message);
+}
+
 // Variables de Estado de Conexión QR
 let currentQR = null;
 let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
@@ -259,6 +272,12 @@ async function startWhatsAppClient() {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         connectionStatus = 'desconectado';
         currentQR = null;
+        try {
+          const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
+            ? require('./backend/services/marketingHub')
+            : require('./services/marketingHub');
+          mHub.setBaileysSocket(null);
+        } catch (e) {}
         console.log(`🔌 Conexión cerrada (status: ${statusCode}). ¿Reconectando?: ${shouldReconnect}`);
         if (shouldReconnect) {
           setTimeout(startWhatsAppClient, 3000);
@@ -273,6 +292,12 @@ async function startWhatsAppClient() {
         connectionStatus = 'conectado';
         currentQR = null;
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        try {
+          const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
+            ? require('./backend/services/marketingHub')
+            : require('./services/marketingHub');
+          mHub.setBaileysSocket(sock);
+        } catch (e) {}
         console.log(`\n🎉 ¡WHATSAPP CONECTADO 24/7 EN LA NUBE! Número: +${connectedNumber}\n`);
       }
     });
