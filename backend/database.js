@@ -2,14 +2,33 @@ const fs = require('fs');
 const path = require('path');
 
 const DATA_FILE = path.join(__dirname, 'realty_one_data.json');
+const BACKUP_FILE = path.join(__dirname, 'realty_one_data.json.bak');
+const TMP_FILE = path.join(__dirname, 'realty_one_data.json.tmp');
 
-// Initialize data if not exists
+// Initialize data with backup fallback (zero data loss)
 let data = {};
 if (fs.existsSync(DATA_FILE)) {
   try {
     data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
   } catch (e) {
-    console.error("Error reading JSON file, resetting database:", e);
+    console.error("⚠️ Error leyendo DATA_FILE principal:", e.message);
+    if (fs.existsSync(BACKUP_FILE)) {
+      try {
+        console.log("🔄 Recuperando base de datos desde copia de respaldo (.bak)...");
+        data = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf8'));
+        console.log("✅ Base de datos recuperada exitosamente.");
+      } catch (be) {
+        console.error("❌ Falló lectura de respaldo .bak:", be.message);
+        data = {};
+      }
+    } else {
+      data = {};
+    }
+  }
+} else if (fs.existsSync(BACKUP_FILE)) {
+  try {
+    data = JSON.parse(fs.readFileSync(BACKUP_FILE, 'utf8'));
+  } catch (be) {
     data = {};
   }
 }
@@ -116,7 +135,20 @@ function seedData() {
 }
 
 function saveData() {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf8');
+  try {
+    if (!data || typeof data !== 'object' || Object.keys(data).length === 0) return;
+    const jsonStr = JSON.stringify(data, null, 2);
+    // 1. Escribir primero en archivo temporal para asegurar integridad
+    fs.writeFileSync(TMP_FILE, jsonStr, 'utf8');
+    // 2. Renombrar atómicamente al archivo definitivo
+    fs.renameSync(TMP_FILE, DATA_FILE);
+    // 3. Crear copia de respaldo (.bak)
+    try {
+      fs.copyFileSync(DATA_FILE, BACKUP_FILE);
+    } catch (be) {}
+  } catch (err) {
+    console.error("❌ Error en persistencia atómica de backend/database.js:", err.message);
+  }
 }
 
 seedData();

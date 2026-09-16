@@ -13,14 +13,40 @@ date_default_timezone_set('America/La_Paz');
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
-header("Access-Control-Allow-Headers: Content-Type");
+header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Admin-Key");
 
-$LEADS_FILE = __DIR__ . '/leads.json';
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    exit(0);
+}
 
 $format    = $_GET['format'] ?? 'excel';
 $prioridad = $_GET['prioridad'] ?? 'TODAS';
 $anio      = $_GET['anio'] ?? '';
 $mes       = $_GET['mes'] ?? '';
+
+// ponytail: auth nativo para proteger exportación y descarga de prospectos
+$ADMIN_KEY = getenv('ADMIN_KEY') ?: 'ONE2026';
+$providedKey = $_SERVER['HTTP_X_ADMIN_KEY'] ?? $_GET['key'] ?? '';
+if (empty($providedKey) && isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    if (strpos($_SERVER['HTTP_AUTHORIZATION'], 'Basic ') === 0) {
+        $creds = base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6));
+        $parts = explode(':', $creds);
+        $providedKey = end($parts);
+    }
+}
+if ($providedKey !== $ADMIN_KEY) {
+    http_response_code(401);
+    if ($format === 'json') {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 'No autorizado para exportar prospectos. Se requiere credencial administrativa.']);
+    } else {
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Acceso denegado: Se requiere autenticacion para descargar la base de datos de leads.';
+    }
+    exit;
+}
+
+$LEADS_FILE = __DIR__ . '/leads.json';
 
 $leads = [];
 if (file_exists($LEADS_FILE)) {

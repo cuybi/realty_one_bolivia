@@ -39,28 +39,11 @@ const aiAgent = require('./services/aiAgent');
 const campaignService = require('./services/campaignService');
 const whatsappRoutes = require('./routes/whatsappRoutes');
 
-// Sincronización de logos corporativos de alta definición
+// Sincronización de logos corporativos de alta definición (portable)
 function syncBrandLogos() {
   try {
-    const uploadedDir = path.join(process.env.USERPROFILE || 'C:\\Users\\etechadmin', '.gemini', 'antigravity-ide', 'brain', '5a66f826-cde6-4725-93a8-9fc6f34c9438', '.user_uploaded');
-    const assetsDir = path.join(__dirname, '..', 'assets');
+    const assetsDir = path.join(__dirname, 'assets');
     if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
-
-    const logoMaps = [
-      { src: 'media_1787946407253.png', dest: 'logo_one_circle.png' },
-      { src: 'media_1787946407253.png', dest: 'favicon.png' },
-      { src: 'media_1787756699919.png', dest: 'logo_realty_one_full.png' },
-      { src: 'media_1787756699989.png', dest: 'logo_realty_one_white.png' },
-      { src: 'media_1787756699919.png', dest: 'logo_bolivia.png' }
-    ];
-
-    logoMaps.forEach(m => {
-      const srcP = path.join(uploadedDir, m.src);
-      const destP = path.join(assetsDir, m.dest);
-      if (fs.existsSync(srcP)) {
-        fs.copyFileSync(srcP, destP);
-      }
-    });
   } catch (e) {}
 }
 syncBrandLogos();

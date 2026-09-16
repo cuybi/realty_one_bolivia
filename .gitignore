@@ -30,6 +30,7 @@ desktop.ini
 # === Archivos temporales ===
 *.tmp
 *.bak
+*.zip
 build/
 dist/
 

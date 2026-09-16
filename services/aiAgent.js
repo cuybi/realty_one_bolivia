@@ -20,8 +20,21 @@ function despedidaSegunHora() {
   return '👋 *¡Muchas gracias por tu tiempo y que tengas una excelente noche!*';
 }
 
-// Memoria de conversación por cada usuario (número de teléfono)
-const conversationSessions = new Map();
+// ponytail: Memoria acotada de conversación (máximo 500 sesiones con TTL de 24 horas para evitar fugas OOM)
+const MAX_SESSIONS = 500;
+const SESSION_TTL_MS = 24 * 60 * 60 * 1000; // 24 horas
+const conversationSessions = new Map(); // userId -> { history: [], lastActivity: timestamp }
+
+// Limpieza periódica cada hora de sesiones inactivas (> 24h)
+const sessionCleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of conversationSessions.entries()) {
+    if (now - val.lastActivity > SESSION_TTL_MS) {
+      conversationSessions.delete(key);
+    }
+  }
+}, 60 * 60 * 1000);
+if (sessionCleanupInterval.unref) sessionCleanupInterval.unref();
 
 /**
  * Prompt del Sistema: Define el comportamiento, conocimiento y personalidad del Agente Inmobiliario
@@ -61,10 +74,29 @@ CONOCIMIENTO INMOBILIARIO EN BOLIVIA:
  * Obtiene o inicializa el historial de conversación de un usuario
  */
 function getSessionHistory(userId) {
-  if (!conversationSessions.has(userId)) {
-    conversationSessions.set(userId, []);
+  const now = Date.now();
+  if (conversationSessions.has(userId)) {
+    const session = conversationSessions.get(userId);
+    session.lastActivity = now;
+    return session.history;
   }
-  return conversationSessions.get(userId);
+
+  // Si superamos el límite máximo, eliminar la sesión más antigua
+  if (conversationSessions.size >= MAX_SESSIONS) {
+    let oldestKey = null;
+    let oldestTime = Infinity;
+    for (const [key, val] of conversationSessions.entries()) {
+      if (val.lastActivity < oldestTime) {
+        oldestTime = val.lastActivity;
+        oldestKey = key;
+      }
+    }
+    if (oldestKey) conversationSessions.delete(oldestKey);
+  }
+
+  const newSession = { history: [], lastActivity: now };
+  conversationSessions.set(userId, newSession);
+  return newSession.history;
 }
 
 /**

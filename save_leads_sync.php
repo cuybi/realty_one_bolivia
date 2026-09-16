@@ -36,15 +36,84 @@ $isAdmin = ($providedKey === $ADMIN_KEY);
 
 $raw = file_get_contents('php://input');
 
+// Función de persistencia atómica con bloqueo exclusivo (flock)
+function atomicSaveLeads($mutator) {
+    global $LEADS_FILE, $BACKEND_LEADS, $LEADS_CSV;
+    $lockFile = $LEADS_FILE . '.lock';
+    $fpLock = fopen($lockFile, 'c');
+    if (!$fpLock) {
+        return false;
+    }
+    
+    // Bloqueo exclusivo: espera si otro proceso está escribiendo
+    flock($fpLock, LOCK_EX);
+    
+    $existing = [];
+    if (file_exists($LEADS_FILE)) {
+        $content = file_get_contents($LEADS_FILE);
+        $existing = json_decode($content, true) ?: [];
+    }
+    
+    $leadsToSave = $mutator($existing);
+    
+    if (is_array($leadsToSave)) {
+        $jsonStr = json_encode($leadsToSave, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        file_put_contents($LEADS_FILE . '.tmp', $jsonStr, LOCK_EX);
+        rename($LEADS_FILE . '.tmp', $LEADS_FILE);
+        
+        if (file_exists(dirname($BACKEND_LEADS))) {
+            @file_put_contents($BACKEND_LEADS, $jsonStr, LOCK_EX);
+        }
+        
+        // Actualizar CSV
+        $fp = @fopen($LEADS_CSV, 'w');
+        if ($fp) {
+            fprintf($fp, chr(0xEF).chr(0xBB).chr(0xBF));
+            fputcsv($fp, [
+                'ID Prospecto', 'Prioridad', 'Score', 'e-Realtor Asignado', 'Nombre Cliente', 'Celular', 'Email',
+                'Tipo Interes', 'Zona Interes', 'Presupuesto', 'Fecha Completa', 'Año', 'Mes', 'Día',
+                'Día Semana', 'Hora', 'Estado Comercial', 'Etapa Embudo', 'Canal Origen', 'Campaña', 'Accion Sugerida', 'Resumen IA', 'Ultimo Mensaje'
+            ]);
+            foreach ($leadsToSave as $l) {
+                fputcsv($fp, [
+                    $l['id'] ?? '',
+                    $l['prioridad_label'] ?? $l['prioridad'] ?? '',
+                    $l['score'] ?? '',
+                    $l['e_realtor_asignado'] ?? 'Carlos Rodríguez',
+                    $l['cliente_nombre'] ?? 'Por identificar',
+                    $l['numero_celular'] ?? '',
+                    $l['email'] ?? 'Pendiente',
+                    $l['tipo_interes'] ?? 'General',
+                    $l['zona_interes'] ?? 'Santa Cruz',
+                    $l['presupuesto'] ?? 'Por definir',
+                    $l['fecha_completa'] ?? '',
+                    $l['anio'] ?? '',
+                    $l['mes'] ?? '',
+                    $l['dia'] ?? '',
+                    $l['dia_semana'] ?? '',
+                    $l['hora'] ?? '',
+                    $l['estado_comercial'] ?? 'Nuevo',
+                    $l['etapa_embudo'] ?? 'SOLICITUD',
+                    $l['canal_origen'] ?? 'WhatsApp',
+                    $l['campana'] ?? 'General',
+                    $l['accion_sugerida'] ?? '',
+                    $l['resumen'] ?? '',
+                    $l['ultimo_mensaje'] ?? ''
+                ]);
+            }
+            fclose($fp);
+        }
+    }
+    
+    flock($fpLock, LOCK_UN);
+    fclose($fpLock);
+    
+    return $leadsToSave;
+}
+
 if (!empty($raw)) {
     $data = json_decode($raw, true);
     if (is_array($data)) {
-        // Cargar leads actuales
-        $existingLeads = [];
-        if (file_exists($LEADS_FILE)) {
-            $existingLeads = json_decode(file_get_contents($LEADS_FILE), true) ?: [];
-        }
-
         // Caso A: Envío individual desde formulario de registro (registro.html)
         if (isset($data['nombre']) || isset($data['telefono'])) {
             $nombre = trim($data['nombre'] ?? 'Por identificar');
@@ -138,19 +207,20 @@ if (!empty($raw)) {
                 'resumen' => 'Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.'
             ];
 
-            // Reemplazar o agregar al inicio
-            $found = false;
-            foreach ($existingLeads as $idx => $el) {
-                if (($el['numero_celular'] ?? '') === $phone || ($el['id'] ?? '') === $newLead['id']) {
-                    $existingLeads[$idx] = $newLead;
-                    $found = true;
-                    break;
+            $saved = atomicSaveLeads(function($existingLeads) use ($newLead, $phone) {
+                $found = false;
+                foreach ($existingLeads as $idx => $el) {
+                    if (($el['numero_celular'] ?? '') === $phone || ($el['id'] ?? '') === $newLead['id']) {
+                        $existingLeads[$idx] = $newLead;
+                        $found = true;
+                        break;
+                    }
                 }
-            }
-            if (!$found) {
-                array_unshift($existingLeads, $newLead);
-            }
-            $leadsToSave = $existingLeads;
+                if (!$found) {
+                    array_unshift($existingLeads, $newLead);
+                }
+                return $existingLeads;
+            });
         } else {
             // Caso B: Sincronización completa de leads desde CRM
             if (!$isAdmin) {
@@ -162,56 +232,16 @@ if (!empty($raw)) {
                 ? $data['leads'] 
                 : (isset($data['all_leads']) && is_array($data['all_leads']) ? $data['all_leads'] : $data);
             $leadsToSave = array_values($leadsToSave);
-        }
-        
-        file_put_contents($LEADS_FILE, json_encode($leadsToSave, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
-        if (file_exists($BACKEND_LEADS)) {
-            @file_put_contents($BACKEND_LEADS, json_encode($leadsToSave, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX);
-        }
-        
-        // Actualizar CSV
-        $fp = @fopen($LEADS_CSV, 'w');
-        if ($fp) {
-            fprintf($fp, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($fp, [
-                'ID Prospecto', 'Prioridad', 'Score', 'e-Realtor Asignado', 'Nombre Cliente', 'Celular', 'Email',
-                'Tipo Interes', 'Zona Interes', 'Presupuesto', 'Fecha Completa', 'Año', 'Mes', 'Día',
-                'Día Semana', 'Hora', 'Estado Comercial', 'Etapa Embudo', 'Canal Origen', 'Campaña', 'Accion Sugerida', 'Resumen IA', 'Ultimo Mensaje'
-            ]);
-            foreach ($leadsToSave as $l) {
-                fputcsv($fp, [
-                    $l['id'] ?? '',
-                    $l['prioridad_label'] ?? $l['prioridad'] ?? '',
-                    $l['score'] ?? '',
-                    $l['e_realtor_asignado'] ?? 'Carlos Rodríguez',
-                    $l['cliente_nombre'] ?? 'Por identificar',
-                    $l['numero_celular'] ?? '',
-                    $l['email'] ?? 'Pendiente',
-                    $l['tipo_interes'] ?? 'General',
-                    $l['zona_interes'] ?? 'Santa Cruz',
-                    $l['presupuesto'] ?? 'Por definir',
-                    $l['fecha_completa'] ?? '',
-                    $l['anio'] ?? '',
-                    $l['mes'] ?? '',
-                    $l['dia'] ?? '',
-                    $l['dia_semana'] ?? '',
-                    $l['hora'] ?? '',
-                    $l['estado_comercial'] ?? 'Nuevo',
-                    $l['etapa_embudo'] ?? 'SOLICITUD',
-                    $l['canal_origen'] ?? 'WhatsApp',
-                    $l['campana'] ?? 'General',
-                    $l['accion_sugerida'] ?? '',
-                    $l['resumen'] ?? '',
-                    $l['ultimo_mensaje'] ?? ''
-                ]);
-            }
-            fclose($fp);
-        }
 
+            $saved = atomicSaveLeads(function() use ($leadsToSave) {
+                return $leadsToSave;
+            });
+        }
+        
         echo json_encode([
             'success' => true, 
             'message' => 'Leads sincronizados en vivo con números reales',
-            'total' => count($leadsToSave),
+            'total' => count($saved ?: []),
             'updated_at' => date('Y-m-d H:i:s')
         ]);
         exit;
