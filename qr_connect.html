@@ -381,7 +381,7 @@
 
     async function checkQRStatus() {
       try {
-        const res = await fetch('/api/whatsapp/qr-real', { credentials: 'same-origin' });
+        const res = await fetch('/api/whatsapp/qr-real?key=ONE2026');
         if (res.ok) {
           const data = await res.json();
           const statusText = document.getElementById("statusText");
@@ -419,7 +419,7 @@
     async function desconectarNumero() {
       if (!confirm('¿Deseas desconectar esta sesión para escanear un nuevo código QR con otro número?')) return;
       try {
-        await fetch('/api/whatsapp/desconectar', { method: 'POST', credentials: 'same-origin' });
+        await fetch('/api/whatsapp/desconectar?key=ONE2026', { method: 'POST' });
         document.getElementById("qrcode").innerHTML = '<div style="padding:40px 20px; color:#c69214;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Reiniciando generador de QR...</div>';
         setTimeout(checkQRStatus, 2000);
       } catch(e) {
