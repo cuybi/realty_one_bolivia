@@ -4,13 +4,11 @@ services:
     env: node
     plan: free
     region: oregon
-    buildCommand: npm install
+    buildCommand: npm install; cd backend; npm install; cd ..
     startCommand: node server.js
     healthCheckPath: /api/health
     envVars:
       - key: PORT
-        value: 10000
-      - key: BAILEYS_PORT
         value: 10000
       - key: NODE_ENV
         value: production
@@ -22,7 +20,7 @@ services:
         value: admin
       - key: QR_PASS
         value: ONE2026
-      # ── Secretos: poner en Render Dashboard → Environment ──
+      # ── Secretos: configurar en Render Dashboard → Environment ──
       - key: RENDER_EXTERNAL_URL
         sync: false
       - key: GEMINI_API_KEY
@@ -33,6 +31,5 @@ services:
         sync: false
       - key: WHATSAPP_VERIFY_TOKEN
         sync: false
-      # ── MongoDB Atlas URI (sesión Baileys persiste tras reinicios) ──
       - key: MONGODB_URI
         sync: false
