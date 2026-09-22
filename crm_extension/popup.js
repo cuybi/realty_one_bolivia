@@ -64,12 +64,12 @@ function checkServerStatus(url) {
 function sendToActiveWATab(msg) {
   chrome.tabs.query({ url: 'https://web.whatsapp.com/*', active: true }, (tabs) => {
     if (tabs && tabs.length > 0) {
-      chrome.tabs.sendMessage(tabs[0].id, msg);
+      chrome.tabs.sendMessage(tabs[0].id, msg).catch(() => {});
     } else {
       // Buscar cualquier pestaña de WA
       chrome.tabs.query({ url: 'https://web.whatsapp.com/*' }, (allTabs) => {
         if (allTabs && allTabs.length > 0) {
-          chrome.tabs.sendMessage(allTabs[0].id, msg);
+          chrome.tabs.sendMessage(allTabs[0].id, msg).catch(() => {});
           chrome.tabs.update(allTabs[0].id, { active: true });
         } else {
           chrome.tabs.create({ url: 'https://web.whatsapp.com' });

@@ -10,77 +10,94 @@ const STORAGE_KEY = 'rog_crm_open';
 let sidebarOpen = false;
 let currentContact = '';
 
-// ─── Esperar a que WhatsApp cargue su UI ───────────────────────────────────
-function waitForWA(selector, cb, maxMs = 25000) {
-  const start = Date.now();
-  const iv = setInterval(() => {
-    const el = document.querySelector(selector);
-    if (el) { clearInterval(iv); cb(el); return; }
-    if (Date.now() - start > maxMs) clearInterval(iv);
-  }, 500);
-}
+console.log('[Realty ONE CRM] Extension content script cargado en WhatsApp Web');
 
 // ─── Construir el sidebar ─────────────────────────────────────────────────
 function buildSidebar() {
-  if (document.getElementById('rog-crm-sidebar')) return;
+  if (document.getElementById('rog-crm-sidebar') && document.getElementById('rog-crm-toggle')) {
+    return;
+  }
 
-  // Botón flotante toggle
+  if (!document.body) {
+    setTimeout(buildSidebar, 200);
+    return;
+  }
+
   const logoUrl = chrome.runtime.getURL('icons/logo_one.png');
-  const toggle = document.createElement('button');
-  toggle.id = 'rog-crm-toggle';
-  toggle.innerHTML = `
-    <img class="rog-logo" src="${logoUrl}" alt="ONE" />
-    <span class="rog-label">INGRESO LEADS</span>
-  `;
-  toggle.title = 'Realty ONE — Ingreso Leads';
-  toggle.addEventListener('click', toggleSidebar);
-  document.body.appendChild(toggle);
 
-  // Sidebar contenedor
-  const sidebar = document.createElement('div');
-  sidebar.id = 'rog-crm-sidebar';
-  sidebar.innerHTML = `
-    <div id="rog-crm-header">
-      <div class="rog-title">
-        <img class="rog-header-logo" src="${logoUrl}" alt="ONE" /> Realty ONE • Ingreso Leads
+  // 1. Botón flotante toggle
+  let toggle = document.getElementById('rog-crm-toggle');
+  if (!toggle) {
+    toggle = document.createElement('button');
+    toggle.id = 'rog-crm-toggle';
+    toggle.innerHTML = `
+      <img class="rog-logo" src="${logoUrl}" alt="ONE" />
+      <span class="rog-label">INGRESO LEADS</span>
+    `;
+    toggle.title = 'Realty ONE — Ingreso Leads (Presiona o usa Alt + L)';
+    toggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+    document.body.appendChild(toggle);
+  }
+
+  // 2. Sidebar contenedor
+  let sidebar = document.getElementById('rog-crm-sidebar');
+  if (!sidebar) {
+    sidebar = document.createElement('div');
+    sidebar.id = 'rog-crm-sidebar';
+    sidebar.innerHTML = `
+      <div id="rog-crm-header">
+        <div class="rog-title">
+          <img class="rog-header-logo" src="${logoUrl}" alt="ONE" /> Realty ONE • Ingreso Leads
+        </div>
+        <span id="rog-chat-badge"></span>
+        <button id="rog-crm-close" title="Cerrar panel">✕</button>
       </div>
-      <span id="rog-chat-badge"></span>
-      <button id="rog-crm-close" title="Cerrar panel">✕</button>
-    </div>
-    <div id="rog-crm-loading">
-      <div class="rog-spinner"></div>
-      <span>Cargando Leads...</span>
-    </div>
-    <iframe id="rog-crm-frame" src="" allow="clipboard-read; clipboard-write"></iframe>
-  `;
-  document.body.appendChild(sidebar);
+      <div id="rog-crm-loading">
+        <div class="rog-spinner"></div>
+        <span>Cargando Leads...</span>
+      </div>
+      <iframe id="rog-crm-frame" src="" allow="clipboard-read; clipboard-write"></iframe>
+    `;
+    document.body.appendChild(sidebar);
 
-  document.getElementById('rog-crm-close').addEventListener('click', toggleSidebar);
+    document.getElementById('rog-crm-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
 
-  // Ocultar spinner cuando cargue el iframe local
-  const frame = document.getElementById('rog-crm-frame');
-  frame.addEventListener('load', () => {
-    const loader = document.getElementById('rog-crm-loading');
-    if (loader) loader.classList.add('rog-hidden');
-    // Enviar el contacto activo de inmediato si ya lo tenemos
-    if (currentContact) {
-      notifyCRMFrame(currentContact);
-    }
-  });
+    // Ocultar spinner cuando cargue el iframe local
+    const frame = document.getElementById('rog-crm-frame');
+    frame.addEventListener('load', () => {
+      const loader = document.getElementById('rog-crm-loading');
+      if (loader) loader.classList.add('rog-hidden');
+      if (currentContact) {
+        notifyCRMFrame(currentContact);
+      }
+    });
 
-  // Restaurar estado previo (si estaba abierto)
-  chrome.storage.local.get([STORAGE_KEY], (r) => {
-    if (r[STORAGE_KEY]) openSidebar();
-  });
+    // Restaurar estado previo (si estaba abierto)
+    try {
+      chrome.storage.local.get([STORAGE_KEY], (r) => {
+        if (r && r[STORAGE_KEY]) openSidebar();
+      });
+    } catch (e) {}
+  }
 }
 
 // ─── Abrir / cerrar ────────────────────────────────────────────────────────
 function openSidebar() {
-  const sidebar = document.getElementById('rog-crm-sidebar');
-  const frame = document.getElementById('rog-crm-frame');
+  let sidebar = document.getElementById('rog-crm-sidebar');
+  if (!sidebar) {
+    buildSidebar();
+    sidebar = document.getElementById('rog-crm-sidebar');
+  }
   if (!sidebar) return;
 
-  if (!frame.src || frame.src === 'about:blank' || !frame.src.startsWith('chrome-extension://')) {
+  const frame = document.getElementById('rog-crm-frame');
+  if (frame && (!frame.src || frame.src === 'about:blank' || !frame.src.startsWith('chrome-extension://'))) {
     const loader = document.getElementById('rog-crm-loading');
     if (loader) loader.classList.remove('rog-hidden');
     frame.src = CRM_FRAME_URL;
@@ -89,7 +106,9 @@ function openSidebar() {
   sidebar.classList.add('rog-open');
   document.body.classList.add('rog-panel-open');
   sidebarOpen = true;
-  chrome.storage.local.set({ [STORAGE_KEY]: true });
+  try {
+    chrome.storage.local.set({ [STORAGE_KEY]: true });
+  } catch (e) {}
 }
 
 function closeSidebar() {
@@ -98,7 +117,9 @@ function closeSidebar() {
   sidebar.classList.remove('rog-open');
   document.body.classList.remove('rog-panel-open');
   sidebarOpen = false;
-  chrome.storage.local.set({ [STORAGE_KEY]: false });
+  try {
+    chrome.storage.local.set({ [STORAGE_KEY]: false });
+  } catch (e) {}
 }
 
 function toggleSidebar() {
@@ -106,22 +127,56 @@ function toggleSidebar() {
 }
 
 // ─── Detectar chat activo y sincronizar con CRM ───────────────────────────
+function isValidContactName(text) {
+  if (!text) return false;
+  const lower = text.toLowerCase().trim();
+  const invalidPhrases = [
+    'haz clic',
+    'click here',
+    'toca aquí',
+    'información de',
+    'información del',
+    'en línea',
+    'online',
+    'escribiendo',
+    'typing',
+    'visto por última',
+    'last seen'
+  ];
+  return !invalidPhrases.some(p => lower.includes(p));
+}
+
+function extractContactFromHeader() {
+  const header = document.querySelector('#main header');
+  if (!header) return { name: '', phone: '' };
+
+  let name = '';
+  let phone = '';
+
+  const titleEls = header.querySelectorAll('[data-testid="conversation-info-header-chat-title"] span, span[dir="auto"], span[title]');
+  for (const el of titleEls) {
+    const val = (el.getAttribute('title') || el.textContent || '').trim();
+    if (val && isValidContactName(val)) {
+      name = val;
+      break;
+    }
+  }
+
+  const subEls = header.querySelectorAll('[data-testid="chat-subtitle"], ._amid, span[dir="auto"]');
+  for (const el of subEls) {
+    const text = (el.textContent || '').trim();
+    if (text && text !== name && isValidContactName(text) && /[0-9+() -]{6,}/.test(text)) {
+      phone = text;
+      break;
+    }
+  }
+
+  return { name, phone };
+}
+
 function observeActiveChat() {
   const checkActiveChat = () => {
-    // Selectores para el encabezado del chat activo en WhatsApp Web
-    const nameEl =
-      document.querySelector('[data-testid="conversation-header"] [data-testid="conversation-info-header-chat-title"] span') ||
-      document.querySelector('header [data-testid="conversation-info-header"] span[title]') ||
-      document.querySelector('#main header span[title]') ||
-      document.querySelector('#main header ._21S-L span') ||
-      document.querySelector('#main header [role="button"] span[title]');
-
-    // Intentar extraer teléfono o subtexto si está visible
-    const phoneEl = document.querySelector('#main header span[data-testid="chat-subtitle"]') ||
-                    document.querySelector('#main header ._amid');
-
-    const name = nameEl ? (nameEl.getAttribute('title') || nameEl.textContent || '').trim() : '';
-    const phone = phoneEl ? (phoneEl.textContent || '').trim() : '';
+    const { name, phone } = extractContactFromHeader();
 
     if (name && name !== currentContact) {
       currentContact = name;
@@ -132,8 +187,6 @@ function observeActiveChat() {
 
   const observer = new MutationObserver(checkActiveChat);
   observer.observe(document.body, { childList: true, subtree: true });
-
-  // También polling cada 1.5s por robustez si las mutaciones son lentas
   setInterval(checkActiveChat, 1500);
 }
 
@@ -162,9 +215,30 @@ function notifyCRMFrame(contactName, contactPhone = '') {
 }
 
 // ─── Inicialización al cargar WhatsApp Web ────────────────────────────────
-waitForWA('#app', () => {
+function init() {
   buildSidebar();
   observeActiveChat();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+// Auto-recuperación cada 2s para asegurar que el botón siempre exista
+setInterval(() => {
+  if (!document.getElementById('rog-crm-sidebar') || !document.getElementById('rog-crm-toggle')) {
+    buildSidebar();
+  }
+}, 2000);
+
+// Atajo de teclado: Alt + L para alternar el panel
+window.addEventListener('keydown', (e) => {
+  if (e.altKey && (e.key === 'l' || e.key === 'L')) {
+    e.preventDefault();
+    toggleSidebar();
+  }
 });
 
 // ─── Escuchar mensajes del popup de la extensión ───────────────────────────
