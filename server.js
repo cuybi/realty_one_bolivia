@@ -223,10 +223,23 @@ async function startWhatsAppClient() {
           : './services/mongoAuthState';
         const { useMongoAuthState } = require(mongoAuthModule);
 
+        // ponytail: si el singleton está cerrado (Topology is closed), destruir y reconectar
+        if (global.mongoClientSingleton) {
+          try {
+            await global.mongoClientSingleton.db('admin').command({ ping: 1 });
+          } catch (pingErr) {
+            console.warn('⚠️ [MongoDB] Singleton muerto, reconectando...', pingErr.message);
+            try { await global.mongoClientSingleton.close(); } catch (_) {}
+            global.mongoClientSingleton = null;
+          }
+        }
         if (!global.mongoClientSingleton) {
-          global.mongoClientSingleton = new MongoClient(mongoUri);
+          global.mongoClientSingleton = new MongoClient(mongoUri, {
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000
+          });
           await global.mongoClientSingleton.connect();
-          console.log('✅ [MongoDB Atlas] Conectado en server.js para persistencia de sesión Baileys 24/7');
+          console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
         }
         const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
         ({ state, saveCreds } = await useMongoAuthState(col));
@@ -234,6 +247,7 @@ async function startWhatsAppClient() {
       } catch (mErr) {
         console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando fallback local:', mErr.message);
         lastErrorMsg = 'Mongo fallback: ' + mErr.message;
+        global.mongoClientSingleton = null; // ponytail: forzar reconexión en próximo intento
       }
     }
     if (!mongoLoaded) {
