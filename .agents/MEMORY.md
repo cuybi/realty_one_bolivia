@@ -56,3 +56,71 @@ Plataforma oficial para **Realty ONE Group Bolivia**.
 4. **Código muerto eliminado:** Removidas ~200 líneas sin uso (`generateLocalSemanticResponse`) en `aiAgent.js` y limpiados `module.exports`.
 5. **Render Config:** `render.yaml` actualizado para arrancar con `node backend/server.js`.
 
+## 7. Fix Crítico: "No se pudo vincular el dispositivo" — MongoDB Topology Closed (29 Sep 2026)
+
+### Síntoma
+El QR se generaba correctamente en `qr_connect.html` pero al escanearlo WhatsApp reportaba "no se pudo vincular el dispositivo".
+
+### Causa Raíz
+`/api/health` reportaba `lastError: "Mongo fallback: Topology is closed"`.
+
+El `global.mongoClientSingleton` en [`server.js`](file:///c:/Users/etechadmin/.gemini/antigravity-ide/scratch/realty_one_bolivia/server.js) se reutilizaba sin verificar si seguía vivo. MongoDB Atlas cierra conexiones idle (~30 min). Cuando Baileys intentaba reconectarse, el auth state de Mongo fallaba → las credenciales del QR escaneado no se podían guardar → WhatsApp rechazaba la vinculación.
+
+### Fix Aplicado (commits `ed4eaaa` y `26a82b9`)
+
+**Archivo:** [`server.js`](file:///c:/Users/etechadmin/.gemini/antigravity-ide/scratch/realty_one_bolivia/server.js) — función `startWhatsAppClient()`
+
+| Problema | Solución |
+|---|---|
+| Singleton Mongo muerto reutilizado | Ping a `db('realty_one_bot')` antes de reusar; destruir y reconectar si falla |
+| Ping a `admin` fallaba en Atlas free tier (sin permisos) | Cambiado a `db('realty_one_bot').command({ ping: 1 })` |
+| Race condition: heartbeat + `connection.close` llamaban `startWhatsAppClient()` en paralelo | Guard `let isConnecting = false` + `finally { isConnecting = false }` |
+| `lastErrorMsg` nunca se limpiaba aunque Mongo se recuperara | `lastErrorMsg = null` en bloque de éxito |
+| Mongo cerraba conexiones idle | `maxIdleTimeMS: 30000` en `MongoClient` options |
+
+### Patrón Correcto para Singleton Mongo con Baileys en Render
+
+```js
+// 1. Guard anti race-condition al inicio de startWhatsAppClient()
+if (isConnecting) return;
+isConnecting = true;
+
+// 2. Ping a la DB de la APP (no 'admin' — Atlas free tier lo restringe)
+if (global.mongoClientSingleton) {
+  try {
+    await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
+  } catch (pingErr) {
+    try { await global.mongoClientSingleton.close(); } catch (_) {}
+    global.mongoClientSingleton = null;
+  }
+}
+
+// 3. Reconectar con timeouts + maxIdleTimeMS
+if (!global.mongoClientSingleton) {
+  global.mongoClientSingleton = new MongoClient(mongoUri, {
+    serverSelectionTimeoutMS: 10000,
+    socketTimeoutMS: 45000,
+    maxIdleTimeMS: 30000
+  });
+  await global.mongoClientSingleton.connect();
+}
+
+// 4. Limpiar error en éxito
+lastErrorMsg = null;
+
+// 5. En catch: null el singleton para forzar reconexión limpia
+global.mongoClientSingleton = null;
+
+// 6. Liberar guard siempre
+} finally { isConnecting = false; }
+```
+
+### Verificación Post-Fix
+Consultar `GET /api/health` en Render. Debe mostrar:
+- `connection: "esperando_qr"` (o `"conectado"`)  
+- `lastError: null`
+- `hasMongoUri: true`
+
+Si `lastError` contiene `"Mongo fallback"` → el fix no aplicó o Render no terminó el deploy.
+
+
