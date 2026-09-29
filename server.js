@@ -98,6 +98,7 @@ try {
 let currentQR = null;
 let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
 let connectedNumber = null;
+let isConnecting = false; // ponytail: guard contra race condition en reconexiones paralelas
 
 // Endpoints QR para qr_connect.html
 app.get('/api/whatsapp/qr-real', requireQRAuth, (req, res) => {
@@ -212,6 +213,13 @@ async function startWhatsAppClient() {
       console.warn('Error cargando aiAgent:', e.message);
     }
 
+    // ponytail: guard contra race condition — heartbeat + connection.close pueden llamar esto en paralelo
+    if (isConnecting) {
+      console.log('⏸️ [startWhatsAppClient] Ya hay una conexión en curso, omitiendo llamada paralela.');
+      return;
+    }
+    isConnecting = true;
+
     let state, saveCreds;
     const mongoUri = process.env.MONGODB_URI;
     let mongoLoaded = false;
@@ -223,10 +231,10 @@ async function startWhatsAppClient() {
           : './services/mongoAuthState';
         const { useMongoAuthState } = require(mongoAuthModule);
 
-        // ponytail: si el singleton está cerrado (Topology is closed), destruir y reconectar
+        // ponytail: ping a la DB de la app (no admin — Atlas free tier restringe admin)
         if (global.mongoClientSingleton) {
           try {
-            await global.mongoClientSingleton.db('admin').command({ ping: 1 });
+            await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
           } catch (pingErr) {
             console.warn('⚠️ [MongoDB] Singleton muerto, reconectando...', pingErr.message);
             try { await global.mongoClientSingleton.close(); } catch (_) {}
@@ -236,7 +244,8 @@ async function startWhatsAppClient() {
         if (!global.mongoClientSingleton) {
           global.mongoClientSingleton = new MongoClient(mongoUri, {
             serverSelectionTimeoutMS: 10000,
-            socketTimeoutMS: 45000
+            socketTimeoutMS: 45000,
+            maxIdleTimeMS: 30000 // reconectar antes de que Atlas cierre la conexión idle
           });
           await global.mongoClientSingleton.connect();
           console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
@@ -244,10 +253,11 @@ async function startWhatsAppClient() {
         const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
         ({ state, saveCreds } = await useMongoAuthState(col));
         mongoLoaded = true;
+        lastErrorMsg = null; // ponytail: limpiar error previo — conexión exitosa
       } catch (mErr) {
         console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando fallback local:', mErr.message);
         lastErrorMsg = 'Mongo fallback: ' + mErr.message;
-        global.mongoClientSingleton = null; // ponytail: forzar reconexión en próximo intento
+        global.mongoClientSingleton = null; // forzar reconexión en próximo intento
       }
     }
     if (!mongoLoaded) {
@@ -398,5 +408,7 @@ async function startWhatsAppClient() {
   } catch (error) {
     lastErrorMsg = error?.stack || error?.message || String(error);
     console.error('Error iniciando cliente de WhatsApp:', lastErrorMsg);
+  } finally {
+    isConnecting = false; // ponytail: liberar guard siempre, incluso en error
   }
 }
