@@ -26,6 +26,16 @@ const CACHE_TTL_MS = 30000; // 30 segundos
 // Directorio Oficial de e-Realtors (Asesores Inmobiliarios)
 const E_REALTORS = [
   {
+    id: 'marcos_antezana',
+    nombre: 'Marcos Antezana Lenz',
+    especialidad: 'Consultor Senior & Asesor Principal de Inversiones',
+    zonas: ['Equipetrol', 'Sirari', 'Urubó', 'Las Palmas', 'Zona Norte', 'Santa Cruz (General)'],
+    telefono: '+591 60034649',
+    email: 'pixelbolivia@gmail.com',
+    avatar: 'assets/logo_one.png',
+    color: '#D4AF37'
+  },
+  {
     id: 'carlos_rodriguez',
     nombre: 'Carlos Rodríguez',
     especialidad: 'Venta de Lujo & Casas Exclusivas',

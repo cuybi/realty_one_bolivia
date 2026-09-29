@@ -218,6 +218,91 @@ function notifyCRMFrame(contactName, contactPhone = '') {
 function init() {
   buildSidebar();
   observeActiveChat();
+  injectFilterBar();
+  injectHeaderActions();
+  injectChatDock();
+}
+
+function openSidebarWithTab(tabName) {
+  openSidebar();
+  const frame = document.getElementById('rog-crm-frame');
+  if (frame && frame.contentWindow) {
+    frame.contentWindow.postMessage({ type: 'ROG_NAVIGATE_TAB', tab: tabName }, '*');
+  }
+}
+
+function injectHeaderActions() {
+  const header = document.querySelector('#main header');
+  if (!header || header.querySelector('.rog-header-actions-bar')) return;
+
+  const bar = document.createElement('div');
+  bar.className = 'rog-header-actions-bar';
+  bar.innerHTML = `
+    <button class="rog-head-btn" id="rog-hdr-kanban" title="Abrir Tablero Kanban (Alt + K)">📊 Kanban</button>
+    <button class="rog-head-btn" id="rog-hdr-agenda" title="Ver Agenda y Recordatorios">📅 Agenda</button>
+    <button class="rog-head-btn" id="rog-hdr-quick" title="Ver Respuestas Rápidas">⚡ Respuestas</button>
+  `;
+
+  header.appendChild(bar);
+
+  bar.querySelector('#rog-hdr-kanban').addEventListener('click', () => openSidebarWithTab('kanban'));
+  bar.querySelector('#rog-hdr-agenda').addEventListener('click', () => openSidebarWithTab('reminders'));
+  bar.querySelector('#rog-hdr-quick').addEventListener('click', () => openSidebarWithTab('templates'));
+}
+
+function injectChatDock() {
+  const main = document.getElementById('main');
+  if (!main || main.querySelector('.rog-chat-quick-dock')) return;
+
+  const dock = document.createElement('div');
+  dock.className = 'rog-chat-quick-dock';
+  dock.innerHTML = `
+    <button class="rog-dock-icon" title="Ver en Tablero Kanban" data-action="kanban">📊</button>
+    <button class="rog-dock-icon" title="Ficha del Contacto CRM" data-action="lead">👤</button>
+    <button class="rog-dock-icon" title="Agendar Visita / Recordatorio" data-action="reminders">📅</button>
+    <button class="rog-dock-icon" title="Plantillas de Respuesta Rápida" data-action="templates">⚡</button>
+    <button class="rog-dock-icon" title="Difusión Masiva" data-action="broadcast">📢</button>
+  `;
+
+  main.appendChild(dock);
+
+  dock.querySelectorAll('.rog-dock-icon').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSidebarWithTab(btn.dataset.action);
+    });
+  });
+}
+
+function injectFilterBar() {
+  const paneSide = document.getElementById('pane-side');
+  if (!paneSide || document.querySelector('.rog-wa-filter-bar')) return;
+
+  const filterBar = document.createElement('div');
+  filterBar.className = 'rog-wa-filter-bar';
+  filterBar.innerHTML = `
+    <button class="rog-wa-filter-pill active" data-filter="all">Todos</button>
+    <button class="rog-wa-filter-pill" data-filter="unread">No leídos</button>
+    <button class="rog-wa-filter-pill" data-filter="leads">🔥 Leads CRM</button>
+    <button class="rog-wa-filter-pill" data-filter="visitas">📅 Visitas</button>
+  `;
+
+  if (paneSide.parentNode) {
+    paneSide.parentNode.insertBefore(filterBar, paneSide);
+  }
+
+  filterBar.querySelectorAll('.rog-wa-filter-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      filterBar.querySelectorAll('.rog-wa-filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      const filter = pill.dataset.filter;
+      if (filter === 'leads') {
+        openSidebarWithTab('lead');
+      } else if (filter === 'visitas') {
+        openSidebarWithTab('reminders');
+      }
+    });
+  });
 }
 
 if (document.readyState === 'loading') {
@@ -226,18 +311,25 @@ if (document.readyState === 'loading') {
   init();
 }
 
-// Auto-recuperación cada 2s para asegurar que el botón siempre exista
+// Auto-recuperación e inyecciones dinámicas cada 1.5s
 setInterval(() => {
   if (!document.getElementById('rog-crm-sidebar') || !document.getElementById('rog-crm-toggle')) {
     buildSidebar();
   }
-}, 2000);
+  injectFilterBar();
+  injectHeaderActions();
+  injectChatDock();
+}, 1500);
 
-// Atajo de teclado: Alt + L para alternar el panel
+// Atajos de teclado: Alt + L para alternar panel, Alt + K para abrir Kanban directo
 window.addEventListener('keydown', (e) => {
   if (e.altKey && (e.key === 'l' || e.key === 'L')) {
     e.preventDefault();
     toggleSidebar();
+  }
+  if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    openSidebarWithTab('kanban');
   }
 });
 
@@ -248,13 +340,25 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
 });
 
-// ─── Escuchar mensajes del Iframe (panel.js) para inserción directa en WhatsApp Web ───
+// ─── Escuchar mensajes del Iframe (panel.js) para inserción y expansión ────
 window.addEventListener('message', (event) => {
-  if (!event.data || event.data.type !== 'ROG_INSERT_WHATSAPP_CHAT') return;
-  const text = event.data.text;
-  if (!text) return;
+  if (!event.data) return;
 
-  insertTextIntoWhatsAppInput(text);
+  if (event.data.type === 'ROG_TOGGLE_EXPAND') {
+    const sidebar = document.getElementById('rog-crm-sidebar');
+    if (sidebar) {
+      if (event.data.expanded !== undefined) {
+        sidebar.classList.toggle('rog-expanded', event.data.expanded);
+      } else {
+        sidebar.classList.toggle('rog-expanded');
+      }
+    }
+  }
+
+  if (event.data.type === 'ROG_INSERT_WHATSAPP_CHAT') {
+    const text = event.data.text;
+    if (text) insertTextIntoWhatsAppInput(text);
+  }
 });
 
 function insertTextIntoWhatsAppInput(text) {
@@ -278,13 +382,12 @@ function insertTextIntoWhatsAppInput(text) {
 
   if (inputEl) {
     inputEl.focus();
-    // 1. Usar execCommand para actualizar el estado reactivo de WhatsApp Web
     const ok = document.execCommand('insertText', false, text);
     if (!ok) {
-      // Fallback
       inputEl.textContent = text;
       inputEl.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: text }));
     }
   }
 }
+
 

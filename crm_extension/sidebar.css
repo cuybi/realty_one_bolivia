@@ -74,7 +74,7 @@
   z-index: 2147483646 !important;
   border-left: 2px solid #D4AF37 !important;
   box-shadow: -10px 0 36px rgba(0, 0, 0, 0.75) !important;
-  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
@@ -83,6 +83,105 @@
 
 #rog-crm-sidebar.rog-open {
   right: 0 !important;
+}
+
+#rog-crm-sidebar.rog-expanded {
+  width: min(94vw, 1320px) !important;
+  box-shadow: -15px 0 45px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* ─── INYECCIONES EN WHATSAPP WEB (Estilo MiCierro) ─── */
+.rog-header-actions-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-right: 12px !important;
+}
+
+.rog-head-btn {
+  background: rgba(212, 175, 55, 0.12) !important;
+  border: 1px solid rgba(212, 175, 55, 0.4) !important;
+  color: #D4AF37 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 14px !important;
+  padding: 4px 10px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: all 0.2s !important;
+  white-space: nowrap !important;
+  font-family: inherit !important;
+}
+
+.rog-head-btn:hover {
+  background: #D4AF37 !important;
+  color: #000000 !important;
+}
+
+.rog-wa-filter-bar {
+  display: flex !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  overflow-x: auto !important;
+  background: #111b21 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  scrollbar-width: none !important;
+}
+
+.rog-wa-filter-pill {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #aebac1 !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  border-radius: 14px !important;
+  padding: 4px 12px !important;
+  cursor: pointer !important;
+  white-space: nowrap !important;
+  font-family: inherit !important;
+}
+
+.rog-wa-filter-pill.active, .rog-wa-filter-pill:hover {
+  background: rgba(212, 175, 55, 0.22) !important;
+  color: #D4AF37 !important;
+  border-color: #D4AF37 !important;
+}
+
+.rog-chat-quick-dock {
+  position: absolute !important;
+  left: 12px !important;
+  top: 110px !important;
+  z-index: 99 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  background: rgba(17, 27, 33, 0.92) !important;
+  border: 1px solid rgba(212, 175, 55, 0.35) !important;
+  backdrop-filter: blur(10px) !important;
+  padding: 8px 4px !important;
+  border-radius: 24px !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6) !important;
+}
+
+.rog-dock-icon {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  transition: all 0.2s !important;
+}
+
+.rog-dock-icon:hover {
+  background: rgba(212, 175, 55, 0.3) !important;
+  transform: scale(1.12) !important;
 }
 
 /* Header del sidebar */
