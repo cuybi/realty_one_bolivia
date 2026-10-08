@@ -399,16 +399,24 @@ async function startWhatsAppClient() {
           pushName: pushName
         };
 
-        // Mensaje de espera activo: el cliente siente que el bot está "pensando"
-        // Solo cuando Gemini está activo (respuesta puede tardar 2-5 segundos)
-        if (process.env.GEMINI_API_KEY) {
-          try {
-            await sock.sendMessage(senderJid, { text: '⏳ Un momento, estoy buscando la mejor opción para ti...' });
-          } catch (_) { /* silencioso si falla el pre-mensaje */ }
-        }
+        // Marcar como leído — el cliente ve el doble check azul inmediatamente
+        try {
+          await sock.readMessages([msg.key]);
+        } catch (_) { /* no crítico */ }
+
+        // Indicador nativo "escribiendo..." en WhatsApp del cliente
+        // Mucho más humano que un mensaje de texto. No envía nada visible.
+        try {
+          await sock.sendPresenceUpdate('composing', senderJid);
+        } catch (_) { /* no crítico si falla */ }
 
         // Procesar respuesta con el cerebro del nuevo flujo oficial
         const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+
+        // Detener indicador de escritura antes de enviar la respuesta
+        try {
+          await sock.sendPresenceUpdate('paused', senderJid);
+        } catch (_) { /* silencioso */ }
 
         if (!botReply || typeof botReply !== 'string' || !botReply.trim()) {
           console.log(`🔇 [Chat finalizado / silenciado para ${senderPhone}]`);
@@ -452,6 +460,7 @@ async function startWhatsAppClient() {
         }
 
         await sock.sendMessage(senderJid, { text: botReply });
+
       }
     });
 
