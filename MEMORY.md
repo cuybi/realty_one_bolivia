@@ -311,4 +311,52 @@ Se integró la suite de automatización de marketing en tiempo real para WhatsAp
 - **Eliminación de "Mar Adentro":** Sustituido por el catálogo general inmobiliario a petición del usuario.
 - **Bitácora Detallada:** Para consultar el detalle paso a paso de los requerimientos y soluciones de esta sesión, ver [`BITACORA_SESION.md`](file:///c:/Users/etechadmin/.gemini/antigravity-ide/scratch/realty_one_bolivia/BITACORA_SESION.md).
 
+---
 
+## 13. Optimización Integral del Chatbot IA & Embudo Comercial (08 de Octubre, 2026)
+
+Se completaron los 4 frentes de desarrollo solicitados para la suite del chatbot:
+
+1. **Conexión en Vivo Multimodal (QR & Pairing Code de 8 Dígitos):**
+   - Implementado endpoint `/api/whatsapp/pairing-code` en `server.js` y `backend/whatsapp_baileys.js`.
+   - Normalización automática de números bolivianos (antepone `591` a números de 8 dígitos como `60937050`).
+   - Interfaz en `qr_connect.html` con formato `XXXX-XXXX`, botón de copiado en 1 clic y guía paso a paso de WhatsApp.
+
+2. **Cerebro de IA Consultivo & Respuestas Inmediatas (`aiAgent.js`):**
+   - Eliminación del bloqueo que exigía llenar el formulario web sin antes responder preguntas.
+   - Respuestas inmediatas y transparentes para *Lote Mar Adentro ($112.500 USD / 450 m²)*, *Terreno Industrial G77 (Bs 16.800.000 / 7.000 m²)* y *Departamento 4 Dormitorios ($120.000 USD / 119 m²)*.
+   - Consultas sobre anticréticos en Bolivia (capital 100% reembolsable, gravamen DDRR) y búsqueda en base de datos `queryProperties`.
+   - Detección automática de datos de contacto (nombre, celular, horario de visita) y clasificación como *🔥 PROSPECTO POTENCIAL* con asignación inteligente a e-Realtors.
+   - Despedida cordial según zona horaria oficial de Bolivia (La Paz, UTC-4).
+
+3. **Marketing Hub, Embudos de 1-Clic & Automatizaciones (`marketingHub.js`):**
+   - Nuevos embudos: `TERRENO_INDUSTRIAL_G77`, `DEPARTAMENTO_4D_FAMILIAR`, `SEGUIMIENTO_CALIENTE_24H`.
+   - Nuevas reglas por palabras clave para fichas de G77, Depto 4D y solicitudes de brochures/fichas técnicas en PDF.
+   - Sincronización en espejo entre `backend/services/marketingHub.js` y `services/marketingHub.js`.
+
+4. **Simulador de WhatsApp & Panel de Leads CRM:**
+   - En `whatsapp_test.html`: integración de chips rápidos de prueba para Mar Adentro, Terreno G77, Depto 4D, formulario y PDF.
+   - En `ingreso_leads.html`: validación de carga en tiempo real y exportación nativa a Excel SpreadsheetML (`.xls`) y CSV con UTF-8 BOM.
+
+---
+
+## 14. Suite de Analítica Streamlit & Verificación Integral del Bot (08 de Octubre, 2026 - Tarde)
+
+### 14.1. Dashboard Moderno de Ventas e Inteligencia de Leads (`app.py`)
+Se implementó una aplicación web interactiva en **Streamlit** (`http://localhost:8501`) bajo la identidad visual corporativa *Luxury Gold & Obsidian* de Realty ONE Group Bolivia:
+- **5 Tarjetas KPI en Vivo:** Total de Leads, Leads Potenciales (Score >= 80), Visitas Agendadas con tasa de agendamiento (%), Score Promedio de Calificación y Pipeline Estimado en Cartera ($ USD y Bs).
+- **Embudo Comercial Interactivo:** Gráfica Funnel con flujo por etapas (*Nuevos ➔ Contactados ➔ Visita Agendada ➔ Negociación ➔ Cerrados*).
+- **Leaderboard de e-Realtors:** Productividad, cuota de prospectos, score promedio y desglose por asesor (Carlos Rodríguez, Andrés Montaño, Valeria Suárez, Lucía Vaca, Robert Oliva).
+- **Inteligencia Territorial:** Análisis de demanda por zonas de Santa Cruz y Urubó con distribución de presupuestos.
+- **ROI de Marketing & Ads:** Métricas de conversión para campañas de Facebook Ads (*Condominio Mar Adentro*, *Terreno G77*, *Depto 4D* y *Orgánico*).
+- **Centro de Acción CRM & WhatsApp Directo:** Tabla filtrable con enlaces directos para abrir chats de WhatsApp en 1 clic (`wa.me`), visor de historial de mensajes y exportación instantánea a Excel (`.xlsx`) y CSV.
+- **Formulario de Entrada Rápida:** Registro de nuevos prospectos con auto-puntuación y persistencia inmediata en `leads.json`.
+
+### 14.2. Sincronización y Validación de Pruebas del Chatbot
+- **Priorización de Campañas:** Reorganizado el flujo en `aiAgent.js` para que las publicaciones de anuncios ejecuten su ciclo de entrega de ficha técnica antes de la captura general de formularios.
+- **Precios en Dos Divisas:** Formateo transparente con montos en USD y Bolivianos en las fichas técnicas.
+- **Cierre Cordial & Agradecimiento:** Manejo refinado de despedidas y agradecimientos sin duplicar menús del catálogo.
+- **100% Tests Aprobados:** Verificados y pasando satisfactoriamente:
+  - `backend/test_campaign_accuracy.js` (6/6 pasos OK)
+  - `backend/test_campaign_bot.js`
+  - `backend/test_bot.js`

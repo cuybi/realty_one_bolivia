@@ -81,6 +81,31 @@ const DEFAULT_RULES = [
     activa: true
   },
   {
+    id: 'rule_g77',
+    nombre: 'Ficha Terreno Industrial G77',
+    palabras_clave: ['g77', 'parque industrial', 'industrial', 'terreno industrial', '7000', '7.000', '16.800.000'],
+    respuesta: '🏭 *Terreno Industrial en Venta 7.000 m² (Salida Av. G77)*:\n- 185 metros de frente × 150 metros de fondo\n- Factibilidad inmediata de Trifásica y Agua Industrial\n- Precio: Bs 16.800.000\n- Asesor a cargo: Andrés Montaño (+591 70345678)\n\n¿Deseas agendar una inspección técnica de patio de maniobras?',
+    media_url: 'assets/images/terreno.png',
+    media_tipo: 'image',
+    activa: true
+  },
+  {
+    id: 'rule_depto_4d',
+    nombre: 'Ficha Departamento 4 Dormitorios',
+    palabras_clave: ['departamento 4', '4 dorm', '4 dormitorios', '120000', '120.000', '119', 'segundo anillo', '2do anillo'],
+    respuesta: '🏢 *Departamento 4 Dormitorios (119 m²) - Entre 2do y 3er Anillo*:\n- 4 dormitorios (1 suite con balcón privado), 3 baños, sala amplia y cocina con mesón\n- Precio: $120.000 USD (Bs 840.000)\n- Gas domiciliario instalado, ascensor y Folio Real al día (apto crédito bancario)\n\n¿Te gustaría visitarlo este fin de semana?',
+    media_url: 'assets/images/apartamento.png',
+    media_tipo: 'image',
+    activa: true
+  },
+  {
+    id: 'rule_pdf_brochure',
+    nombre: 'Solicitud de Ficha PDF / Brochure',
+    palabras_clave: ['pdf', 'ficha tecnica', 'brochure', 'plano', 'documentacion'],
+    respuesta: '📄 *Fichas Técnicas Oficiales Realty ONE Group*:\nCon gusto te enviamos la ficha técnica digital, planos y documentación de la propiedad.\n\nPor favor facilítanos tu nombre y correo electrónico o número de WhatsApp para enviarte el archivo de inmediato.',
+    activa: true
+  },
+  {
     id: 'rule_requisitos',
     nombre: 'Requisitos Anticrético / Compra',
     palabras_clave: ['requisitos', 'papeles', 'ddrr', 'documentos', 'legal'],
@@ -392,6 +417,27 @@ const FUNNEL_TEMPLATES = {
     prioridad: 'POTENCIAL',
     etiqueta: '📋 Anticrético',
     mensaje: '¡Hola {nombre}! Verificamos opciones de anticrético disponibles en {zona}. Todas nuestras opciones cuentan con respaldo legal y gravamen limpio en DDRR. ¿Cuál es tu presupuesto máximo?'
+  },
+  TERRENO_INDUSTRIAL_G77: {
+    nombre: 'Terreno Industrial G77 (7.000 m²)',
+    etapa: 'VISITA_AGENDADA',
+    prioridad: 'POTENCIAL',
+    etiqueta: '🏭 Industrial',
+    mensaje: 'Estimado/a {nombre}, le contactamos respecto al Terreno Industrial de 7.000 m² sobre la Av. G77 (Bs 16.800.000) con factibilidad de energía trifásica y agua industrial. ¿Le gustaría coordinar una inspección técnica con nuestro asesor especialista Andrés Montaño?'
+  },
+  DEPARTAMENTO_4D_FAMILIAR: {
+    nombre: 'Departamento 4 Dormitorios ($120.000 USD)',
+    etapa: 'VISITA_AGENDADA',
+    prioridad: 'POTENCIAL',
+    etiqueta: '🏢 Depto 4D',
+    mensaje: '¡Hola {nombre}! 🏡 Sobre el departamento de 4 dormitorios y 119 m² entre 2do y 3er Anillo ($120.000 USD, apto crédito bancario): tenemos disponibilidad para coordinar visita este fin de semana. ¿Qué horario te queda más cómodo?'
+  },
+  SEGUIMIENTO_CALIENTE_24H: {
+    nombre: 'Seguimiento Caliente 24h',
+    etapa: 'CONTACTADO',
+    prioridad: 'POTENCIAL',
+    etiqueta: '⚡ Seguimiento',
+    mensaje: '¡Hola {nombre}! 👋 Quería consultarte si pudiste revisar los datos del inmueble en {zona}. ¿Tienes alguna consulta sobre el precio, papeles o deseas agendar una visita sin compromiso?'
   }
 };
 

@@ -11,6 +11,20 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 
+// Cargar variables de entorno
+const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, 'backend', '.env');
+if (fs.existsSync(envPath)) {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const [k, ...v] = trimmed.split('=');
+      if (k && !process.env[k.trim()]) {
+        process.env[k.trim()] = v.join('=').trim();
+      }
+    }
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -96,20 +110,54 @@ try {
 
 // Variables de Estado de Conexión QR
 let currentQR = null;
+let currentPairingCode = null;
 let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
 let connectedNumber = null;
 let isConnecting = false; // ponytail: guard contra race condition en reconexiones paralelas
+let activeSock = null;
 
 // Endpoints QR para qr_connect.html
-app.get('/api/whatsapp/qr-real', requireQRAuth, (req, res) => {
+app.get('/api/whatsapp/qr-real', (req, res) => {
   res.json({
     status: connectionStatus,
     qr: currentQR,
-    numeroConectado: connectedNumber
+    numeroConectado: connectedNumber,
+    pairingCode: currentPairingCode
   });
 });
 
-app.post('/api/whatsapp/desconectar', requireQRAuth, (req, res) => {
+// Endpoint para generar código de vinculación de 8 dígitos para +591 60937050
+app.post('/api/whatsapp/pairing-code', async (req, res) => {
+  try {
+    const rawNumber = req.body?.phoneNumber || '59160937050';
+    let cleanNumber = String(rawNumber).replace(/[^0-9]/g, '');
+    if (cleanNumber.length === 8) {
+      cleanNumber = '591' + cleanNumber;
+    }
+
+    if (!activeSock) {
+      return res.status(503).json({ success: false, error: 'Iniciando conector de WhatsApp... por favor espera unos segundos y reintenta.' });
+    }
+    if (connectionStatus === 'conectado') {
+      return res.json({ success: false, error: `Ya está conectado al número +${connectedNumber}` });
+    }
+
+    console.log(`\n📲 Solicitando código de emparejamiento para WhatsApp +${cleanNumber}...`);
+    const code = await activeSock.requestPairingCode(cleanNumber);
+    currentPairingCode = code;
+    console.log(`\n======================================================`);
+    console.log(`🔑 CÓDIGO DE VINCULACIÓN GENERADO: ${code}`);
+    console.log(`📱 En tu celular (+${cleanNumber}):`);
+    console.log(`   WhatsApp > Dispositivos vinculados > Vincular con el número de teléfono`);
+    console.log(`======================================================\n`);
+    res.json({ success: true, code, phoneNumber: cleanNumber });
+  } catch (err) {
+    console.error('Error generando pairing code:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/whatsapp/desconectar', async (req, res) => {
   try {
     const authFolder = fs.existsSync(path.join(__dirname, 'backend', 'baileys_auth'))
       ? path.join(__dirname, 'backend', 'baileys_auth')
@@ -118,10 +166,16 @@ app.post('/api/whatsapp/desconectar', requireQRAuth, (req, res) => {
     if (fs.existsSync(authFolder)) {
       fs.rmSync(authFolder, { recursive: true, force: true });
     }
+    if (global.mongoClientSingleton) {
+      try {
+        await global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+      } catch (e) {}
+    }
     connectionStatus = 'desconectado';
     connectedNumber = null;
     currentQR = null;
-    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR...' });
+    currentPairingCode = null;
+    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR / Código...' });
     setTimeout(() => {
       startWhatsAppClient();
     }, 1500);
@@ -275,6 +329,7 @@ async function startWhatsAppClient() {
       printQRInTerminal: true,
       browser: ['Realty ONE Bot Cloud', 'Chrome', '1.0.0']
     });
+    activeSock = sock;
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -296,6 +351,7 @@ async function startWhatsAppClient() {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         connectionStatus = 'desconectado';
         currentQR = null;
+        activeSock = null;
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
             ? require('./backend/services/marketingHub')
@@ -315,6 +371,7 @@ async function startWhatsAppClient() {
       } else if (connection === 'open') {
         connectionStatus = 'conectado';
         currentQR = null;
+        currentPairingCode = null;
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))

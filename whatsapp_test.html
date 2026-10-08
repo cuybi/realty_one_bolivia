@@ -426,26 +426,29 @@
     <aside class="sidebar">
       <h3 class="section-title"><i class="fas fa-bolt"></i> Flujo del Embudo Inmobiliario</h3>
       <div class="quick-chips">
+        <button class="quick-chip" style="border-color: #D4AF37; color: #D4AF37;" onclick="sendQuickPrompt('Hola, vi la publicidad en Facebook del Lote de 450 m2 en Condominio Mar Adentro ($112.500) y deseo más información.')">
+          <i class="fas fa-water"></i> 1. Ads: Lote Mar Adentro (Robert Oliva)
+        </button>
         <button class="quick-chip" style="border-color: #D4AF37; color: #D4AF37;" onclick="sendQuickPrompt('Hola, vi la publicidad del Terreno Industrial de 7.000 m2 en Parque Industrial G77 y deseo más información.')">
-          <i class="fas fa-bullhorn"></i> 1. Impulsar Ads: Terreno G77 (Andrés Montaño)
+          <i class="fas fa-industry"></i> 2. Ads: Terreno G77 (Andrés Montaño)
         </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('¡Hola! Me interesa comprar una casa o mansión de lujo en el Urubó.')">
-          <i class="fas fa-house-chimney"></i> 2. Solicitar Info: Venta Lujo (Carlos Rodríguez)
+        <button class="quick-chip" style="border-color: #D4AF37; color: #D4AF37;" onclick="sendQuickPrompt('Hola, vi el anuncio del Departamento de 4 dormitorios de 119 m2 ($120.000 USD) entre 2do y 3er Anillo.')">
+          <i class="fas fa-building"></i> 3. Ads: Depto 4D $120k (Carlos Rodríguez)
         </button>
-        <button class="quick-chip" style="background: rgba(0, 168, 132, 0.15); border-color: #00d287;" onclick="sendQuickPrompt('Marcos Antezana, 77012345, marcos@gmail.com, Urubó $450.000, Mañana 15:30')">
-          <i class="fas fa-list-check"></i> 3. Formulario Datos ➔ Asignación e-Realtor
+        <button class="quick-chip" style="background: rgba(0, 168, 132, 0.15); border-color: #00d287;" onclick="sendQuickPrompt('Juan Pérez, 77012345, juan@gmail.com, Lote Mar Adentro $112.500, Mañana 16:00')">
+          <i class="fas fa-list-check"></i> 4. Formulario Datos ➔ Asignación e-Realtor
         </button>
         <button class="quick-chip" onclick="sendQuickPrompt('Busco departamentos en alquiler amoblados en Equipetrol')">
-          <i class="fas fa-building"></i> 4. Alquiler Equipetrol (Valeria Suárez)
+          <i class="fas fa-key"></i> 5. Alquiler Equipetrol (Valeria Suárez)
         </button>
         <button class="quick-chip" onclick="sendQuickPrompt('Busco departamento en anticrético con presupuesto de $35.000 en Hamacas')">
-          <i class="fas fa-key"></i> 5. Anticrético Seguro (Lucía Vaca)
+          <i class="fas fa-shield-alt"></i> 6. Anticrético Seguro (Lucía Vaca)
         </button>
         <button class="quick-chip" onclick="sendQuickPrompt('Tengo una casa en Equipetrol y quiero consignarla para que Realty ONE la venda.')">
-          <i class="fas fa-handshake"></i> 6. Propietario / Consignar (Robert Oliva)
+          <i class="fas fa-handshake"></i> 7. Propietario / Consignar (Robert Oliva)
         </button>
-        <button class="quick-chip" onclick="sendQuickPrompt('Quiero agendar la visita para mañana a las 15:30 en el inmueble')">
-          <i class="fas fa-calendar-check"></i> 7. Confirmar Cita de Visita
+        <button class="quick-chip" onclick="sendQuickPrompt('¿Me pueden enviar la ficha técnica en PDF y la ubicación en Google Maps?')">
+          <i class="fas fa-file-pdf"></i> 8. Solicitar Ficha PDF & GPS
         </button>
       </div>
 
@@ -602,8 +605,18 @@ Escribe libremente lo que buscas o haz clic en los ejemplos de la izquierda.
         return `🎉 *¡FORMULARIO COMPLETADO CON ÉXITO!* 🦁✨\n\nTus datos han sido registrados en *One Comsys* y calificados como *🔥 PROSPECTO POTENCIAL*.\n\n⚡ *ASIGNACIÓN CRM IA ➔ E-REALTOR ASIGNADO:*\n👤 *e-Realtor Especialista:* *${realtor}*\n\nTu e-Realtor ya recibió tu ficha técnica en el CRM y te contactará de inmediato por este mismo chat para coordinar la visita presencial.`;
       }
 
+      // Campaña Condominio Mar Adentro (Urubó)
+      if (msg.includes('mar adentro') || msg.includes('laguna') || msg.includes('112.500') || msg.includes('112500')) {
+        return `🌊 *Lote 450 m² en Condominio Mar Adentro (Urubó)*\n• *Ubicación:* A 300 m de la laguna cristalina Crystal Lagoons (playa de arena blanca)\n• *Medidas:* 15m frente x 30m fondo (plano)\n• *Precio:* $112.500 USD (Bs 782.000)\n• *Amenidades:* Club House, canchas de tenis y fútbol, seguridad 24/7\n• *Documentación:* Folio Real individual al día, listo para transferir\n• *Asesor a cargo:* Robert Oliva (+591 60937050)\n\n📋 *¿Deseas que coordinemos una visita guiada para hoy o mañana?*`;
+      }
+
+      // Campaña Departamento 4 Dormitorios ($120.000 USD)
+      if (msg.includes('departamento') && (msg.includes('4') || msg.includes('120') || msg.includes('119') || msg.includes('segundo anillo') || msg.includes('2do'))) {
+        return `🏢 *Departamento 4 Dormitorios (119 m²) - Entre 2do y 3er Anillo*\n• *Distribución:* 4 dorms (1 suite con balcón), 3 baños, cocina independiente y sala amplia\n• *Precio:* $120.000 USD (Bs 840.000)\n• *Servicios:* Gas domiciliario, ascensor, seguridad\n• *Legal:* Folio Real al día, apto crédito bancario de vivienda\n• *Asesor a cargo:* Carlos Rodríguez (+591 70123456)\n\n📋 *¿Te gustaría agendar una visita presencial para conocer el departamento?*`;
+      }
+
       // Campaña Parque Industrial / G77
-      if (msg.includes('parque industrial') || msg.includes('g77') || msg.includes('16.800.000') || msg.includes('7.000')) {
+      if (msg.includes('parque industrial') || msg.includes('g77') || msg.includes('16.800.000') || msg.includes('7.000') || msg.includes('7000')) {
         return `🏗️ *Terreno Industrial 7.000 m² (Parque Industrial / G77)*\n• *Medidas:* 185m frente x 150m fondo\n• *Precio:* Bs 16.800.000 ($us 2.413.793 aprox)\n• *Servicios:* Energía Trifásica y Agua Industrial\n• *e-Realtor a cargo:* Andrés Montaño (+591 70345678)\n\n📋 *Para agendar una inspección técnica o recibir la ficha en PDF, compártenos en un solo mensaje:*\n👤 *Nombre y Apellido*\n📱 *Celular de contacto*\n✉️ *Correo electrónico*\n📅 *Día y hora de visita técnica (ej: Mañana 15:30)*`;
       }
 

@@ -40,13 +40,16 @@ if (sessionCleanupInterval.unref) sessionCleanupInterval.unref();
  * Prompt del Sistema: Define el comportamiento, conocimiento y personalidad del Agente Inmobiliario
  */
 const SYSTEM_INSTRUCTION = `
-Eres "ONEBot", el asistente inmobiliario inteligente de Realty ONE Group Bolivia.
-Tu misión es atender a clientes que buscan comprar, alquilar o tomar en anticrético propiedades en Bolivia (casas, departamentos, condominios, terrenos/lotes, edificios y oficinas), así como propietarios que desean vender o alquilar sus inmuebles.
+Eres "ONEBot", el asesor virtual de Realty ONE Group Bolivia — uno de los portales inmobiliarios más importantes de Santa Cruz de la Sierra y Urubó.
 
-CARACTERÍSTICAS Y TONO:
-- Tono: Profesional, amable, cordial, seguro y experto en bienes raíces en Bolivia.
-- Usa formato legible de WhatsApp con emojis adecuados (🏡, 🏢, 🔑, 📍, 💰, 📅, ✨) y *negritas*.
-- Responde de forma concisa y clara, sin abrumar, guiando al cliente en el Formulario de Datos y asignándolo al e-Realtor especialista.
+Tu misión: Atender con calidez y profesionalismo a personas que buscan comprar, alquilar o tomar en anticrético propiedades en Bolivia (casas, departamentos, condominios, terrenos/lotes, oficinas y parques industriales), así como a propietarios que desean vender o alquilar sus inmuebles.
+
+PERSONALIDAD Y TONO:
+- Eres cercano, cálido y profesional. Como un asesor inmobiliario de confianza, no un robot.
+- Hablas con naturalidad en español boliviano: usas "te", no "usted". Eres directo pero amable.
+- Nunca suenas como un formulario. Antes de pedir datos, escuchas, informas y generas confianza.
+- Formato WhatsApp: *negritas*, emojis moderados (🏡🏢🔑📍💰📅✨), frases cortas. Sin párrafos largos.
+- Si no tienes info exacta, lo dices honestamente y ofreces conectar con el asesor humano.
 
 CONOCIMIENTO INMOBILIARIO EN BOLIVIA:
 1. ANTICRÉTICO:
@@ -174,13 +177,8 @@ function formatPropertiesForWhatsApp(properties, baseUrl = '') {
   });
 
   text += `━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `📋 *FORMULARIO DE DATOS & ATENCIÓN DE E-REALTORS:*\n`;
-  text += `👉 *Para asignarte al e-Realtor especialista y coordinar tu visita presencial, compártenos en un solo mensaje:*\n\n`;
-  text += `1️⃣ *Nombre y Apellido completo:*\n`;
-  text += `2️⃣ *Número de Celular / WhatsApp:*\n`;
-  text += `3️⃣ *Correo electrónico (E-mail):*\n`;
-  text += `4️⃣ *Día y hora sugerida de visita (ej: Mañana 15:30):*\n\n`;
-  text += `✍️ *Ejemplo:*\n_Marcos Antezana, 77012345, marcos@gmail.com, Mañana 15:30_`;
+  text += `¿Te gustaría que coordinemos una visita presencial para conocer alguna de estas opciones, o prefieres que te envíe más fotos y planos detallados? 😊\n\n`;
+  text += `_Dime qué día u horario te queda más cómodo (ej: mañana por la tarde o este sábado) y te coordinamos con nuestro asesor especialista._ 🤝`;
   return text;
 }
 
@@ -222,204 +220,8 @@ function generateERealtorAssignmentResponse(lead) {
   return msg;
 }
 
-/**
- * Motor Semántico Local de Respuestas Inmobiliarias
- */
-function generateLocalSemanticResponse(userMessage, properties, userId = '', pushName = '') {
-  const msg = userMessage.toLowerCase();
-
-  // Obtener nombre del usuario si está disponible (WhatsApp pushName o Lead previo)
-  let clientName = '';
-  if (pushName && typeof pushName === 'string' && pushName.trim().length > 1 && !pushName.startsWith('+')) {
-    clientName = pushName.trim();
-  }
-  if (!clientName && userId) {
-    try {
-      const lead = leadClassifier.getLeads().find(l => l.numero_celular === userId || l.id === userId);
-      if (lead && lead.cliente_nombre && lead.cliente_nombre !== 'Por identificar') {
-        clientName = lead.cliente_nombre;
-      }
-    } catch (e) {}
-  }
-
-  // 1. Saludo / Bienvenida General (Desde el botón azul de Facebook o WhatsApp directo)
-  const isGreeting = /^(hola|buenas|buen d[ií]a|buenos d[ií]as|buenas tardes|buenas noches|saludos|ola|menu|inicio|reiniciar|hi|hello)/i.test(msg.trim()) ||
-                     msg.includes('pagina de facebook') || msg.includes('perfil de facebook') || msg.includes('boton');
-
-  if (isGreeting && !msg.includes('@') && !msg.includes('visitar') && !msg.includes('agendar') && !msg.includes(',') && !msg.includes('gracias')) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `¡Hola${saludoPersonalizado}! 👋 Te damos la más cordial bienvenida a *Realty ONE Group Itaguazú* 🦁✨\n\n` +
-      `Tu aliado de confianza en bienes raíces en Santa Cruz de la Sierra y toda Bolivia. 🏡✨\n\n` +
-      `¿En qué te podemos asesorar hoy?\n` +
-      `🔹 *Comprar o Alquilar* (Casas, Departamentos, Oficinas)\n` +
-      `🔹 *Terrenos y Lotes* (Condominios de playa, Urbanizaciones, Áreas Industriales)\n` +
-      `🔹 *Vender o Consignar* tu propiedad con avalúo y difusión premium\n\n` +
-      `🌐 *Te invitamos a explorar todo nuestro catálogo exclusivo y propiedades verificadas en nuestro sitio web:*\n` +
-      `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com*\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)\n\n` +
-      `¿Estás buscando algún tipo de inmueble o zona en particular?`;
-  }
-
-  // 1b. Agradecimientos y Despedidas ("gracias", "muchas gracias", "chau", "ok")
-  const isGoodbye = (
-    msg.includes('gracias') || msg.includes('muchas gracias') ||
-    msg.includes('chau') || msg.includes('hasta luego') ||
-    msg.includes('nos vemos') || msg.includes('adios') ||
-    msg === 'ok' || msg === 'ok!' || msg === 'listo' || msg === 'dale gracias' || msg === 'gracias!'
-  );
-
-  if (isGoodbye) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `¡A ti${saludoPersonalizado}! 🦁✨ Ha sido un verdadero placer atenderte.\n\n` +
-      `Quedamos a tu completa disposición para cuando desees visitar alguna propiedad o consultar nuevas opciones.\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)\n` +
-      `🌐 *Sitio Web:* https://realyonegroupbolivia.e-techgroupbolivia.com\n\n` +
-      `¡Que tengas un excelente día! 🤝✨`;
-  }
-
-  // 1c. Respuestas afirmativas breves ("si", "si por favor", "claro", "dale")
-  if (msg === 'si' || msg === 'si!' || msg === 'si por favor' || msg === 'claro' || msg === 'dale' || msg === 'de acuerdo') {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `¡Excelente${saludoPersonalizado}! 🦁✨\n\n` +
-      `¿Para qué día y hora te gustaría coordinar la visita o llamada con nuestro asesor (+591 60937050)? (Ejemplo: *este sábado a las 10:30 am*).\n\n` +
-      `También puedes compartirnos tu correo electrónico para enviarte las opciones detalladas. 🤝`;
-  }
-
-  // 2. Detección de Zonas específicas de Santa Cruz (Zona Sur, Zona Norte, Urubó, Equipetrol, etc.)
-  const zones = [
-    { key: 'sur', name: 'Zona Sur (Santos Dumont, Doble Vía La Guardia, Los Lotes)' },
-    { key: 'norte', name: 'Zona Norte (Av. Banzer, Av. G77, Remanso)' },
-    { key: 'este', name: 'Zona Este (Av. Virgen de Cotoca, Pampa de la Isla)' },
-    { key: 'oeste', name: 'Zona Oeste (Roca y Coronado, Pirai)' },
-    { key: 'urubo', name: 'Urubó (Condominios ecológicos y residenciales)' },
-    { key: 'equipetrol', name: 'Equipetrol y Sirari' },
-    { key: 'palmas', name: 'Las Palmas' },
-    { key: 'centro', name: 'Zona Central / Casco Viejo' },
-    { key: 'industrial', name: 'Parque Industrial / G77' },
-    { key: 'warnes', name: 'Warnes / Zona Norte Industrial' }
-  ];
-
-  const matchedZone = zones.find(z => msg.includes(z.key) || msg.includes(`zona ${z.key}`));
-  if (matchedZone) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `¡Excelente${saludoPersonalizado}! 🏡✨ Contamos con opciones y proyectos disponibles en *${matchedZone.name}*.\n\n` +
-      `Para enviarte las fichas técnicas exactas y opciones disponibles según tu preferencia:\n` +
-      `👉 *¿Buscas comprar, alquilar o un lote/terreno de inversión?*\n` +
-      `👉 *¿Qué presupuesto aproximado estás manejando?*\n\n` +
-      `🌐 *También puedes ver nuestro catálogo completo en nuestro sitio web:*\n` +
-      `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com*\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  // 3. Selección de intención (Comprar, Alquilar, Anticrético, Vender)
-  if (msg === '1' || msg.includes('comprar') || msg.includes('quiero comprar')) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `🦁 *Realty ONE Group Itaguazú* 🏠✨\n\n` +
-      `¡Excelente${saludoPersonalizado}! Contamos con un amplio portafolio de Casas, Departamentos y Terrenos en venta.\n\n` +
-      `Para brindarte las mejores opciones disponibles:\n` +
-      `1. 📍 *¿En qué zona de Santa Cruz prefieres?* (Urubó, Equipetrol, Zona Norte, Zona Sur)\n` +
-      `2. 💰 *¿Qué rango de precio o presupuesto manejas?*\n` +
-      `3. 📱 *Número de Celular o Email de contacto:*\n\n` +
-      `🌐 *Catálogo en línea:* https://realyonegroupbolivia.e-techgroupbolivia.com\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  if (msg === '2' || msg.includes('alquilar') || msg.includes('quiero alquilar')) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `🦁 *Realty ONE Group Itaguazú* 🏢✨\n\n` +
-      `¡Con mucho gusto${saludoPersonalizado}! Te ayudamos a encontrar el departamento, casa u oficina ideal en alquiler.\n\n` +
-      `Por favor indícanos:\n` +
-      `1. 📍 *Zona de tu preferencia:* (Equipetrol, Sirari, Zona Norte, etc.)\n` +
-      `2. 🛏️ *Cantidad de dormitorios que necesitas:*\n` +
-      `3. 💰 *Presupuesto mensual aproximado:*\n\n` +
-      `👤 *Asesor a Cargo:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  if (msg === '3' || msg.includes('anticretico') || msg.includes('anticrético')) {
-    if (!msg.includes('@') && !msg.includes(',')) {
-      const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-      return `🦁 *Realty ONE Group Itaguazú* 🔑✨\n\n` +
-        `¡Excelente${saludoPersonalizado}! Blindamos tu operación con Folio Real en Derechos Reales e inscripción notarial garantizada.\n\n` +
-        `Por favor compártenos:\n` +
-        `1. 📍 *Zona donde buscas el inmueble:*\n` +
-        `2. 💰 *Monto de anticrético presupuestado en $US:*\n` +
-        `3. 📱 *Número de contacto:*\n\n` +
-        `👤 *Asesor Especialista:* Asesor Realty ONE (+591 60937050)`;
-    }
-  }
-
-  if (msg === '4' || msg.includes('consignar') || msg.includes('vender mi') || msg.includes('alquilar mi')) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `🦁 *Realty ONE Group Itaguazú* 💼✨\n\n` +
-      `¡Excelente decisión${saludoPersonalizado}! En Realty ONE Group te ayudamos a vender o alquilar tu propiedad al mejor valor de mercado.\n\n` +
-      `Incluye avalúo comercial profesional, fotografía de alta definición y difusión masiva.\n\n` +
-      `Por favor compártenos:\n` +
-      `1. 🏡 *Tipo de propiedad y ubicación:*\n` +
-      `2. 👤 *Nombre del propietario y teléfono:*\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  if (msg === '5' || msg.includes('legal') || msg.includes('impuesto') || msg.includes('derechos reales')) {
-    return `🦁 *Realty ONE Group Itaguazú* ⚖️✨\n\n` +
-      `Nuestro departamento legal inmobiliario te asesora en regularización de Folio Real, impuestos municipales, transferencias y protocolización notarial.\n\n` +
-      `¿Cuál es tu consulta específica o necesitas revisión documental?\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  // 4. Captura del Formulario de Datos (Detección de Email, Comas o Datos Múltiples)
-  if (msg.includes('@') || (msg.split(',').length >= 2 && /\d/.test(msg))) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `🎉 *¡DATOS REGISTRADOS CON ÉXITO!* 🦁✨\n\n` +
-      `Muchas gracias${saludoPersonalizado}. Hemos registrado tu solicitud de atención prioritaria.\n\n` +
-      `👤 *Asesor Asignado:* Asesor Realty ONE\n` +
-      `📞 *Teléfono directo / WhatsApp:* *+591 60937050*\n` +
-      `🌐 *Sitio Web:* https://realyonegroupbolivia.e-techgroupbolivia.com\n\n` +
-      `Nuestro asesor se comunicará contigo para coordinar las opciones y agendar una visita.`;
-  }
-
-  // 5. Agendamiento de Visitas
-  if (
-    msg.includes('cita') || msg.includes('visita') || msg.includes('agendar') ||
-    msg.includes('coordinar') || msg.includes('reunion') || msg.includes('ir a ver') ||
-    msg.includes('quiero ver') || msg.includes('puedo ir')
-  ) {
-    const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-    return `📅 *¡CON MUCHO GUSTO COORDINAMOS TU VISITA PRESENCIAL!* 🦁✨\n\n` +
-      `Hola${saludoPersonalizado}, nuestro asesor te recibirá personalmente en la propiedad.\n\n` +
-      `👉 *¿Qué día y hora te queda más cómodo para la visita?*\n` +
-      `*(Ejemplo: "Mañana a las 16:00", "Sábado a las 10:00 AM" o "Jueves en la tarde")*\n\n` +
-      `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-  }
-
-  // 6. Consultas de Publicaciones / Campañas
-  if (
-    msg.includes('publicacion') || msg.includes('publicación') ||
-    msg.includes('publicidad') || msg.includes('anuncio') ||
-    msg.includes('post') || msg.includes('facebook') || msg.includes('fb.me')
-  ) {
-    const matchedCamp = campaignService.matchCampaign(userId, userMessage);
-    if (matchedCamp) {
-      return campaignService.generateCampaignResponse(matchedCamp, userMessage, userId, pushName);
-    }
-  }
-
-  if (msg.includes('terreno') || msg.includes('lote') || msg.includes('g77') || msg.includes('industrial') || msg.includes('mar adentro')) {
-    const matchedCamp = campaignService.matchCampaign(userId, userMessage);
-    if (matchedCamp) {
-      return campaignService.generateCampaignResponse(matchedCamp, userMessage, userId, pushName);
-    }
-  }
-
-  // 7. Respuesta de búsqueda y asesoría general
-  const saludoPersonalizado = clientName ? ` ${clientName}` : '';
-  return `¡Muchas gracias${saludoPersonalizado}! 🦁✨\n\n` +
-    `En *Realty ONE Group Itaguazú* contamos con un catálogo completo de casas, departamentos, terrenos y condominios en las mejores zonas de Santa Cruz.\n\n` +
-    `Para brindarte las opciones exactas:\n` +
-    `👉 *¿Qué tipo de propiedad estás buscando y en qué rango de presupuesto?*\n\n` +
-    `🌐 *Explora todas las propiedades verificadas en nuestro sitio web:*\n` +
-    `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com*\n\n` +
-    `👤 *Asesor Oficial:* Asesor Realty ONE (+591 60937050)`;
-}
+// ponytail: generateLocalSemanticResponse eliminada — nunca llamada por processUserMessage.
+// El flujo oficial (líneas 501-611) maneja toda la lógica de respuesta directamente.
 
 /**
  * Consulta la API de Gemini si la clave está configurada
@@ -448,7 +250,7 @@ INSTRUCCIONES:
 - Si el cliente pregunta por inmuebles, dale información precisa y solicita sus datos de contacto (Formulario: Nombre, Celular, Email, Horario de visita).
 - Si el cliente completó sus datos, confirma que quedó calificado como Prospecto Potencial y menciona al e-Realtor especialista a cargo.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -512,7 +314,7 @@ INSTRUCCIONES IMPORTANTES:
 - Si el usuario saluda o pide más información, entrega la ficha técnica completa de ESTA publicación.
 - Si el usuario pide agendar visita o dejar datos, solicita su Nombre, Celular y Horario preferido de visita.`;
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -532,7 +334,7 @@ INSTRUCCIONES IMPORTANTES:
   }
 }
 
-// Estado de sesiones de WhatsApp (userId -> { state: 'NEW' | 'WAITING_FORM' | 'FINISHED', leadData: {} })
+// Estado de sesiones de WhatsApp (userId -> { state: 'NEW' | 'CHATTING' | 'FINISHED', leadData: {}, lastCampaign: null })
 const userFlowSessions = new Map();
 
 /**
@@ -550,103 +352,291 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     pushName = referralOrPushName.pushName || referralOrPushName.name || '';
   }
 
-  const session = userFlowSessions.get(userId) || { state: 'NEW', leadData: {} };
+  const session = userFlowSessions.get(userId) || { state: 'NEW', leadData: {}, lastCampaign: null };
   const rawMsg = userMessage.trim();
   const lowerMsg = rawMsg.toLowerCase();
+  const history = getSessionHistory(userId);
+  const nomSaludo = pushName ? ` ${pushName}` : '';
 
-  // 1. DETECCIÓN PRIORITARIA DE ANUNCIOS Y PUBLICACIONES DE FACEBOOK
-  const isAdEntry = (
-    lowerMsg.includes('fb.me') ||
-    lowerMsg.includes('quiero más información') ||
-    lowerMsg.includes('quiero mas informacion') ||
-    lowerMsg.includes('mar adentro') ||
-    lowerMsg.includes('terreno industrial') ||
-    lowerMsg.includes('itaguazu') ||
-    lowerMsg.includes('oportunidad') ||
-    Boolean(referralData?.headline || referralData?.source_url)
-  );
-
-  if (isAdEntry) {
-    session.state = 'WAITING_FORM'; // Reinicia el flujo para la nueva publicación
+  // 1. COMANDOS DE REINICIO O MENÚ PRINCIPAL
+  if (
+    lowerMsg === 'reiniciar' || lowerMsg === 'inicio' || lowerMsg === 'reset' || 
+    lowerMsg === 'menu' || lowerMsg === 'menú' || lowerMsg === 'empezar de nuevo'
+  ) {
+    session.state = 'CHATTING';
+    session.leadData = {};
+    session.lastCampaign = null;
     userFlowSessions.set(userId, session);
 
-    let adTitle = 'nuestra publicación exclusiva';
-    const allText = (lowerMsg + ' ' + (referralData?.headline || '') + ' ' + (referralData?.body || '')).toLowerCase();
-    if (allText.includes('mar adentro') || allText.includes('laguna')) {
-      adTitle = 'Condominio Mar Adentro (Terrenos con Playa y Laguna Cristalina)';
-    } else if (allText.includes('industrial') || allText.includes('g77')) {
-      adTitle = 'Terreno Industrial en Venta 7.000 m² (Zona Parque Industrial / G77)';
-    } else if (allText.includes('departamento') || allText.includes('dpto')) {
-      adTitle = 'Departamento en Venta';
-    } else if (referralData?.headline) {
-      adTitle = referralData.headline;
-    }
+    const h = parseInt(new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false }).format(new Date()), 10);
+    const saludoHora = h >= 5 && h < 12 ? '¡Buenos días' : h >= 12 && h < 19 ? '¡Buenas tardes' : '¡Buenas noches';
 
-    const nomSaludo = pushName ? ` ${pushName}` : '';
-    return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Itaguazú* 🦁\n\n` +
-      `Para brindarte la ficha técnica y coordinar tu visita presencial en el horario que más te convenga, por favor completa tu formulario oficial:\n\n` +
-      `📋 *Completar Formulario & Elegir Horario:*\n` +
-      `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com/registro.html*\n\n` +
-      `¡Muchas gracias! 🙏`;
+    return `${saludoHora}${nomSaludo}! 👋 Un gusto saludarte. Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+      `Cuéntame, ¿qué tipo de propiedad estás buscando y en qué zona te gustaría (Santa Cruz o Urubó)? 😊\n\n` +
+      `_(Puedes contarme si buscas casa, departamento, terreno, alquiler o anticrético, y te paso opciones disponibles)_`;
   }
 
-  // 2. DETECCIÓN DE FORMULARIO COMPLETADO (vía texto o reenviado desde registro.html)
+  // 2. DETECCIÓN PRIORITARIA DE CAMPAÑAS PUBLICITARIAS (Facebook Ads / Click-to-WhatsApp)
+  const matchedCamp = campaignService.matchCampaign(userId, userMessage, referralData);
+  if (matchedCamp) {
+    session.lastCampaign = matchedCamp;
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    // Si el usuario envió datos de contacto dentro del embudo de la campaña, registrar en CRM de fondo
+    const hasDataInMsg = lowerMsg.includes('@') || (rawMsg.split(',').length >= 3 && /\d/.test(rawMsg)) || /\d{7,10}/.test(rawMsg);
+    if (hasDataInMsg) {
+      try {
+        leadClassifier.trackAndClassifyLead(userId, rawMsg, `Campaña: ${matchedCamp.titulo_campana}`, {
+          campana: matchedCamp.titulo_campana,
+          canal: 'WhatsApp Ads (+591 60937050)',
+          pushName: pushName || referralData?.pushName || '',
+          status: 'Visita Agendada',
+          zonaInteres: matchedCamp.titulo_campana
+        }).catch(err => console.error('[aiAgent] Error background CRM:', err.message));
+      } catch (_) {}
+    }
+
+    // Si Gemini está activo con API Key, obtener respuesta enriquecida
+    const geminiResp = await callGeminiCampaignAI(matchedCamp, userMessage, history);
+    if (geminiResp && geminiResp.trim().length > 40) {
+      history.push({ role: 'user', text: rawMsg });
+      history.push({ role: 'model', text: geminiResp });
+      return geminiResp;
+    }
+
+    // Respuesta experta local basada en la base de datos de campañas
+    const localResp = campaignService.generateCampaignResponse(matchedCamp, userMessage, userId, pushName || referralData?.pushName);
+    history.push({ role: 'user', text: rawMsg });
+    history.push({ role: 'model', text: localResp });
+    return localResp;
+  }
+
+  // 3. DETECCIÓN DE DATOS DE CONTACTO / AGENDAMIENTO DE VISITA (LEADS ORGÁNICOS Y WEB)
   const isFormSubmission = (
     lowerMsg.includes('formulario completado') ||
     lowerMsg.includes('@') ||
-    (rawMsg.split(',').length >= 3 && /\d/.test(rawMsg))
+    (rawMsg.split(',').length >= 3 && /\d/.test(rawMsg)) ||
+    ((lowerMsg.includes('me llamo') || lowerMsg.includes('mi nombre es') || lowerMsg.includes('soy ')) && /\d{7,10}/.test(rawMsg)) ||
+    (lowerMsg.includes('visita') && (lowerMsg.includes('mañana') || lowerMsg.includes('sabado') || lowerMsg.includes('sábado') || lowerMsg.includes('lunes') || lowerMsg.includes('tarde') || lowerMsg.includes('am') || lowerMsg.includes('pm') || /\d{1,2}:\d{2}/.test(lowerMsg)))
   );
 
   if (isFormSubmission) {
-    session.state = 'FINISHED'; // Cierra el flujo tras la confirmación
+    session.state = 'FINISHED';
     userFlowSessions.set(userId, session);
 
-    // Registrar prospecto en el CRM (await: SiteGround debe confirmar antes de continuar)
-    try {
-      await leadClassifier.trackAndClassifyLead(userId, rawMsg, 'Formulario completado y visita agendada', {
-        campana: 'Flujo Oficial WhatsApp',
-        canal: 'WhatsApp (+591 60937050)',
-        pushName: pushName,
-        status: 'Visita Agendada'
-      });
-    } catch (e) {
-      console.error('[aiAgent] ❌ Error guardando lead en CRM:', e.message);
+    // Intentar deducir la zona o tipo de interés a partir del mensaje y de la campaña previa
+    let zonaInteres = session.lastCampaign?.titulo_campana || 'Santa Cruz (General)';
+    if (lowerMsg.includes('mar adentro') || lowerMsg.includes('laguna') || lowerMsg.includes('urubo') || lowerMsg.includes('urubó')) {
+      zonaInteres = 'Condominio Mar Adentro / Urubó';
+    } else if (lowerMsg.includes('g77') || lowerMsg.includes('industrial') || lowerMsg.includes('parque industrial') || lowerMsg.includes('7000') || lowerMsg.includes('7.000')) {
+      zonaInteres = 'Terreno Parque Industrial / G77 (7.000 m²)';
+    } else if (lowerMsg.includes('departamento') || lowerMsg.includes('dpto') || lowerMsg.includes('4 dorm')) {
+      zonaInteres = 'Departamento Residencial';
+    } else if (lowerMsg.includes('anticret')) {
+      zonaInteres = 'Anticrético Seguro';
+    } else if (lowerMsg.includes('alquil')) {
+      zonaInteres = 'Alquiler Residencial';
     }
 
-    // Secuencia oficial de 4 pasos (Imagen 1, 2 y 3)
-    return `✅ *¡Recibido!* Todos tus datos han sido registrados con éxito.\n\n` +
-      `🎧 *Aviso de agente:* En breve, nuestro asesor especializado (+591 60937050) se pondrá en contacto contigo para confirmar la dirección exacta y detalles de tu visita.\n\n` +
-      `🌐 *Mientras tanto, puedes ver todo nuestro catálogo de inmuebles aquí:*\n` +
-      `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com*\n\n` +
+    // Registrar en CRM y SiteGround
+    try {
+      await leadClassifier.trackAndClassifyLead(userId, rawMsg, `Visita agendada para: ${zonaInteres}`, {
+        campana: session.lastCampaign?.titulo_campana || 'Chatbot Directo WhatsApp',
+        canal: 'WhatsApp (+591 60937050)',
+        pushName: pushName,
+        status: 'Visita Agendada',
+        zonaInteres: zonaInteres
+      });
+    } catch (e) {
+      console.error('[aiAgent] Error guardando lead en CRM:', e.message);
+    }
+
+    // Seleccionar e-Realtor especialista
+    let realtorAsignado = 'Carlos Rodríguez (+591 70123456 - Venta de Lujo)';
+    if (zonaInteres.includes('Industrial') || zonaInteres.includes('Terreno') || zonaInteres.includes('G77')) {
+      realtorAsignado = 'Andrés Montaño (+591 70345678 - Terrenos & Parque Industrial)';
+    } else if (zonaInteres.includes('Anticrético')) {
+      realtorAsignado = 'Lucía Vaca (+591 70456789 - Especialista en Anticréticos Seguros)';
+    } else if (zonaInteres.includes('Alquiler')) {
+      realtorAsignado = 'Valeria Suárez (+591 70234567 - Alquileres Corporativos)';
+    } else if (zonaInteres.includes('Mar Adentro') || lowerMsg.includes('consignar')) {
+      realtorAsignado = 'Robert Oliva (+591 60937050 - Master Broker / Captaciones VIP)';
+    }
+
+    return `🎉 *¡SOLICITUD Y VISITA REGISTRADA CON ÉXITO!* 🦁✨\n\n` +
+      `Estimado/a${nomSaludo}, tus datos han sido ingresados en *One Comsys* con prioridad *🔥 PROSPECTO POTENCIAL*.\n\n` +
+      `📋 *RESUMEN DE TU SOLICITUD:*\n` +
+      `👤 *Cliente:* ${pushName || 'Identificado por WhatsApp'}\n` +
+      `📱 *Teléfono:* +${userId}\n` +
+      `📍 *Propiedad / Zona:* ${zonaInteres}\n` +
+      `📅 *Estado:* Visita agendada para coordinación de punto de encuentro.\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `⚡ *ASIGNACIÓN CRM IA ➔ E-REALTOR RESPONSABLE:*\n` +
+      `👤 *Asesor Asignado:* *${realtorAsignado}*\n\n` +
+      `Tu asesor se comunicará contigo a la brevedad para enviarte la ubicación GPS en Google Maps y los planos técnicos.\n\n` +
+      `🌐 *Catálogo completo:* https://realyonegroupbolivia.e-techgroupbolivia.com\n\n` +
       despedidaSegunHora();
   }
 
-  // 3. SI LA CONVERSACIÓN YA FINALIZÓ TRAS LA DESPEDIDA, SILENCIO TOTAL
+  // Si la sesión ya estaba finalizada y el usuario escribe algo breve que no es una consulta nueva
   if (session.state === 'FINISHED') {
-    if (lowerMsg === 'reiniciar' || lowerMsg === 'inicio' || lowerMsg === 'reset') {
-      session.state = 'NEW';
-      userFlowSessions.set(userId, session);
-    } else {
-      return null; // Silencio absoluto
+    const isNewInquiry = (
+      lowerMsg.includes('precio') || lowerMsg.includes('otra') || lowerMsg.includes('casa') ||
+      lowerMsg.includes('terreno') || lowerMsg.includes('departamento') || lowerMsg.includes('fotos') ||
+      lowerMsg.includes('ubicacion') || lowerMsg.includes('hola') || lowerMsg.includes('visita') ||
+      lowerMsg.includes('agendar') || lowerMsg.includes('cita') || lowerMsg.includes('pdf') ||
+      lowerMsg.includes('plano') || lowerMsg.includes('cuanto') || lowerMsg.includes('dónde') ||
+      lowerMsg.includes('donde') || lowerMsg.includes('informacion') || lowerMsg.includes('información')
+    );
+    if (!isNewInquiry) {
+      return null; // Silencio para no saturar al usuario tras la despedida
+    }
+    // Si hace una consulta nueva, reactivamos
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+  }
+
+  // 4. CONSULTAS ESPECÍFICAS DE CATÁLOGO Y BIENES RAÍCES EN BOLIVIA
+
+  // A. ANTICRÉTICO
+  if (lowerMsg.includes('anticretico') || lowerMsg.includes('anticrético')) {
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    if (lowerMsg.includes('como funciona') || lowerMsg.includes('qué es') || lowerMsg.includes('que es') || lowerMsg.includes('requisito') || lowerMsg.includes('es seguro') || lowerMsg.includes('seguro')) {
+      return `🔑 *El anticrético es una figura 100% boliviana y muy segura — si se hace bien.* 😊\n\n` +
+        `¿Cómo funciona? Simple: le entregás un capital en dólares al propietario y a cambio usás el inmueble *sin pagar alquiler mensual*. Al finalizar el contrato (normalmente 1 a 2 años), te devuelven el 100% del capital.\n\n` +
+        `*¿Qué hacemos nosotros para que sea seguro?*\n` +
+        `✅ Verificamos el *Folio Real actualizado* — que no tenga hipotecas ni embargos.\n` +
+        `✅ El contrato se firma ante notario y se registra en *Derechos Reales (DDRR)*.\n` +
+        `✅ Tenés respaldo legal durante todo el proceso.\n\n` +
+        `Nuestra especialista es *Lucía Vaca* (+591 70456789), con años de experiencia en anticréticos en Santa Cruz.\n\n` +
+        `👉 ¿En qué zona estás buscando y cuánto tenés disponible? Te busco opciones.`;
+    }
+
+    const anticreticos = queryProperties({ operacion: 'anticretico' });
+    if (anticreticos.length > 0) {
+      return formatPropertiesForWhatsApp(anticreticos);
     }
   }
 
-  // 4. PRIMER MENSAJE / BIENVENIDA GENERAL (Paso 1)
-  if (session.state === 'NEW') {
-    session.state = 'WAITING_FORM';
+  // B. TERRENOS / LOTEAMIENTOS / PARQUE INDUSTRIAL
+  if (lowerMsg.includes('terreno') || lowerMsg.includes('lote') || lowerMsg.includes('quinta') || lowerMsg.includes('loteamiento')) {
+    session.state = 'CHATTING';
     userFlowSessions.set(userId, session);
 
-    const nomSaludo = pushName ? ` ${pushName}` : '';
-    return `¡Hola${nomSaludo}! 👋 Te damos una cordial bienvenida a *Realty ONE Group Itaguazú* 🦁\n\n` +
-      `Para empezar, asignarte a un asesor especializado y coordinar tu visita en el día y horario que más te convenga, por favor completa tu formulario de registro en el siguiente enlace:\n\n` +
-      `📋 *Completar Formulario de Visita:*\n` +
-      `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com/registro.html*\n\n` +
-      `¡Muchas gracias! 🙏`;
+    if (lowerMsg.includes('industrial') || lowerMsg.includes('g77') || lowerMsg.includes('galpon') || lowerMsg.includes('galpón')) {
+      const campG77 = campaignService.getCampaignById('campana-terreno-industrial-g77');
+      if (campG77) {
+        session.lastCampaign = campG77;
+        return campaignService.generateCampaignResponse(campG77, userMessage, userId, pushName);
+      }
+    }
+
+    if (lowerMsg.includes('mar adentro') || lowerMsg.includes('laguna') || lowerMsg.includes('playa')) {
+      const campMar = campaignService.getCampaignById('campana-lote-mar-adentro-450m2');
+      if (campMar) {
+        session.lastCampaign = campMar;
+        return campaignService.generateCampaignResponse(campMar, userMessage, userId, pushName);
+      }
+    }
+
+    const terrenos = queryProperties({ operacion: 'terreno' });
+    if (terrenos.length > 0) {
+      return formatPropertiesForWhatsApp(terrenos);
+    }
   }
 
-  // 5. SI ENVÍA MENSAJES SIN HABER COMPLETADO EL FORMULARIO (Paso 2 - Exigencia estricta)
-  return `🔔 Por favor, primero completa el *formulario de registro* para poder agendar tu visita y coordinar con tu asesor asignado. ¡Muchas gracias! 🙏\n\n` +
-    `👉 *https://realyonegroupbolivia.e-techgroupbolivia.com/registro.html*`;
+  // C. ALQUILERES
+  if (lowerMsg.includes('alquiler') || lowerMsg.includes('alquilar') || lowerMsg.includes('renta')) {
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    const alquileres = queryProperties({ operacion: 'alquiler' });
+    if (alquileres.length > 0) {
+      return formatPropertiesForWhatsApp(alquileres);
+    }
+  }
+
+  // D. VENTAS / CASAS / DEPARTAMENTOS
+  if (lowerMsg.includes('venta') || lowerMsg.includes('comprar') || lowerMsg.includes('departamento') || lowerMsg.includes('dpto') || lowerMsg.includes('casa')) {
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    // Si coincide con departamento de 4 dormitorios
+    if (lowerMsg.includes('4 dorm') || lowerMsg.includes('segundo anillo') || lowerMsg.includes('2do anillo') || lowerMsg.includes('120.000') || lowerMsg.includes('119')) {
+      const campDpto = campaignService.getCampaignById('campana-departamento-4d-segundo-anillo');
+      if (campDpto) {
+        session.lastCampaign = campDpto;
+        return campaignService.generateCampaignResponse(campDpto, userMessage, userId, pushName);
+      }
+    }
+
+    const ventas = queryProperties({ operacion: 'venta' });
+    if (ventas.length > 0) {
+      return formatPropertiesForWhatsApp(ventas);
+    }
+  }
+
+  // E. CONSIGNAR / VENDER MI INMUEBLE (PROPIETARIOS)
+  if (lowerMsg.includes('vender mi') || lowerMsg.includes('alquilar mi') || lowerMsg.includes('consignar') || lowerMsg.includes('tengo una casa') || lowerMsg.includes('captacion')) {
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    return `🤝 Perfecto${nomSaludo ? `, *${nomSaludo.trim()}*` : ''}. Con gusto te ayudamos a que tu propiedad se venda o alquile rápido y bien. 🦁\n\n` +
+      `Esto es lo que incluye nuestro servicio, *sin costo inicial*:\n\n` +
+      `📊 *Tasación comercial* — sabemos exactamente cuánto vale tu inmueble en el mercado hoy.\n` +
+      `📸 *Fotos y video profesional* — presentación de alto impacto para compradores serios.\n` +
+      `🌐 *Difusión en portales y redes* — llegamos a más de 500 compradores calificados activos.\n` +
+      `⚖️ *Filtro de prospectos* — solo te presentamos personas con capacidad real de compra.\n\n` +
+      `Te atiende directamente *Robert Oliva*, Master Broker (+591 60937050).\n\n` +
+      `👉 ¿En qué zona está tu propiedad y de qué tipo es? (casa, dpto, terreno, oficina)`;
+  }
+
+  // F. DOCUMENTACIÓN LEGAL / REQUISITOS EN BOLIVIA
+  if (lowerMsg.includes('requisito') || lowerMsg.includes('documento') || lowerMsg.includes('papeles') || lowerMsg.includes('derechos reales') || lowerMsg.includes('folio real')) {
+    return `📑 *Requisitos y Documentación Inmobiliaria en Bolivia:* 🦁\n\n` +
+      `Para realizar una operación 100% legal y protegida requieres:\n` +
+      `1️⃣ *Folio Real actualizado:* Certificado alodial emitido por Derechos Reales (DDRR) sin gravámenes.\n` +
+      `2️⃣ *Plano de Uso de Suelo aprobado:* Certificado catastral emitido por el Gobierno Municipal correspondiente.\n` +
+      `3️⃣ *Impuestos Municipales:* Comprobantes al día de los últimos 5 años.\n` +
+      `4️⃣ *Impuesto Municipal a la Transferencia (IMT / IT):* 3% sobre el valor del inmueble.\n` +
+      `5️⃣ *Cédulas de Identidad:* Vigentes de las partes intervinientes.\n\n` +
+      `En *Realty ONE Group Itaguazú* nuestro equipo legal revisa cada folio antes de que realices cualquier anticipo.\n\n` +
+      `👉 *¿Deseas consultarnos sobre una propiedad en particular o agendar una reunión informativa?*`;
+  }
+
+  // G. AGRADECIMIENTOS Y DESPEDIDAS
+  if (
+    lowerMsg === 'gracias' || lowerMsg === 'muchas gracias' || lowerMsg === 'muchas gracias!' ||
+    lowerMsg.startsWith('gracias') || lowerMsg.includes('muchas gracias') || lowerMsg === 'ok gracias' ||
+    lowerMsg === 'listo gracias' || lowerMsg === 'perfecto gracias'
+  ) {
+    session.state = 'FINISHED';
+    userFlowSessions.set(userId, session);
+    return `¡A ti${nomSaludo}! 🦁 Ha sido un verdadero placer ayudarte. Quedamos a tu completa disposición para lo que necesites en *Realty ONE Group Bolivia*. ¡Que tengas un excelente día! ✨`;
+  }
+
+  // 5. INTENTO CON MOTOR GEMINI 2.0 FLASH LITE (Si hay API Key)
+  const geminiAnswer = await callGeminiAI(userMessage, history);
+  if (geminiAnswer && geminiAnswer.trim().length > 30) {
+    history.push({ role: 'user', text: rawMsg });
+    history.push({ role: 'model', text: geminiAnswer });
+    return geminiAnswer;
+  }
+
+  // 6. RESPUESTA CONSULTIVA POR DEFECTO (Asesor Virtual ONEBot)
+  session.state = 'CHATTING';
+  userFlowSessions.set(userId, session);
+
+  const h2 = parseInt(new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false }).format(new Date()), 10);
+  const saludoDefault = h2 >= 5 && h2 < 12 ? 'Buenos días' : h2 >= 12 && h2 < 19 ? 'Buenas tardes' : 'Buenas noches';
+
+  return `${saludoDefault}${nomSaludo ? `, ${nomSaludo.trim()}` : ''}! 👋 Un gusto saludarte. Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+    `Cuéntame, ¿qué tipo de propiedad estás buscando y en qué zona te gustaría (Santa Cruz o Urubó)? 😊\n\n` +
+    `_(Puedes contarme si buscas casa, departamento, terreno, alquiler o anticrético, y te paso opciones disponibles)_\n\n` +
+    `📞 *Línea directa:* +591 60937050`;
 }
 
 module.exports = {
@@ -654,5 +644,7 @@ module.exports = {
   queryProperties,
   formatPropertiesForWhatsApp,
   generateERealtorAssignmentResponse,
+  callGeminiAI,
+  callGeminiCampaignAI,
   SYSTEM_INSTRUCTION
 };

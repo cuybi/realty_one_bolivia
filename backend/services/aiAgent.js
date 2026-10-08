@@ -177,12 +177,8 @@ function formatPropertiesForWhatsApp(properties, baseUrl = '') {
   });
 
   text += `━━━━━━━━━━━━━━━━━━━━\n`;
-  text += `¿Te interesa alguna de estas opciones o buscas algo distinto? 😊\n\n`;
-  text += `Si quieres que te asignemos un asesor y coordinemos una visita, solo dime:\n`;
-  text += `👤 *Tu nombre*\n`;
-  text += `📱 *Tu celular o WhatsApp*\n`;
-  text += `📅 *Cuándo podrías visitar* (ej: mañana en la tarde, sábado a las 10)\n\n`;
-  text += `_No es necesario escribirlos en orden — con esos datos te asignamos un e-Realtor especialista hoy mismo._ ✅`;
+  text += `¿Te gustaría que coordinemos una visita presencial para conocer alguna de estas opciones, o prefieres que te envíe más fotos y planos detallados? 😊\n\n`;
+  text += `_Dime qué día u horario te queda más cómodo (ej: mañana por la tarde o este sábado) y te coordinamos con nuestro asesor especialista._ 🤝`;
   return text;
 }
 
@@ -375,20 +371,48 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const h = parseInt(new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false }).format(new Date()), 10);
     const saludoHora = h >= 5 && h < 12 ? '¡Buenos días' : h >= 12 && h < 19 ? '¡Buenas tardes' : '¡Buenas noches';
 
-    return `${saludoHora}${nomSaludo}! 👋\n\n` +
-      `Bienvenido/a a *Realty ONE Group Bolivia* 🦁 — tu asesoría inmobiliaria de confianza en Santa Cruz y Urubó.\n\n` +
-      `¿En qué te puedo ayudar hoy?\n\n` +
-      `🏡 *Comprar o invertir* (casas, deptos, terrenos, parque industrial)\n` +
-      `🌊 *Condominio Mar Adentro* — lotes con laguna cristalina en Urubó\n` +
-      `🏭 *Terreno Industrial G77* — 7.000 m² con servicios completos\n` +
-      `🔑 *Anticrético seguro* — con revisión legal en DDRR\n` +
-      `🏠 *Alquiler* corporativo o residencial\n` +
-      `📋 *Consignar mi inmueble* — tasación y marketing gratis\n\n` +
-      `_Puedes escribir directamente qué propiedad buscas, cuánto tienes de presupuesto o en qué zona. Yo te oriento._ 😊`;
+    return `${saludoHora}${nomSaludo}! 👋 Un gusto saludarte. Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+      `Cuéntame, ¿qué tipo de propiedad estás buscando y en qué zona te gustaría (Santa Cruz o Urubó)? 😊\n\n` +
+      `_(Puedes contarme si buscas casa, departamento, terreno, alquiler o anticrético, y te paso opciones disponibles)_`;
   }
 
-  // 2. DETECCIÓN DE DATOS DE CONTACTO / AGENDAMIENTO DE VISITA
-  // Si el usuario completa el formulario oficial o comparte sus datos en el chat
+  // 2. DETECCIÓN PRIORITARIA DE CAMPAÑAS PUBLICITARIAS (Facebook Ads / Click-to-WhatsApp)
+  const matchedCamp = campaignService.matchCampaign(userId, userMessage, referralData);
+  if (matchedCamp) {
+    session.lastCampaign = matchedCamp;
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    // Si el usuario envió datos de contacto dentro del embudo de la campaña, registrar en CRM de fondo
+    const hasDataInMsg = lowerMsg.includes('@') || (rawMsg.split(',').length >= 3 && /\d/.test(rawMsg)) || /\d{7,10}/.test(rawMsg);
+    if (hasDataInMsg) {
+      try {
+        leadClassifier.trackAndClassifyLead(userId, rawMsg, `Campaña: ${matchedCamp.titulo_campana}`, {
+          campana: matchedCamp.titulo_campana,
+          canal: 'WhatsApp Ads (+591 60937050)',
+          pushName: pushName || referralData?.pushName || '',
+          status: 'Visita Agendada',
+          zonaInteres: matchedCamp.titulo_campana
+        }).catch(err => console.error('[aiAgent] Error background CRM:', err.message));
+      } catch (_) {}
+    }
+
+    // Si Gemini está activo con API Key, obtener respuesta enriquecida
+    const geminiResp = await callGeminiCampaignAI(matchedCamp, userMessage, history);
+    if (geminiResp && geminiResp.trim().length > 40) {
+      history.push({ role: 'user', text: rawMsg });
+      history.push({ role: 'model', text: geminiResp });
+      return geminiResp;
+    }
+
+    // Respuesta experta local basada en la base de datos de campañas
+    const localResp = campaignService.generateCampaignResponse(matchedCamp, userMessage, userId, pushName || referralData?.pushName);
+    history.push({ role: 'user', text: rawMsg });
+    history.push({ role: 'model', text: localResp });
+    return localResp;
+  }
+
+  // 3. DETECCIÓN DE DATOS DE CONTACTO / AGENDAMIENTO DE VISITA (LEADS ORGÁNICOS Y WEB)
   const isFormSubmission = (
     lowerMsg.includes('formulario completado') ||
     lowerMsg.includes('@') ||
@@ -460,7 +484,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const isNewInquiry = (
       lowerMsg.includes('precio') || lowerMsg.includes('otra') || lowerMsg.includes('casa') ||
       lowerMsg.includes('terreno') || lowerMsg.includes('departamento') || lowerMsg.includes('fotos') ||
-      lowerMsg.includes('ubicacion') || lowerMsg.includes('hola')
+      lowerMsg.includes('ubicacion') || lowerMsg.includes('hola') || lowerMsg.includes('visita') ||
+      lowerMsg.includes('agendar') || lowerMsg.includes('cita') || lowerMsg.includes('pdf') ||
+      lowerMsg.includes('plano') || lowerMsg.includes('cuanto') || lowerMsg.includes('dónde') ||
+      lowerMsg.includes('donde') || lowerMsg.includes('informacion') || lowerMsg.includes('información')
     );
     if (!isNewInquiry) {
       return null; // Silencio para no saturar al usuario tras la despedida
@@ -468,28 +495,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     // Si hace una consulta nueva, reactivamos
     session.state = 'CHATTING';
     userFlowSessions.set(userId, session);
-  }
-
-  // 3. DETECCIÓN PRIORITARIA DE CAMPAÑAS PUBLICITARIAS (Facebook Ads / Click-to-WhatsApp)
-  const matchedCamp = campaignService.matchCampaign(userId, userMessage, referralData);
-  if (matchedCamp) {
-    session.lastCampaign = matchedCamp;
-    session.state = 'CHATTING';
-    userFlowSessions.set(userId, session);
-
-    // Si Gemini está activo con API Key, obtener respuesta enriquecida
-    const geminiResp = await callGeminiCampaignAI(matchedCamp, userMessage, history);
-    if (geminiResp && geminiResp.trim().length > 40) {
-      history.push({ role: 'user', text: rawMsg });
-      history.push({ role: 'model', text: geminiResp });
-      return geminiResp;
-    }
-
-    // Respuesta experta local basada en la base de datos de campañas
-    const localResp = campaignService.generateCampaignResponse(matchedCamp, userMessage, userId, pushName);
-    history.push({ role: 'user', text: rawMsg });
-    history.push({ role: 'model', text: localResp });
-    return localResp;
   }
 
   // 4. CONSULTAS ESPECÍFICAS DE CATÁLOGO Y BIENES RAÍCES EN BOLIVIA
@@ -602,6 +607,17 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       `👉 *¿Deseas consultarnos sobre una propiedad en particular o agendar una reunión informativa?*`;
   }
 
+  // G. AGRADECIMIENTOS Y DESPEDIDAS
+  if (
+    lowerMsg === 'gracias' || lowerMsg === 'muchas gracias' || lowerMsg === 'muchas gracias!' ||
+    lowerMsg.startsWith('gracias') || lowerMsg.includes('muchas gracias') || lowerMsg === 'ok gracias' ||
+    lowerMsg === 'listo gracias' || lowerMsg === 'perfecto gracias'
+  ) {
+    session.state = 'FINISHED';
+    userFlowSessions.set(userId, session);
+    return `¡A ti${nomSaludo}! 🦁 Ha sido un verdadero placer ayudarte. Quedamos a tu completa disposición para lo que necesites en *Realty ONE Group Bolivia*. ¡Que tengas un excelente día! ✨`;
+  }
+
   // 5. INTENTO CON MOTOR GEMINI 2.0 FLASH LITE (Si hay API Key)
   const geminiAnswer = await callGeminiAI(userMessage, history);
   if (geminiAnswer && geminiAnswer.trim().length > 30) {
@@ -617,14 +633,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   const h2 = parseInt(new Intl.DateTimeFormat('es-BO', { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false }).format(new Date()), 10);
   const saludoDefault = h2 >= 5 && h2 < 12 ? 'Buenos días' : h2 >= 12 && h2 < 19 ? 'Buenas tardes' : 'Buenas noches';
 
-  return `${saludoDefault}${nomSaludo ? `, ${nomSaludo.trim()}` : ''}! 👋 Gracias por escribirnos a *Realty ONE Group Bolivia* 🦁\n\n` +
-    `Cuéntame qué propiedad tenés en mente y yo te oriento con opciones reales de nuestro catálogo. Aquí algunas destacadas:\n\n` +
-    `🌊 *Mar Adentro — Urubó:* Lotes con laguna cristalina estilo resort desde $112.500 USD.\n` +
-    `🏭 *Parque Industrial G77:* Terreno 7.000 m² con energía trifásica — ideal para industria o logística.\n` +
-    `🏡 *Casas y Deptos:* Venta, alquiler y anticrético en Equipetrol, Sirari, Hamacas y Norte.\n\n` +
-    `👉 *¿Qué buscás? ¿Cuánto es tu presupuesto o en qué zona?*\n\n` +
-    `🌐 Catálogo completo: https://realyonegroupbolivia.e-techgroupbolivia.com\n` +
-    `📞 Línea directa: +591 60937050`;
+  return `${saludoDefault}${nomSaludo ? `, ${nomSaludo.trim()}` : ''}! 👋 Un gusto saludarte. Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+    `Cuéntame, ¿qué tipo de propiedad estás buscando y en qué zona te gustaría (Santa Cruz o Urubó)? 😊\n\n` +
+    `_(Puedes contarme si buscas casa, departamento, terreno, alquiler o anticrético, y te paso opciones disponibles)_\n\n` +
+    `📞 *Línea directa:* +591 60937050`;
 }
 
 module.exports = {

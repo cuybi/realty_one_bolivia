@@ -101,8 +101,23 @@ function matchCampaign(userId, userMessage = '', referralData = null) {
   const referralText = referralData ? normalizeText(`${referralData.headline || ''} ${referralData.body || ''} ${referralData.source_url || ''} ${referralData.description || ''} ${referralData.fullContext || ''}`) : '';
   const searchCorpus = `${normalizedMsg} ${referralText}`.trim();
 
+  const isOrganicInquiry = !referralData;
+  const isOwnerListing = normalizedMsg.includes('vender mi') || normalizedMsg.includes('alquilar mi') || normalizedMsg.includes('consignar') || normalizedMsg.includes('tengo una casa') || normalizedMsg.includes('captacion');
+  const isRentalOrAnticretico = normalizedMsg.includes('alquiler') || normalizedMsg.includes('alquilar') || normalizedMsg.includes('renta') || normalizedMsg.includes('anticretico');
+
+  if (isOrganicInquiry && isOwnerListing) {
+    userActiveCampaignSession.delete(userId);
+    return null;
+  }
+
   for (const camp of campaigns) {
     let score = 0;
+
+    // Si es búsqueda orgánica de alquiler/anticrético y la campaña es venta, no puntuar
+    const campOp = (camp.datos_inmueble?.operacion || '').toLowerCase();
+    if (isOrganicInquiry && isRentalOrAnticretico && campOp === 'venta') {
+      continue;
+    }
 
     // Coincidencia de ID o Meta Ad ID
     if (referralData?.source_id && camp.meta_ad_id && camp.meta_ad_id === referralData.source_id) {
@@ -142,7 +157,8 @@ function matchCampaign(userId, userMessage = '', referralData = null) {
 
   // 2. Si no hay coincidencia nueva en el texto pero está en conversación activa de esa campaña
   if (userActiveCampaignSession.has(userId)) {
-    const isExit = /^(menu principal|ver todo el catalogo|otra zona completamente distinta|chau|cancelar|menu|inicio)$/i.test(normalizedMsg.trim());
+    const isExit = /^(menu principal|ver todo el catalogo|otra zona completamente distinta|chau|cancelar|menu|inicio)$/i.test(normalizedMsg.trim()) ||
+      isOwnerListing || (isOrganicInquiry && isRentalOrAnticretico);
     if (!isExit) {
       const activeCamp = campaigns.find(c => c.id === userActiveCampaignSession.get(userId));
       if (activeCamp) return activeCamp;
@@ -235,16 +251,25 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   }
 
   // 1b. SI EL USUARIO ENVÍA EL DÍA Y HORA DE LA VISITA (Ej: "martes, a las 11:00")
-  const isDateTimeMessage = (
+  const hasTimeIndicator = (
     msg.includes('lunes') || msg.includes('martes') || msg.includes('miercoles') ||
     msg.includes('jueves') || msg.includes('viernes') || msg.includes('sabado') ||
     msg.includes('domingo') || msg.includes('manana') || msg.includes('hoy') ||
     msg.includes('fin de semana') || msg.includes('a las') ||
-    /\b\d{1,2}:\d{2}\b/.test(msg) || /\b\d{1,2}\s*(am|pm|hrs|de la)\b/i.test(msg) ||
-    session.esperandoHorario
+    /\b\d{1,2}:\d{2}\b/.test(msg) || /\b\d{1,2}\s*(am|pm|hrs|de la)\b/i.test(msg)
   );
 
-  if (isDateTimeMessage && !isAdEntry && !msg.includes('precio') && !msg.includes('medida') && !msg.includes('ubicacion')) {
+  const isGenericVisitRequest = (
+    (msg.includes('visita') || msg.includes('agendar') || msg.includes('coordinar') || msg.includes('cita')) &&
+    !hasTimeIndicator
+  );
+
+  const isDateTimeMessage = (
+    hasTimeIndicator ||
+    (session.esperandoHorario && !isGenericVisitRequest)
+  );
+
+  if (isDateTimeMessage && !isAdEntry && !isGenericVisitRequest && !msg.includes('precio') && !msg.includes('medida') && !msg.includes('ubicacion')) {
     session.esperandoHorario = false;
     session.visitaConfirmada = true;
     session.horarioVisita = cleanUserMsg;
@@ -256,22 +281,38 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
       `¡Muchas gracias y que tengas un excelente día! 🤝`;
   }
 
-  // 2. PASO 1 OBLIGATORIO PARA TODAS LAS PUBLICACIONES: SOLICITAR FORMULARIO DE DATOS
+  // 2. ENTRADA DESDE ANUNCIO O PRIMERA CONSULTA: ATENCIÓN CONSULTIVA HUMANA INMEDIATA
   if ((isAdEntry || !session.fichaEntregada) && !hasEmail && !hasCommaData && !msg.includes('foto') && !msg.includes('medida') && !msg.includes('precio') && !msg.includes('ubicacion')) {
+    session.fichaEntregada = true;
+    campaignUserSessions.set(sessionKey, session);
+    const precioPrincipal = (data.precio_usd && data.precio_bs)
+      ? `${data.precio_usd} (${data.precio_bs})`
+      : (data.precio_usd || data.precio_bs || 'Consultar');
+
     return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
-      `Para brindarte la ficha técnica detallada, planos y asignarte atención prioritaria con nuestro asesor especialista, por favor compártenos tus datos en un solo mensaje:\n\n` +
-      `1. 👤 *Nombre y Apellido completo:*\n` +
-      `2. 📱 *Número de Celular o WhatsApp:*\n` +
-      `3. ✉️ *Correo Electrónico:*\n\n` +
-      `✍️ _Ejemplo: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com_`;
+      `Con gusto te comparto los detalles del *${campaign.titulo_campana}*:\n\n` +
+      `📍 *Ubicación:* ${data.ubicacion}\n` +
+      `📐 *Superficie:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +
+      `💰 *Precio de Venta:* *${precioPrincipal}*\n` +
+      (data.referencia_acceso ? `🚛 *Accesibilidad:* ${data.referencia_acceso}\n` : '') +
+      (data.distribucion ? `🛏️ *Distribución:* ${data.distribucion}\n` : '') +
+      (data.servicios_basicos ? `⚡ *Servicios:* ${data.servicios_basicos}\n` : '') +
+      (data.amenidades ? `🏖️ *Amenidades:* ${data.amenidades}\n` : '') +
+      (data.uso_suelo ? `🏗️ *Uso de Suelo:* ${data.uso_suelo}\n` : '') +
+      `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
+      `Cuéntame${saludoNom}:\n` +
+      `• ¿Lo buscas para vivienda propia o como inversión?\n` +
+      `• ¿Te gustaría que coordinemos una visita presencial para conocerlo esta semana? 🤝`;
   }
 
-  // 3. PASO 2: SI ACABA DE ENVIAR SUS DATOS DE CONTACTO (Email / comas)
-  if ((hasEmail || hasCommaData) && !session.fichaEntregada) {
+  // 3. SI EL USUARIO ENVÍA DATOS DE CONTACTO (Email / comas)
+  if (hasEmail || hasCommaData) {
     session.datosCapturados = true;
     session.fichaEntregada = true;
     campaignUserSessions.set(sessionKey, session);
-    const precioPrincipal = data.precio_usd || data.precio_bs || 'Consultar';
+    const precioPrincipal = (data.precio_usd && data.precio_bs)
+      ? `${data.precio_usd} (${data.precio_bs})`
+      : (data.precio_usd || data.precio_bs || 'Consultar');
 
     return `¡Muchas gracias${saludoNom}! 🦁✨ Hemos registrado tus datos con éxito.\n\n` +
       `Aquí tienes los detalles del *${campaign.titulo_campana}*:\n\n` +
@@ -286,6 +327,19 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
       `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
       `👤 *Asesor Asignado:* Asesor Realty ONE (Tel: +591 60937050)\n\n` +
       `👉 *${dirNom}¿te gustaría conocer las facilidades de pago o coordinar una visita presencial para conocer la propiedad este fin de semana?*`;
+  }
+
+  // 3b. CALIFICACIÓN: RESPUESTA A PROPÓSITO (VIVIENDA / INVERSIÓN)
+  if (msg.includes('vivienda') || msg.includes('vivir') || msg.includes('familiar') || msg.includes('mi familia') || msg.includes('para mi')) {
+    session.esperandoHorario = true;
+    campaignUserSessions.set(sessionKey, session);
+    return `¡Excelente elección${saludoNom}! 🏡 Es una magnífica opción para vivienda familiar por su comodidad, seguridad y ubicación estratégica.\n\n` +
+      `¿Te gustaría que coordinemos una visita presencial para conocer los ambientes esta semana? Indícanos qué día y horario te queda más cómodo (ej: *mañana por la tarde* o *este sábado por la mañana*). 🤝`;
+  }
+
+  if (msg.includes('inversion') || msg.includes('invertir') || msg.includes('renta') || msg.includes('alquilar') || msg.includes('alquiler') || msg.includes('plusvalia') || msg.includes('negocio')) {
+    return `¡Excelente visión de inversión${saludoNom}! 📈 Esta propiedad tiene un gran potencial de plusvalía y retorno de inversión en la zona.\n\n` +
+      `Podemos facilitarte los datos de rendimiento o coordinar una visita presencial para evaluar el potencial en el lugar. ¿Te gustaría coordinar una visita para estos días? 🤝`;
   }
 
   const campId = (campaign.id || '').toLowerCase();
@@ -463,8 +517,10 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
       `👉 ${dirNom}¿deseas que nuestro asesor te contacte directamente por llamada o seguimos por aquí?`;
   }
 
-  // 11. FICHA COMPLETA POR DEFECTO
-  const precioPrincipal = data.precio_usd || data.precio_bs || 'Consultar con asesor';
+  // 16. FICHA COMPLETA POR DEFECTO
+  const precioPrincipal = (data.precio_usd && data.precio_bs)
+    ? `${data.precio_usd} (${data.precio_bs})`
+    : (data.precio_usd || data.precio_bs || 'Consultar con asesor');
 
   return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre}* 🦁\n\n` +
     `Detalles de la propiedad *${campaign.titulo_campana}*:\n\n` +

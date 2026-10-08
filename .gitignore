@@ -41,4 +41,10 @@ refactor.py
 build_zip.ps1
 copy_assets.js
 copy_images.js
-check_res.ps1
+# === Python ===
+.venv/
+__pycache__/
+*.pyc
+
+westgate_brochure.pdf
+*.pdf

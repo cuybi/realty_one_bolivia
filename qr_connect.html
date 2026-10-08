@@ -322,7 +322,7 @@
         </div>
       </div>
 
-      <!-- Cuadro de Código QR -->
+      <!-- Cuadro de Código QR y Vinculación por Código -->
       <div class="qr-card">
         <div id="qrcode">
           <div style="color:#666; text-align:center; font-size:0.85rem; padding:20px;">
@@ -333,6 +333,33 @@
         <div class="qr-status" id="qrStatus">
           <span class="status-dot" id="statusDot"></span>
           <span id="statusText">Esperando conexión del servidor...</span>
+        </div>
+
+        <!-- Opción Alternativa: Código de 8 dígitos para +591 60937050 -->
+        <div class="pairing-container" id="pairingBox" style="margin-top:20px; padding-top:16px; border-top:1px solid #e0e0e0; width:100%; text-align:center;">
+          <p style="font-size:0.85rem; color:#222; font-weight:600; margin-bottom:8px;">
+            <i class="fas fa-mobile-screen" style="color:#d4af37;"></i> ¿Prefieres vincular con código de 8 dígitos?
+          </p>
+          <div style="display:flex; justify-content:center; gap:8px; margin-bottom:8px; flex-wrap:wrap;">
+            <input type="text" id="phoneInput" value="59160937050" placeholder="591XXXXXXXX" style="padding:8px 12px; border:1px solid #ccc; border-radius:6px; font-size:0.9rem; width:150px; text-align:center; font-weight:600; letter-spacing:0.5px;">
+            <button onclick="solicitarCodigoPairing()" id="btnPairing" style="background:#0b0e14; color:#d4af37; border:1px solid #d4af37; border-radius:6px; padding:8px 16px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s;">
+              <i class="fas fa-key"></i> Generar Código
+            </button>
+          </div>
+          <div id="pairingCodeResult" style="display:none; margin-top:12px; background:#0b0e14; border:1px solid #d4af37; border-radius:10px; padding:14px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
+            <span style="font-size:0.75rem; color:#aaa; text-transform:uppercase; letter-spacing:1px;">Ingresa este código en tu WhatsApp:</span>
+            <div id="codeDisplay" style="font-size:2rem; font-weight:bold; letter-spacing:5px; color:#d4af37; margin:8px 0; font-family:'Courier New', monospace;"></div>
+            <button id="btnCopyCode" onclick="copiarCodigo()" style="background:#1f2937; color:#fff; border:1px solid #4b5563; border-radius:6px; padding:5px 14px; font-size:0.78rem; cursor:pointer; margin-bottom:10px;">
+              <i class="fas fa-copy"></i> Copiar Código
+            </button>
+            <div style="background:rgba(212,175,55,0.08); border-radius:6px; padding:8px; text-align:left; font-size:0.74rem; color:#ccc; line-height:1.4;">
+              <strong style="color:#d4af37;">Pasos en tu celular:</strong><br>
+              1. Abre WhatsApp &gt; Menú (3 puntos) o Ajustes.<br>
+              2. Toca <strong>Dispositivos vinculados</strong> &gt; <strong>Vincular un dispositivo</strong>.<br>
+              3. Toca abajo: <em>"Vincular con el número de teléfono"</em>.<br>
+              4. Escribe el código de arriba.
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -386,34 +413,98 @@
           const data = await res.json();
           const statusText = document.getElementById("statusText");
           const statusDot = document.getElementById("statusDot");
+          const pairingBox = document.getElementById("pairingBox");
 
           if (data.status === 'conectado') {
             document.getElementById("qrcode").innerHTML = `
               <div style="text-align:center; color:#00a884; padding:20px;">
                 <i class="fas fa-check-circle" style="font-size:3.5rem; margin-bottom:12px;"></i>
                 <h3 style="color:#111b21; font-size:1.1rem; margin-bottom:4px;">¡Bot Conectado!</h3>
-                <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '60937050'}</p>
+                <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '59160937050'}</p>
                 <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real 24/7</p>
                 <button onclick="desconectarNumero()" class="btn" style="margin-top:14px; background:#dc3545; color:#fff; border:none; padding:6px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;">
                   <i class="fas fa-sign-out-alt"></i> Desconectar para vincular otro número
                 </button>
               </div>
             `;
+            if (pairingBox) pairingBox.style.display = 'none';
             statusDot.className = "status-dot connected";
-            statusText.innerText = "Conectado y Activo en la Nube 24/7";
+            statusText.innerText = "Conectado y Activo en Tiempo Real 24/7";
             return;
+          }
+
+          if (pairingBox) pairingBox.style.display = 'block';
+
+          if (data.pairingCode) {
+            document.getElementById("codeDisplay").innerText = data.pairingCode;
+            document.getElementById("pairingCodeResult").style.display = 'block';
           }
 
           if (data.qr) {
             renderQR(data.qr);
             statusDot.className = "status-dot";
-            statusText.innerText = "Escanea el código QR con tu WhatsApp";
+            statusText.innerText = "Escanea el código QR o usa el código de 8 dígitos";
           }
         }
       } catch (err) {
-        document.getElementById("statusText").innerText = "Conectando con el servidor en la nube...";
+        document.getElementById("statusText").innerText = "Conectando con el servidor local / nube...";
         document.getElementById("statusDot").className = "status-dot disconnected";
       }
+    }
+
+    async function solicitarCodigoPairing() {
+      const btn = document.getElementById("btnPairing");
+      const phone = document.getElementById("phoneInput").value.trim();
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+      try {
+        const res = await fetch('/api/whatsapp/pairing-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone })
+        });
+        const data = await res.json();
+        if (data.success && data.code) {
+          const rawCode = String(data.code).replace(/[^a-zA-Z0-9]/g, '');
+          const formatted = rawCode.length === 8 ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : data.code;
+          document.getElementById("codeDisplay").innerText = formatted;
+          document.getElementById("codeDisplay").dataset.rawCode = rawCode;
+          document.getElementById("pairingCodeResult").style.display = 'block';
+        } else {
+          alert(data.error || 'No se pudo generar el código. Asegúrate de que el conector esté listo.');
+        }
+      } catch(e) {
+        alert('Error al solicitar código: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-key"></i> Generar Código';
+      }
+    }
+
+    function copiarCodigo() {
+      const codeElem = document.getElementById("codeDisplay");
+      const rawCode = codeElem.dataset.rawCode || codeElem.innerText.replace(/-/g, '').trim();
+      if (!rawCode) return;
+      navigator.clipboard.writeText(rawCode).then(() => {
+        const btn = document.getElementById("btnCopyCode");
+        btn.innerHTML = '<i class="fas fa-check" style="color:#00a884;"></i> ¡Copiado!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fas fa-copy"></i> Copiar Código';
+        }, 2000);
+      }).catch(() => {
+        // Fallback textarea
+        const ta = document.createElement('textarea');
+        ta.value = rawCode;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        const btn = document.getElementById("btnCopyCode");
+        btn.innerHTML = '<i class="fas fa-check" style="color:#00a884;"></i> ¡Copiado!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fas fa-copy"></i> Copiar Código';
+        }, 2000);
+      });
     }
 
     async function desconectarNumero() {
