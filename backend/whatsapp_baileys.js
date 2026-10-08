@@ -225,7 +225,10 @@ async function startWhatsAppClient() {
     const mongoUri = process.env.MONGODB_URI;
     if (mongoUri) {
       if (!mongoClientSingleton) {
-        mongoClientSingleton = new MongoClient(mongoUri);
+        mongoClientSingleton = new MongoClient(mongoUri, {
+          tls: true,
+          tlsAllowInvalidCertificates: true
+        });
         await mongoClientSingleton.connect();
         console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
       }

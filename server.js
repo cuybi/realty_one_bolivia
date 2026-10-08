@@ -299,7 +299,9 @@ async function startWhatsAppClient() {
           global.mongoClientSingleton = new MongoClient(mongoUri, {
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
-            maxIdleTimeMS: 30000 // reconectar antes de que Atlas cierre la conexión idle
+            maxIdleTimeMS: 30000, // reconectar antes de que Atlas cierre la conexión idle
+            tls: true,
+            tlsAllowInvalidCertificates: true
           });
           await global.mongoClientSingleton.connect();
           console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
@@ -351,6 +353,7 @@ async function startWhatsAppClient() {
         const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
         connectionStatus = 'desconectado';
         currentQR = null;
+        currentPairingCode = null;
         activeSock = null;
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))

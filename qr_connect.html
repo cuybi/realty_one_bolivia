@@ -435,9 +435,23 @@
 
           if (pairingBox) pairingBox.style.display = 'block';
 
+          if (data.status === 'desconectado') {
+            statusDot.className = "status-dot disconnected";
+            statusText.innerText = "Reconectando con el servidor... Haz clic en 'Generar Código' para un código nuevo";
+            if (!data.pairingCode) {
+              const resBox = document.getElementById("pairingCodeResult");
+              if (resBox) resBox.style.display = 'none';
+            }
+          }
+
           if (data.pairingCode) {
-            document.getElementById("codeDisplay").innerText = data.pairingCode;
+            const rawCode = String(data.pairingCode).replace(/[^a-zA-Z0-9]/g, '');
+            const formatted = rawCode.length === 8 ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : data.pairingCode;
+            document.getElementById("codeDisplay").innerText = formatted;
+            document.getElementById("codeDisplay").dataset.rawCode = rawCode;
             document.getElementById("pairingCodeResult").style.display = 'block';
+            statusDot.className = "status-dot";
+            statusText.innerText = "Ingresa el código de 8 dígitos en WhatsApp (Dispositivos vinculados)";
           }
 
           if (data.qr) {
