@@ -334,8 +334,166 @@ INSTRUCCIONES IMPORTANTES:
   }
 }
 
-// Estado de sesiones de WhatsApp (userId -> { state: 'NEW' | 'CHATTING' | 'FINISHED', leadData: {}, lastCampaign: null })
+// Estado de sesiones de WhatsApp (userId -> { state: 'NEW' | 'CHATTING' | 'FINISHED' | 'AD_QUALIFYING', leadData: {}, lastCampaign: null, adTopic: string })
 const userFlowSessions = new Map();
+
+/**
+ * Extrae dinámicamente el nombre o temática del inmueble desde cualquier anuncio de Facebook
+ */
+function extractAdPropertyTopic(referralData, userMessage = '') {
+  const text = (referralData?.body || referralData?.headline || userMessage || '').trim();
+  if (!text) return 'la propiedad de nuestra publicación';
+
+  // Quitar prefijo de inmobiliaria
+  const clean = text
+    .replace(/^(realty one group itaguazu|realty one group bolivia)[|\s:—-]*/i, '')
+    .trim();
+
+  // 1. Si tiene guión "—" o "-", examinar lo que viene inmediatamente después
+  const dashParts = clean.split(/(?:—|-)/);
+  if (dashParts.length > 1) {
+    const afterDash = dashParts[1].trim();
+    // A. Si empieza con palabras en mayúsculas (ej: "WESTGATE TOWER Descubrí...")
+    const capsAfter = afterDash.match(/^([A-ZÁÉÍÓÚÑ0-9\s]{3,35})\b/);
+    if (capsAfter && capsAfter[1].trim().length >= 3) {
+      return capsAfter[1].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+    }
+    // B. Las primeras 3 a 4 palabras
+    const wordsAfter = afterDash.split(/\s+/).slice(0, 4).join(' ');
+    if (wordsAfter && wordsAfter.length >= 3 && wordsAfter.length <= 35) {
+      return wordsAfter.replace(/[🏢🌿🏖️🔥📍💰✨👉.,]/g, '').trim();
+    }
+  }
+
+  // 2. Si menciona hectáreas o terreno en un lugar (ej: "217 Hectáreas en Buenavista")
+  const hectMatch = clean.match(/(\d+\s*hect[aá]reas)/i);
+  if (hectMatch) {
+    const lugarMatch = clean.match(/en\s+([A-Za-zÁÉÍÓÚñáéíóú]{4,20})/i);
+    const sufijo = lugarMatch ? ` en ${lugarMatch[1].trim()}` : '';
+    return `${hectMatch[1].trim()}${sufijo}`.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  // 3. Si tiene palabras clave inmobiliarias (Torre, Condominio, Edificio, Parque Industrial, etc.)
+  const promoMatch = clean.match(/\b(torre\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|condominio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|edificio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|urbanizaci[oó]n\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|parque\s+industrial[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,20})\b/i);
+  if (promoMatch) {
+    return promoMatch[0].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  // 4. Si tiene título entre signos de exclamación ¡...!, tomar ese título
+  const exclMatch = clean.match(/¡([^!]+)!/);
+  if (exclMatch && exclMatch[1].length > 4 && exclMatch[1].length < 45) {
+    return exclMatch[1].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  // 5. Primera frase corta relevante
+  const firstSentence = clean.split(/[.\n\r!]/)[0].trim();
+  if (firstSentence && firstSentence.length > 5 && firstSentence.length < 50) {
+    return firstSentence.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  return 'la propiedad de nuestra publicación';
+}
+
+/**
+ * Motor de atención genérica consultiva humana para cualquier anuncio actual o futuro de Facebook Ads
+ */
+function handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, session, nomSaludo, history) {
+  // A. Si el prospecto responde sobre inversión
+  if (lowerMsg.includes('inversion') || lowerMsg.includes('inversión') || lowerMsg.includes('invertir') || lowerMsg.includes('renta') || lowerMsg.includes('plusvalia') || lowerMsg.includes('plusvalía') || lowerMsg.includes('negocio') || lowerMsg.includes('retorno')) {
+    session.state = 'AD_DISCUSSED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'esta propiedad';
+    return `¡Excelente visión de inversión${nomSaludo}! 📈 *${adTopic}* cuenta con un gran atractivo de plusvalía y retorno en su zona.\n\n` +
+      `Para darte la información precisa, ¿te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que nuestro e-Realtor especialista te prepare la propuesta de rentabilidad y planos por aquí mismo? 🤝`;
+  }
+
+  // B. Si el prospecto responde sobre vivienda familiar
+  if (lowerMsg.includes('vivienda') || lowerMsg.includes('vivir') || lowerMsg.includes('familiar') || lowerMsg.includes('mi familia') || lowerMsg.includes('propio') || lowerMsg.includes('para mi')) {
+    session.state = 'AD_DISCUSSED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'esta propiedad';
+    return `¡Excelente elección${nomSaludo}! 🏡 *${adTopic}* es una excelente opción para disfrutar en familia por su comodidad, seguridad y comodidades.\n\n` +
+      `Será un verdadero gusto coordinar una visita presencial para que conozcas la propiedad en persona. ¿Qué día y horario te queda más cómodo (ej: *mañana por la tarde* o *este sábado por la mañana*)? 🤝`;
+  }
+
+  // C. Si el prospecto solicita agendar visita directamente
+  if (lowerMsg.includes('visita') || lowerMsg.includes('agendar') || lowerMsg.includes('coordinar') || lowerMsg.includes('ir a ver') || lowerMsg.includes('verla') || lowerMsg.includes('conocerla')) {
+    session.state = 'WAITING_VISIT_TIME';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'la propiedad';
+    return `¡Con mucho gusto${nomSaludo}! 🤝✨\n\n` +
+      `Será un placer coordinar tu visita presencial a *${adTopic}*.\n\n` +
+      `¿Qué día y hora te queda más cómodo pasar? (Por ejemplo: *este sábado a las 10:00 am* o *mañana por la tarde*).\n\n` +
+      `Nuestro e-Realtor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te esperará en el lugar.`;
+  }
+
+  // D. Si el prospecto envía día u hora para la visita
+  const hasTimeIndicator = (
+    lowerMsg.includes('lunes') || lowerMsg.includes('martes') || lowerMsg.includes('miercoles') ||
+    lowerMsg.includes('jueves') || lowerMsg.includes('viernes') || lowerMsg.includes('sabado') || lowerMsg.includes('sábado') ||
+    lowerMsg.includes('domingo') || lowerMsg.includes('mañana') || lowerMsg.includes('manana') || lowerMsg.includes('hoy') ||
+    lowerMsg.includes('fin de semana') || lowerMsg.includes('a las') ||
+    /\b\d{1,2}:\d{2}\b/.test(lowerMsg) || /\b\d{1,2}\s*(am|pm|hrs|de la)\b/i.test(lowerMsg)
+  );
+
+  if ((session.state === 'WAITING_VISIT_TIME' || session.state === 'AD_DISCUSSED') && hasTimeIndicator) {
+    session.state = 'FINISHED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'la propiedad';
+
+    // Registrar en CRM
+    try {
+      leadClassifier.trackAndClassifyLead(userId, rawMsg, `Visita confirmada para: ${adTopic}`, {
+        campana: adTopic,
+        canal: 'Facebook Ads (+591 60937050)',
+        pushName: pushName,
+        status: 'Visita Agendada',
+        zonaInteres: adTopic
+      }).catch(() => {});
+    } catch (_) {}
+
+    return `📅 *¡Perfecto${nomSaludo}! Cita agendada con éxito.* ✨\n\n` +
+      `Te esperamos el *${rawMsg}* en *${adTopic}*.\n\n` +
+      `El asesor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te registrará el ingreso autorizado.\n\n` +
+      `¡Muchas gracias y que tengas un excelente día! 🤝`;
+  }
+
+  // E. Si el prospecto pide fotos, planos, precio o ficha técnica
+  if (lowerMsg.includes('foto') || lowerMsg.includes('imagen') || lowerMsg.includes('plano') || lowerMsg.includes('precio') || lowerMsg.includes('cuanto') || lowerMsg.includes('ficha') || lowerMsg.includes('carpeta')) {
+    const adTopic = session.adTopic || 'la propiedad';
+    return `¡Con mucho gusto${nomSaludo}! 📁✨\n\n` +
+      `Le estamos notificando a nuestro e-Realtor especialista de *${adTopic}* (+591 60937050) para que te envíe la carpeta digital con todos los detalles técnicos, planos y precios actualizados.\n\n` +
+      `¿Deseas que te lo comparta directamente por este chat o prefieres una breve llamada explicativa? 📲`;
+  }
+
+  // F. Entrada inicial del anuncio (CTWA): Saludo cálido consultivo y preguntas de calificación
+  const adTopic = extractAdPropertyTopic(referralData, rawMsg);
+  session.state = 'AD_QUALIFYING';
+  session.adTopic = adTopic;
+  userFlowSessions.set(userId, session);
+
+  // Extraer precio si el anuncio lo dice explícitamente en el texto
+  const fullAdText = `${referralData?.body || ''} ${referralData?.headline || ''} ${rawMsg}`;
+  const priceMatch = fullAdText.match(/(?:us\$|\$|bs\.?)\s*[\d.,]+(?:\s*por\s*hect[aá]rea)?/i);
+  const precioTxt = priceMatch ? `\n💰 *Inversión anunciada:* ${priceMatch[0].trim()}` : '';
+
+  // Registrar lead inicial en CRM
+  try {
+    leadClassifier.trackAndClassifyLead(userId, rawMsg, `Consulta de Anuncio: ${adTopic}`, {
+      campana: adTopic,
+      canal: 'Facebook Ads (+591 60937050)',
+      pushName: pushName || referralData?.pushName || '',
+      status: 'Nuevo',
+      zonaInteres: adTopic
+    }).catch(() => {});
+  } catch (_) {}
+
+  return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁\n\n` +
+    `Con gusto te comparto información y la ficha técnica sobre *${adTopic}* ✨${precioTxt}\n\n` +
+    `Para conectarte con el e-Realtor especialista y brindarte la mejor asesoría, cuéntame:\n\n` +
+    `1. 🎯 *¿Buscas esta opción para uso propio / familiar o como inversión?*\n` +
+    `2. 📅 *¿Te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que te enviemos la carpeta técnica y planos?* 🤝`;
+}
 
 /**
  * Procesa el mensaje de un cliente en WhatsApp según el flujo oficial de Realty ONE Group
@@ -376,7 +534,19 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       `_(Puedes contarme si buscas casa, departamento, terreno, alquiler o anticrético, y te paso opciones disponibles)_`;
   }
 
-  // 2. DETECCIÓN PRIORITARIA DE CAMPAÑAS PUBLICITARIAS (Facebook Ads / Click-to-WhatsApp)
+  // 2. DETECCIÓN PRIORITARIA DE ANUNCIOS DE FACEBOOK (Click-to-WhatsApp / CTWA)
+  const isFacebookAd = Boolean(
+    referralData?.source?.includes('Facebook') ||
+    referralData?.body ||
+    referralData?.headline ||
+    referralData?.source_url ||
+    rawMsg.includes('fb.me') ||
+    rawMsg.includes('OPORTUNIDAD') ||
+    (rawMsg.includes('Quiero más información') && referralData) ||
+    lowerMsg.includes('vi la publicidad') ||
+    lowerMsg.includes('vi el anuncio')
+  );
+
   const matchedCamp = campaignService.matchCampaign(userId, userMessage, referralData);
   if (matchedCamp) {
     session.lastCampaign = matchedCamp;
@@ -410,6 +580,16 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     history.push({ role: 'user', text: rawMsg });
     history.push({ role: 'model', text: localResp });
     return localResp;
+  }
+
+  // 2b. ANUNCIOS DE FACEBOOK GENÉRICOS (Cualquier publicación de Facebook actual o futura)
+  if (isFacebookAd || session.state === 'AD_QUALIFYING' || session.state === 'WAITING_VISIT_TIME' || session.state === 'AD_DISCUSSED') {
+    const genericAdResp = handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, session, nomSaludo, history);
+    if (genericAdResp) {
+      history.push({ role: 'user', text: rawMsg });
+      history.push({ role: 'model', text: genericAdResp });
+      return genericAdResp;
+    }
   }
 
   // 3. DETECCIÓN DE DATOS DE CONTACTO / AGENDAMIENTO DE VISITA (LEADS ORGÁNICOS Y WEB)

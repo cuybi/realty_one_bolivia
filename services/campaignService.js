@@ -143,10 +143,16 @@ function matchCampaign(userId, userMessage = '', referralData = null) {
     }
   }
 
-  // Si encontramos coincidencia clara en el mensaje o referral (mínimo 15 puntos)
-  if (bestMatch && highestScore >= 15) {
+  // Si encontramos coincidencia clara en el mensaje o referral (mínimo 30 puntos para evitar falsos positivos)
+  if (bestMatch && highestScore >= 30) {
     userActiveCampaignSession.set(userId, bestMatch.id);
     return bestMatch;
+  }
+
+  // Si es un nuevo clic de anuncio de Facebook (referralData o fb.me), limpiar sesión previa para no reciclar campañas antiguas
+  if (referralData || userMessage.includes('fb.me') || userMessage.includes('OPORTUNIDAD')) {
+    userActiveCampaignSession.delete(userId);
+    return null; // Permitir que aiAgent maneje el anuncio con la respuesta genérica consultiva
   }
 
   // Si es saludo general del botón azul, borrar sesión anterior y devolver null para bienvenida general
@@ -155,8 +161,8 @@ function matchCampaign(userId, userMessage = '', referralData = null) {
     return null;
   }
 
-  // 2. Si no hay coincidencia nueva en el texto pero está en conversación activa de esa campaña
-  if (userActiveCampaignSession.has(userId)) {
+  // 2. Si no hay coincidencia nueva en el texto pero está en conversación activa de esa campaña (solo para seguimiento orgánico)
+  if (userActiveCampaignSession.has(userId) && !referralData) {
     const isExit = /^(menu principal|ver todo el catalogo|otra zona completamente distinta|chau|cancelar|menu|inicio)$/i.test(normalizedMsg.trim()) ||
       isOwnerListing || (isOrganicInquiry && isRentalOrAnticretico);
     if (!isExit) {
