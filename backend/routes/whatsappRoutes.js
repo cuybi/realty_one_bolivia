@@ -83,8 +83,19 @@ router.post('/webhook', async (req, res) => {
             console.log(`[WhatsApp Inbound] De: ${senderPhone} | Mensaje: "${incomingText}"`);
 
             const referralData = message.referral || null;
+
+            // Mensaje de espera activo antes de consultar a Gemini
+            if (process.env.GEMINI_API_KEY) {
+              try {
+                await whatsappService.sendTextMessage(senderPhone, '⏳ Un momento, estoy buscando la mejor opción para ti...');
+              } catch (_) { /* silencioso */ }
+            }
+
             const botReply = await aiAgent.processUserMessage(senderPhone, incomingText, referralData);
-            await whatsappService.sendTextMessage(senderPhone, botReply);
+            if (botReply && botReply.trim()) {
+              await whatsappService.sendTextMessage(senderPhone, botReply);
+            }
+
           }
         }
       }
