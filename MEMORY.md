@@ -1,9 +1,9 @@
-> **Última Actualización:** 04 de Septiembre, 2026  
+> **Última Actualización:** 09 de Octubre, 2026  
 > **Plataforma:** Realty ONE Group Bolivia - Portal Web Inmobiliario, Chatbot IA & CRM de e-Realtors  
 > **Enfoque de Mercado:** Santa Cruz de la Sierra, Urubó, Equipetrol, Sirari, Las Palmas, Zona Norte, Parque Industrial G77 (Bolivia)  
 > **Identidad de Marca:** Estética Gold & Black Luxury (Dorado #D4AF37 y Fondo Oscuro #0d0d0d)  
 > **Integración Facebook Ads:** Campañas Click-to-WhatsApp activas de *Terreno Industrial G77 (7.000 m²)* y *Lote Condominio Mar Adentro (450 m²)*.
-> **Motor de IA Conversacional:** Google Gemini 2.0 Flash Lite (`aiAgent.js`).
+> **Motor de IA Conversacional:** Arquitectura Híbrida (`aiAgent.js`): Flujo de Campañas CTWA + Asistente Virtual de Atención al Cliente (5 Estados / 6 Reglas).
 
 ---
 
@@ -360,3 +360,35 @@ Se implementó una aplicación web interactiva en **Streamlit** (`http://localho
   - `backend/test_campaign_accuracy.js` (6/6 pasos OK)
   - `backend/test_campaign_bot.js`
   - `backend/test_bot.js`
+
+---
+
+## 15. Arquitectura Híbrida Inteligente, Baileys Cloud & Acceso en Línea (09 de Octubre, 2026)
+
+### 15.1. Máquina de Estados de Atención al Cliente (5 Estados / 6 Reglas)
+Implementada en `aiAgent.js` (`backend/` y `services/`):
+- **Cero menús ni viñetas:** Conversación humana, fluida y abierta.
+- **Enrutamiento Inteligente:** Separación automática entre prospectos de anuncios de Facebook (ficha técnica inmediata) y usuarios orgánicos (atención al cliente).
+- **Flujo Estricto:**
+  1. *ESTADO 1 (Saludo):* Saludo cordial con nombre del cliente preguntando en qué puede ayudar.
+  2. *ESTADO 2 (Captura de Datos):* Solicitud amable de teléfono, correo y ciudad para asignar a un asesor especializado. Validación amigable si faltan datos; explicación y alternativa telefónica si se rehúsa.
+  3. *ESTADO 3 (Agendamiento):* Pregunta sobre agendar visita con validación estricta de día, fecha y hora.
+  4. *ESTADO 4 (Recordatorio):* Ofrecimiento condicional de recordatorio 24 horas antes de la cita.
+  5. *ESTADO 5 (Despedida Oficial):* Despedida personalizada con la frase obligatoria: *"Cualquier duda o inquietud no dude en llamar."*
+- **Validación 100%:** Suite `backend/test_customer_service_flow.js` con 5/5 escenarios pasando con código de salida 0.
+
+### 15.2. Conexión Estable de WhatsApp Baileys (+591 60937050)
+- **Eliminación del Bucle 401 Disconnected:** Corrección del alcance de `localAuthFolder` y purga completa de colecciones MongoDB Atlas en eventos de desconexión.
+- **Persistencia en la Nube:** Conector Baileys activo y respondiendo mensajes en tiempo real.
+- **Sincronización no Bloqueante con SiteGround:** Notificación en segundo plano hacia `save_leads_sync.php` con credencial `ONE2026`.
+
+### 15.3. Dashboard "Ingreso Leads" y Acceso Multidispositivo en Tiempo Real
+- **URL Pública en Línea:** Acceso disponible desde cualquier PC, tablet o celular en la red o fuera de ella:
+  ```text
+  https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026
+  ```
+- **Solución al Problema "No actualiza":**
+  1. Autenticación `key=ONE2026` inyectada en todas las peticiones de polling cross-origin (`/api/whatsapp/leads` y `save_leads_sync.php`).
+  2. Ordenamiento reactivo por `ultima_actividad` o `fecha_creacion` más reciente en cada intervalo de 2.5s.
+  3. Respaldo directo a SiteGround si la API primaria tuviera interrupciones.
+  4. Carga verificada de **23 prospectos** en vivo, con actividad reciente (`Marcos`, 17:17, Visita Agendada) encabezando la lista.
