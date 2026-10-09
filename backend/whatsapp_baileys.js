@@ -223,6 +223,7 @@ async function startWhatsAppClient() {
 
     // Auth state: MongoDB en producción (Render), disco local en desarrollo
     let state, saveCreds;
+    const localAuthFolder = path.join(__dirname, 'baileys_auth');
     const mongoUri = process.env.MONGODB_URI;
     if (mongoUri) {
       if (!mongoClientSingleton) {
@@ -237,8 +238,7 @@ async function startWhatsAppClient() {
       ({ state, saveCreds } = await useMongoAuthState(col));
     } else {
       // ponytail: fallback local para desarrollo sin MongoDB
-      const authFolder = path.join(__dirname, 'baileys_auth');
-      ({ state, saveCreds } = await useMultiFileAuthState(authFolder));
+      ({ state, saveCreds } = await useMultiFileAuthState(localAuthFolder));
       console.log('⚠️  Auth state: disco local (set MONGODB_URI para persistencia en Render)');
     }
 
@@ -281,8 +281,14 @@ async function startWhatsAppClient() {
           console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
           reconnectAttempts = 0;
           try {
-            if (!mongoUri && fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
-          } catch (e) {}
+            if (fs.existsSync(localAuthFolder)) fs.rmSync(localAuthFolder, { recursive: true, force: true });
+            if (mongoClientSingleton) {
+              await mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+              console.log('✅ Credenciales eliminadas de MongoDB Atlas.');
+            }
+          } catch (e) {
+            console.error('⚠️ Error limpiando credenciales:', e.message);
+          }
           setTimeout(() => startWhatsAppClient(), 1500);
         } else {
           // ponytail: backoff exponencial — 2s, 4s, 8s, 16s... max 60s

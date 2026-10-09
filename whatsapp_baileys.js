@@ -22,7 +22,7 @@ const { MongoClient } = require('mongodb');
 const { useMongoAuthState } = require('./services/mongoAuthState');
 
 // Cargar variables de entorno
-const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, 'backend', '.env');
+const envPath = path.join(__dirname, '.env');
 if (fs.existsSync(envPath)) {
   fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
     const trimmed = line.trim();
@@ -38,13 +38,11 @@ if (fs.existsSync(envPath)) {
 const aiAgent = require('./services/aiAgent');
 const campaignService = require('./services/campaignService');
 const whatsappRoutes = require('./routes/whatsappRoutes');
-const marketingRoutes = require('./routes/marketingRoutes');
-const marketingHub = require('./services/marketingHub');
 
 // Sincronización de logos corporativos de alta definición (portable)
 function syncBrandLogos() {
   try {
-    const assetsDir = path.join(__dirname, 'assets');
+    const assetsDir = path.join(__dirname, '..', 'assets');
     if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
   } catch (e) {}
 }
@@ -82,6 +80,9 @@ function requireQRAuth(req, res, next) {
   return res.status(401).send('Credenciales incorrectas.');
 }
 
+const marketingRoutes = require('./routes/marketingRoutes');
+const marketingHub = require('./services/marketingHub');
+
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
 app.use(cors());
@@ -91,16 +92,16 @@ app.use('/api/marketing', marketingRoutes);
 
 // Servir qr_connect.html en la raíz para acceso instantáneo
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'qr_connect.html'));
+  res.sendFile(path.join(__dirname, '..', 'qr_connect.html'));
 });
 
-// Proteger vistas administrativas (QR y CRM Leads) con autenticación
+// Proteger vistas administrativas (QR y CRM Leads) con autenticacion
 app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
   const file = req.path.replace(/^\//, '');
-  res.sendFile(path.join(__dirname, file));
+  res.sendFile(path.join(__dirname, '..', file));
 });
 
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, '..')));
 
 app.get('/api/ping', (req, res) => res.send('pong'));
 app.get('/api/health', (req, res) => {
@@ -218,75 +219,37 @@ async function startWhatsAppClient() {
       return;
     }
 
-    const {
-      default: makeWASocket,
-      DisconnectReason,
-      useMultiFileAuthState,
-      fetchLatestBaileysVersion
-    } = baileys;
+    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
 
-    const pino = require('pino');
-    const QRCode = require('qrcode');
-
-    console.log('⏳ Iniciando conector oficial de WhatsApp Web Multi-Device...');
-
+    // Auth state: MongoDB en producción (Render), disco local en desarrollo
     let state, saveCreds;
-    let mongoLoaded = false;
-
-    // Persistencia en MongoDB Atlas si está configurado
-    if (process.env.MONGODB_URI) {
-      try {
-        if (!mongoClientSingleton) {
-          mongoClientSingleton = new MongoClient(process.env.MONGODB_URI, {
-            serverSelectionTimeoutMS: 8000,
-            socketTimeoutMS: 45000,
-            tls: true,
-            tlsAllowInvalidCertificates: true
-          });
-          await mongoClientSingleton.connect();
-          console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
-        }
-        const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-        ({ state, saveCreds } = await useMongoAuthState(col));
-        mongoLoaded = true;
-      } catch (mErr) {
-        console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando disco local:', mErr.message);
-        mongoClientSingleton = null;
+    const localAuthFolder = path.join(__dirname, 'baileys_auth');
+    const mongoUri = process.env.MONGODB_URI;
+    if (mongoUri) {
+      if (!mongoClientSingleton) {
+        mongoClientSingleton = new MongoClient(mongoUri, {
+          tls: true,
+          tlsAllowInvalidCertificates: true
+        });
+        await mongoClientSingleton.connect();
+        console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
       }
-    }
-
-    if (!mongoLoaded) {
-      const authFolder = path.join(__dirname, 'baileys_auth');
-      if (!fs.existsSync(authFolder)) fs.mkdirSync(authFolder, { recursive: true });
-      ({ state, saveCreds } = await useMultiFileAuthState(authFolder));
-      console.log('📁 Usando almacenamiento en disco para credenciales Baileys');
-    }
-
-    // Obtener versión más reciente de WhatsApp Web
-    let version;
-    try {
-      const versionInfo = await fetchLatestBaileysVersion();
-      version = versionInfo.version;
-      console.log(`🌐 Usando versión de WhatsApp Web: v${version.join('.')}`);
-    } catch (e) {
-      version = [2, 3000, 1015901307];
+      const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+      ({ state, saveCreds } = await useMongoAuthState(col));
+    } else {
+      // ponytail: fallback local para desarrollo sin MongoDB
+      ({ state, saveCreds } = await useMultiFileAuthState(localAuthFolder));
+      console.log('⚠️  Auth state: disco local (set MONGODB_URI para persistencia en Render)');
     }
 
     const sock = makeWASocket({
-      version,
       auth: state,
       printQRInTerminal: true,
-      logger: pino({ level: 'silent' }),
-      browser: ['Realty ONE Group Bolivia', 'Chrome', '122.0.0.0'],
-      syncFullHistory: false,
-      generateHighQualityLinkPreview: true,
-      defaultQueryTimeoutMs: 60000,
+      browser: ['Realty ONE Bot', 'Chrome', '1.0.0'],
+      // ponytail: timeouts generosos para conexiones lentas en Render Free
       connectTimeoutMs: 60000,
-      keepAliveIntervalMs: 25000,
-      emitOwnEvents: false,
-      markOnlineOnConnect: true
+      keepAliveIntervalMs: 25000
     });
-
     activeSock = sock;
 
     sock.ev.on('creds.update', saveCreds);
@@ -295,19 +258,20 @@ async function startWhatsAppClient() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        connectionStatus = 'esperando_qr';
         try {
-          currentQR = await QRCode.toDataURL(qr);
-        } catch (err) {
+          const QRCodePkg = require('qrcode');
+          currentQR = await QRCodePkg.toDataURL(qr, { margin: 2, scale: 8 });
+        } catch (e) {
           currentQR = qr;
         }
-        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO!');
-        console.log('👉 Escanéalo en: http://localhost:3000/qr_connect.html\n');
+        connectionStatus = 'esperando_qr';
+        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en tu terminal o en http://localhost:3000/qr_connect.html\n');
       }
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
+        console.log('🔌 Conexión cerrada. Código:', statusCode || 'desconocido');
         connectionStatus = 'desconectado';
         currentQR = null;
         activeSock = null;
@@ -315,14 +279,22 @@ async function startWhatsAppClient() {
         if (isLoggedOut) {
           console.log('⚠️ Sesión de WhatsApp expirada o desvinculada en el teléfono.');
           console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
-          const authFolder = path.join(__dirname, 'baileys_auth');
-          if (fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
-          setTimeout(() => startWhatsAppClient(), 2000);
+          reconnectAttempts = 0;
+          try {
+            if (fs.existsSync(localAuthFolder)) fs.rmSync(localAuthFolder, { recursive: true, force: true });
+            if (mongoClientSingleton) {
+              await mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+              console.log('✅ Credenciales eliminadas de MongoDB Atlas.');
+            }
+          } catch (e) {
+            console.error('⚠️ Error limpiando credenciales:', e.message);
+          }
+          setTimeout(() => startWhatsAppClient(), 1500);
         } else {
-          // ponytail: exponential backoff para no saturar CPU en caídas
-          const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 30000);
+          // ponytail: backoff exponencial — 2s, 4s, 8s, 16s... max 60s
+          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
           reconnectAttempts++;
-          console.log(`🔌 Conexión cerrada (código: ${statusCode}). Reconectando en ${Math.round(delay / 1000)}s (intento #${reconnectAttempts})...`);
+          console.log(`🔄 Reconectando en ${delay / 1000}s (intento #${reconnectAttempts})...`);
           setTimeout(() => startWhatsAppClient(), delay);
         }
       } else if (connection === 'open') {
@@ -344,7 +316,10 @@ async function startWhatsAppClient() {
 
     // MODO PRODUCCIÓN: Responde automáticamente a todos los mensajes de clientes entrantes
     const TEST_MODE = false;
-    const NUMEROS_PRUEBA = [];
+    const NUMEROS_PRUEBA = [
+      // Vacío = bot en pausa. Agrega tu número de prueba aquí si tienes un segundo celular.
+      // Ejemplo: '59176543210',
+    ];
 
     // Escuchar mensajes entrantes en WhatsApp
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -466,13 +441,18 @@ async function startWhatsAppClient() {
 
         if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
           if (botReply.includes('Departamento') || normMsg.includes('departamento') || normMsg.includes('dpto')) {
-            const p = path.join(__dirname, 'assets', 'images', 'apartamento.png');
+            const p = path.join(__dirname, '..', 'assets', 'images', 'apartamento.png');
             if (fs.existsSync(p)) photoPath = p;
           } else if (botReply.includes('Mar Adentro') || normMsg.includes('mar adentro') || normMsg.includes('laguna')) {
-            const p = path.join(__dirname, 'assets', 'images', 'mar_adentro.jpg');
-            if (fs.existsSync(p)) photoPath = p;
+            const p1 = path.join(__dirname, '..', 'assets', 'images', 'mar_adentro.jpg');
+            const p2 = 'C:\\Users\\etechadmin\\.gemini\\antigravity-ide\\brain\\fea89e8d-eed8-4640-b4be-b2a07760e3fd\\mar_adentro_real_1788202039370.jpg';
+            if (fs.existsSync(p1)) {
+              photoPath = p1;
+            } else if (fs.existsSync(p2)) {
+              photoPath = p2;
+            }
           } else if (botReply.includes('Industrial') || normMsg.includes('industrial') || normMsg.includes('g77')) {
-            const p = path.join(__dirname, 'assets', 'images', 'terreno.png');
+            const p = path.join(__dirname, '..', 'assets', 'images', 'terreno.png');
             if (fs.existsSync(p)) photoPath = p;
           }
         }
