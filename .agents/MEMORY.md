@@ -129,5 +129,13 @@ El motor de IA conversacional (`backend/services/aiAgent.js` y `services/aiAgent
 2. **Canal Orgánico / General (Atención al Cliente):** Ejecuta la máquina de 5 estados y 6 reglas (`ESTADO_1_GREETING` a `ESTADO_5_FAREWELL`), validando teléfono, correo y ciudad, agendamiento de visita con formato estricto y despedida obligatoria (*"Cualquier duda o inquietud no dude en llamar."*).
 3. **Suites de Prueba Validadas al 100%:** `test_customer_service_flow.js` (5/5), `test_campaign_accuracy.js` (8/8), `test_user_screenshots.js` (11/11), `test_campaign_bot.js`, `test_lead_classifier.js` (5/5) y `test_bot.js` (8/8).
 
+## 9. Ciclo de Autenticación Baileys y Persistencia MongoDB
+- **Problema de Sesión Invalida (401 Disconnect):** Si una sesión es desvinculada en el dispositivo móvil, Baileys reporta código 401. Si los registros `_id: 'creds'` o `keys` en MongoDB Atlas no se eliminan atómicamente, Baileys reintentará reconectar con credenciales caducadas sin emitir un nuevo QR ni permitir código de vinculación.
+- **Protocolo de Reseteo Limpio:**
+  1. En `whatsapp_baileys.js`, al detectar `isLoggedOut`, invocar `mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({})` y borrar la carpeta local `baileys_auth`.
+  2. Generar el código de emparejamiento llamando al endpoint `POST /api/whatsapp/pairing-code` con el número internacional (ej: `59160937050`).
+  3. El código generado de 8 dígitos (ej: `G7FY-8D1S`) se introduce en WhatsApp en el teléfono: *Ajustes > Dispositivos vinculados > Vincular con el número de teléfono*.
+
+
 
 

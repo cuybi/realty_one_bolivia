@@ -180,3 +180,14 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
 - `test_bot.js`: 8/8 casos completados satisfactoriamente.
 - Archivos sincronizados en espejo: `backend/services/aiAgent.js` y `services/aiAgent.js`.
 
+### 5.4. Depuración y Conexión en Vivo de WhatsApp Baileys
+- **Diagnóstico del Bucle 401 Disconnected:** Al invalidar una sesión previa desde el teléfono, WhatsApp Web emitía código 401. El conector fallaba en limpiar la colección `baileys_auth` en MongoDB Atlas debido a un error de ámbito con la variable `authFolder` dentro del bloque `connection.close`. Esto hacía que Baileys intentara reconectar indefinidamente con credenciales expiradas sin generar un nuevo QR ni permitir emparejamiento.
+- **Solución Implementada:**
+  - Se redefinió `localAuthFolder` a nivel de función y se garantizó la ejecución de `collection('baileys_auth').deleteMany({})` tanto en `isLoggedOut` como en el endpoint `/api/whatsapp/desconectar`.
+  - Se limpiaron las credenciales obsoletas de MongoDB Atlas y disco local.
+  - Sincronizado en `backend/whatsapp_baileys.js` y `whatsapp_baileys.js` y desplegado en Git (commit `fb66e27`).
+- **Estado Actual del Conector:**
+  - Servidor local activo en `http://localhost:3000` con visualizador en `/qr_connect.html`.
+  - Código de emparejamiento de 8 dígitos generado para **+591 60937050**: **`G7FY-8D1S`**.
+
+
