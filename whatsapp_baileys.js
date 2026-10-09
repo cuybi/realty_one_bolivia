@@ -398,8 +398,13 @@ async function startWhatsAppClient() {
 
         console.log(`\n📩 [Mensaje entrante (${senderPhone}${pushName ? ` - ${pushName}` : ''})]: "${messageText}"`);
 
-        // Preparar referralData si viene desde un anuncio de Facebook
-        const referralData = {
+        // Preparar referralData solo si viene desde un anuncio real de Facebook con contenido
+        const hasAdContent = Boolean(
+          externalAdReply?.title ||
+          externalAdReply?.body ||
+          externalAdReply?.sourceUrl
+        );
+        const referralData = hasAdContent ? {
           headline: externalAdReply?.title || '',
           body: externalAdReply?.body || '',
           source_url: externalAdReply?.sourceUrl || '',
@@ -407,7 +412,7 @@ async function startWhatsAppClient() {
           description: externalAdReply?.description || '',
           fullContext: adContext,
           pushName: pushName
-        };
+        } : null;
 
         // Marcar como leído — el cliente ve el doble check azul inmediatamente
         try {
@@ -421,7 +426,7 @@ async function startWhatsAppClient() {
         } catch (_) { /* no crítico si falla */ }
 
         // Procesar respuesta con el cerebro del nuevo flujo oficial
-        const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+        const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData, pushName);
 
         // Detener indicador de escritura antes de enviar la respuesta
         try {

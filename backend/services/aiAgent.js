@@ -324,9 +324,7 @@ function handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, s
 
   return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁\n\n` +
     `Con gusto te comparto información y la ficha técnica sobre *${adTopic}* ✨${precioTxt}\n\n` +
-    `Para conectarte con el e-Realtor especialista y brindarte la mejor asesoría, cuéntame:\n\n` +
-    `1. 🎯 *¿Buscas esta opción para uso propio / familiar o como inversión?*\n` +
-    `2. 📅 *¿Te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que te enviemos la carpeta técnica y planos?* 🤝`;
+    `Para que un asesor especializado te comparta todos los detalles y planos, cuéntame si buscas esta opción para inversión o vivienda propia, o si prefieres agendar una visita presencial. 🤝`;
 }
 
 // ---- Helpers de Catálogo y Gemini ----
@@ -483,14 +481,26 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     lowerMsg.includes('terreno industrial')
   );
 
-  const isFacebookAd = Boolean(
-    referralData?.source?.includes('Facebook') ||
+  const hasNewAdReferral = Boolean(
     referralData?.body ||
     referralData?.headline ||
-    referralData?.source_url ||
-    (rawMsg.includes('Quiero más información') && referralData) ||
+    referralData?.source_url
+  );
+
+  const isFacebookAd = Boolean(
+    hasNewAdReferral ||
+    (rawMsg.includes('Quiero más información') && hasNewAdReferral) ||
     hasAdKeywords
   );
+
+  // Reiniciar sesión previa de anuncio si el cliente saluda o pide un agente/atención general
+  const isOrganicStart = /^(hola|buen[ao]s|saludos|inicio|comenzar|empezar|hi|hello|un agente|asesor|agente)\b/i.test(lowerMsg);
+  if (isOrganicStart && !hasNewAdReferral) {
+    userFlowSessions.delete(userId);
+    if (customerServiceSessions.has(userId) && customerServiceSessions.get(userId).state === 'ESTADO_5_FAREWELL') {
+      customerServiceSessions.delete(userId);
+    }
+  }
 
   const isInCustomerService = customerServiceSessions.has(userId) &&
     customerServiceSessions.get(userId).state !== 'ESTADO_1_GREETING';
@@ -500,7 +510,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     : null;
 
   // Si entra un nuevo anuncio explícito (referralData con body o headline), actualizar/limpiar la campaña previa
-  const hasNewAdReferral = Boolean(referralData?.body || referralData?.headline || referralData?.source_url);
   if (hasNewAdReferral && userFlowSessions.has(userId)) {
     const s = userFlowSessions.get(userId);
     s.lastCampaign = matchedCamp || null;
@@ -511,7 +520,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   const activeCampaign = matchedCamp || (isAlreadyInAdSession ? userFlowSessions.get(userId)?.lastCampaign : null);
 
   // A. FLUJO DE ANUNCIOS Y PUBLICACIONES DE FACEBOOK ADS
-  if ((activeCampaign || isFacebookAd || isAlreadyInAdSession) && !isInCustomerService) {
+  if ((activeCampaign || isFacebookAd || isAlreadyInAdSession) && !isInCustomerService && !isOrganicStart) {
     if (activeCampaign) {
       const session = userFlowSessions.get(userId) || { state: 'AD_CAMPAIGN_ACTIVE' };
       session.state = 'AD_CAMPAIGN_ACTIVE';
@@ -576,31 +585,46 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // 4. MÁQUINA DE ESTADOS: ASISTENTE VIRTUAL DE ATENCIÓN AL CLIENTE (CANAL ORGÁNICO / GENERAL)
   const csSession = getCustomerServiceSession(userId, pushName);
-  const nameFarewell = csSession.clientName ? `, ${csSession.clientName}` : '';
+  const nameFarewell = csSession.clientName ? ` ${csSession.clientName}` : '';
 
   // ESTADO 1: Saludo Inicial
   if (csSession.state === 'ESTADO_1_GREETING') {
     csSession.state = 'ESTADO_2_DATA';
     return csSession.clientName
-      ? `Hola ${csSession.clientName}. ¿En qué puedo ayudarte?`
-      : 'Hola. ¿En qué puedo ayudarte?';
+      ? `¡Hola ${csSession.clientName}! 👋 Soy tu asistente virtual de *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy? 😊`
+      : '¡Hola! 👋 Soy tu asistente virtual de *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy? 😊';
   }
 
-  // ESTADO 2: Solicitud de Datos Específicos
+  // ESTADO 2: Respuesta a consulta del cliente + Solicitud de Datos Principales
   if (csSession.state === 'ESTADO_2_DATA') {
     if (!csSession.dataRequested) {
       csSession.dataRequested = true;
-      return 'Para que un agente especializado se contacte contigo, por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
+
+      // Respuestas abiertas y orientativas sin listas
+      let tailoredIntro = '';
+      if (lowerMsg.includes('agente') || lowerMsg.includes('asesor') || lowerMsg.includes('humano') || lowerMsg.includes('persona')) {
+        tailoredIntro = '¡Con mucho gusto! 🤝 ';
+      } else if (lowerMsg.includes('departamento') || lowerMsg.includes('dpto') || lowerMsg.includes('casa') || lowerMsg.includes('condominio')) {
+        tailoredIntro = '¡Excelente opción residencial! 🏢✨ ';
+      } else if (lowerMsg.includes('terreno') || lowerMsg.includes('lote') || lowerMsg.includes('industrial') || lowerMsg.includes('g77')) {
+        tailoredIntro = '¡Excelente oportunidad de inversión y plusvalía! 🌿📐 ';
+      } else if (lowerMsg.includes('alquiler') || lowerMsg.includes('alquilar') || lowerMsg.includes('anticretico') || lowerMsg.includes('anticrético')) {
+        tailoredIntro = '¡Con gusto te asesoramos con las mejores opciones y respaldo legal en Bolivia! 🔑📑 ';
+      } else if (lowerMsg.includes('vender') || lowerMsg.includes('consignar') || lowerMsg.includes('propietario')) {
+        tailoredIntro = '¡Excelente decisión! Te ayudamos a promocionar tu propiedad con la red de Realty ONE. 💼🌟 ';
+      }
+
+      return `${tailoredIntro}Para que un agente especializado se contacte contigo, por favor compárteme tu número de teléfono, correo electrónico y ciudad. 📲`;
     }
 
     // Regla 4: Manejo de objeciones / negativa
     if (isRefusal(rawMsg)) {
       if (csSession.refusalCount === 0) {
         csSession.refusalCount = 1;
-        return 'Son indispensables para que un agente pueda atender tu solicitud. Por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
+        return 'Son indispensables para que un agente especializado pueda atender tu solicitud. 🤝 Por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
       } else {
         csSession.state = 'ESTADO_5_FAREWELL';
-        return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar.`;
+        return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar. 📞🤝`;
       }
     }
 
@@ -628,7 +652,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       } else {
         promptFaltantes = missing[0];
       }
-      return `Por favor compárteme amablemente ${promptFaltantes} antes de continuar.`;
+      return `Por favor compárteme amablemente ${promptFaltantes} antes de continuar. 😊`;
     }
 
     // Todos los datos están completos -> Avanzar a Estado 3
@@ -646,19 +670,19 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       }).catch(() => {});
     } catch (_) {}
 
-    return 'Si tienes clara tu decisión, ¿quieres agendar una visita? (Por favor indícame día, fecha y hora, por ejemplo: Lunes 15 de marzo a las 10:00 AM).';
+    return 'Si tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora, por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🤝';
   }
 
   // ESTADO 3: Agendamiento
   if (csSession.state === 'ESTADO_3_SCHEDULING') {
     if (isNegativeScheduling(rawMsg)) {
       csSession.state = 'ESTADO_5_FAREWELL';
-      return `Muchas gracias por tu tiempo${nameFarewell}. Cualquier duda o inquietud no dude en llamar.`;
+      return `¡Muchas gracias por comunicarte con nosotros${nameFarewell}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
     }
 
     const isValidDate = validateSchedulingDate(rawMsg);
     if (!isValidDate) {
-      return 'Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM).';
+      return 'Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️';
     }
 
     csSession.scheduledVisit = rawMsg;
@@ -674,19 +698,19 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       }).catch(() => {});
     } catch (_) {}
 
-    return 'Muchas gracias por tu agendamiento. ¿Quieres que te recuerde un día antes de tu visita?';
+    return '¡Muchas gracias por tu agendamiento! 📅✨ ¿Quieres que te recuerde un día antes de tu visita? 🔔';
   }
 
   // ESTADO 4: Recordatorio (Condicional)
   if (csSession.state === 'ESTADO_4_REMINDER') {
     csSession.reminderChoice = rawMsg;
     csSession.state = 'ESTADO_5_FAREWELL';
-    return `Muchas gracias por tu tiempo${nameFarewell}. Cualquier duda o inquietud no dude en llamar.`;
+    return `¡Muchas gracias por tu tiempo${nameFarewell}! 🦁 Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
   }
 
   // ESTADO 5: Despedida
   if (csSession.state === 'ESTADO_5_FAREWELL') {
-    return `¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar.`;
+    return `¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar. 📞🤝`;
   }
 
   return null;
