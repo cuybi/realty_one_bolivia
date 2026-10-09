@@ -295,13 +295,12 @@ async function startWhatsAppClient() {
             global.mongoClientSingleton = null;
           }
         }
+
         if (!global.mongoClientSingleton) {
           global.mongoClientSingleton = new MongoClient(mongoUri, {
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
-            maxIdleTimeMS: 30000, // reconectar antes de que Atlas cierre la conexión idle
-            tls: true,
-            tlsAllowInvalidCertificates: true
+            maxIdleTimeMS: 30000 // reconectar antes de que Atlas cierre la conexión idle
           });
           await global.mongoClientSingleton.connect();
           console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');

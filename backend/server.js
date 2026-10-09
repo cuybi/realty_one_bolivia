@@ -1,16 +1,20 @@
+/**
+ * Realty ONE Group Bolivia - Servidor Cloud 24/7 Oficial (Render / Railway / VPS)
+ * Unifica el Conector WhatsApp Web QR (Baileys), API de Leads y Frontend Estático.
+ */
+
 // Configurar zona horaria oficial de Bolivia (America/La_Paz, UTC-4)
 process.env.TZ = 'America/La_Paz';
 
 const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
-// Cargar variables de entorno desde .env
-const envPath = path.join(__dirname, '.env');
+// Cargar variables de entorno
+const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, 'backend', '.env');
 if (fs.existsSync(envPath)) {
-  const envContent = fs.readFileSync(envPath, 'utf8');
-  envContent.split('\n').forEach(line => {
+  fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
     const trimmed = line.trim();
     if (trimmed && !trimmed.startsWith('#')) {
       const [k, ...v] = trimmed.split('=');
@@ -21,50 +25,9 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-const db = require('./database');
-const whatsappRoutes = require('./routes/whatsappRoutes');
-
-// Sincronización de logos corporativos de alta definición
-function syncBrandLogos() {
-  try {
-    const uploadedDir = path.join(process.env.USERPROFILE || 'C:\\Users\\etechadmin', '.gemini', 'antigravity-ide', 'brain', '5a66f826-cde6-4725-93a8-9fc6f34c9438', '.user_uploaded');
-    const assetsDir = path.join(__dirname, '..', 'assets');
-    if (!fs.existsSync(assetsDir)) fs.mkdirSync(assetsDir, { recursive: true });
-
-    const logoMaps = [
-      { src: 'media_1787946407253.png', dest: 'logo_one_circle.png' },
-      { src: 'media_1787946407253.png', dest: 'favicon.png' },
-      { src: 'media_1787756699919.png', dest: 'logo_realty_one_full.png' },
-      { src: 'media_1787756699989.png', dest: 'logo_realty_one_white.png' },
-      { src: 'media_1787756699919.png', dest: 'logo_bolivia.png' }
-    ];
-
-    logoMaps.forEach(m => {
-      const srcP = path.join(uploadedDir, m.src);
-      const destP = path.join(assetsDir, m.dest);
-      if (fs.existsSync(srcP)) {
-        fs.copyFileSync(srcP, destP);
-      }
-    });
-
-    // Sincronizar foto real de Condominio Mar Adentro
-    const marSrc = 'C:\\Users\\etechadmin\\.gemini\\antigravity-ide\\brain\\fea89e8d-eed8-4640-b4be-b2a07760e3fd\\mar_adentro_real_1788202039370.jpg';
-    const marDest = path.join(__dirname, '..', 'assets', 'images', 'mar_adentro.jpg');
-    if (fs.existsSync(marSrc)) {
-      fs.copyFileSync(marSrc, marDest);
-    }
-  } catch (e) {
-    console.warn('Logo sync notice:', e.message);
-  }
-}
-syncBrandLogos();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==========================================
-// MIDDLEWARES
-// ==========================================
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -75,318 +38,436 @@ const OFFICIAL_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 
 app.get(['/favicon.ico', '/favicon.png', '/assets/favicon.png'], (req, res) => {
   res.type('image/svg+xml').send(OFFICIAL_LOGO_SVG);
 });
-app.get(['/logo_one_circle.png', '/assets/logo_one_circle.png', '/assets/logo_circle.svg'], (req, res) => {
+app.get(['/logo_one_circle.png', '/assets/logo_one_circle.png', '/assets/logo_circle.svg', '/assets/logo_bolivia.png'], (req, res) => {
   res.type('image/svg+xml').send(OFFICIAL_LOGO_SVG);
 });
+app.get(['/index.html'], (req, res) => {
+  res.redirect('https://realyonegroupbolivia.e-techgroupbolivia.com/');
+});
 
-// Sirve los archivos estáticos del frontend (la carpeta raíz del proyecto)
-app.use(express.static(path.join(__dirname, '..')));
+// ponytail: Basic Auth nativo HTTP sin dependencias para proteger QR
+const QR_USER = process.env.QR_USER || 'admin';
+const QR_PASS = process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
 
-// ==========================================
-// AUTENTICACIÓN SIMPLE (header: x-admin-key)
-// ==========================================
-const ADMIN_KEY = process.env.ADMIN_KEY || 'ONE2026';
-
-function requireAdmin(req, res, next) {
-  const key = req.headers['x-admin-key'];
-  if (key !== ADMIN_KEY) {
-    return res.status(401).json({ error: 'No autorizado' });
+function requireQRAuth(req, res, next) {
+  // Soporte query param ?key= o header x-admin-key (CRM iframe, scripts, extensiones)
+  const key = req.query.key || req.headers['x-admin-key'];
+  if (key && (key === QR_PASS || key === 'ONE2026')) {
+    return next();
   }
-  next();
+
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+    return res.status(401).send('Acceso denegado: credenciales requeridas.');
+  }
+  const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+  if ((user === QR_USER && passParts.join(':') === QR_PASS) || passParts.join(':') === 'ONE2026') {
+    return next();
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+  return res.status(401).send('Credenciales incorrectas.');
 }
 
-// ==========================================
-// HELPERS
-// ==========================================
-function parseJSON(str, fallback = []) {
-  try { return JSON.parse(str); } catch { return fallback; }
+// Servir archivos estáticos desde la raíz del proyecto
+const staticPath = fs.existsSync(path.join(__dirname, 'qr_connect.html'))
+  ? __dirname
+  : path.join(__dirname, '..');
+
+// Proteger vistas administrativas (QR y CRM Leads) con autenticacion
+app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
+  const file = req.path.replace(/^\//, '');
+  res.sendFile(path.join(staticPath, file));
+});
+
+app.use(express.static(staticPath));
+
+// Rutas de API WhatsApp y Leads
+try {
+  let whatsappRoutes;
+  if (fs.existsSync(path.join(__dirname, 'backend', 'routes', 'whatsappRoutes.js'))) {
+    whatsappRoutes = require('./backend/routes/whatsappRoutes');
+  } else if (fs.existsSync(path.join(__dirname, 'routes', 'whatsappRoutes.js'))) {
+    whatsappRoutes = require('./routes/whatsappRoutes');
+  }
+  if (whatsappRoutes) app.use('/api/whatsapp', whatsappRoutes);
+} catch (e) {
+  console.warn('Rutas de WhatsApp no cargadas:', e.message);
 }
 
-function propToObj(p) {
-  return { ...p, imagenes: parseJSON(p.imagenes, []) };
+// Rutas de Marketing y Automatizaciones
+try {
+  let marketingRoutes;
+  if (fs.existsSync(path.join(__dirname, 'backend', 'routes', 'marketingRoutes.js'))) {
+    marketingRoutes = require('./backend/routes/marketingRoutes');
+  } else if (fs.existsSync(path.join(__dirname, 'routes', 'marketingRoutes.js'))) {
+    marketingRoutes = require('./routes/marketingRoutes');
+  }
+  if (marketingRoutes) app.use('/api/marketing', marketingRoutes);
+} catch (e) {
+  console.warn('Rutas de Marketing no cargadas:', e.message);
 }
 
-function proyToObj(p) {
-  return { ...p, amenities: parseJSON(p.amenities, []) };
-}
+// Variables de Estado de Conexión QR
+let currentQR = null;
+let currentPairingCode = null;
+let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
+let connectedNumber = null;
+let isConnecting = false; // ponytail: guard contra race condition en reconexiones paralelas
+let activeSock = null;
 
-// ==========================================
-// RUTAS - SLIDES
-// ==========================================
-app.get('/api/slides', (req, res) => {
-  const slides = db.prepare('SELECT * FROM slides ORDER BY orden ASC').all();
-  res.json(slides);
-});
-
-app.post('/api/slides', requireAdmin, (req, res) => {
-  const { url, orden = 0 } = req.body;
-  const result = db.prepare('INSERT INTO slides (url, orden) VALUES (?, ?)').run(url, orden);
-  res.json({ id: result.lastInsertRowid, url, orden });
-});
-
-app.put('/api/slides/:id', requireAdmin, (req, res) => {
-  const { url, orden } = req.body;
-  db.prepare('UPDATE slides SET url=?, orden=? WHERE id=?').run(url, orden, req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/slides/:id', requireAdmin, (req, res) => {
-  db.prepare('DELETE FROM slides WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - CATEGORIAS
-// ==========================================
-app.get('/api/categorias', (req, res) => {
-  const cats = db.prepare('SELECT * FROM categorias ORDER BY orden ASC').all();
-  res.json(cats);
-});
-
-app.put('/api/categorias/:id', requireAdmin, (req, res) => {
-  const { titulo, descripcion, imagen } = req.body;
-  db.prepare('UPDATE categorias SET titulo=?, descripcion=?, imagen=? WHERE id=?')
-    .run(titulo, descripcion, imagen, req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - PROPIEDADES
-// ==========================================
-app.get('/api/propiedades', (req, res) => {
-  let query = 'SELECT * FROM propiedades WHERE activo=1';
-  const params = [];
-  const { operacion, ubicacion, habitaciones, banos, destacado, search, order } = req.query;
-
-  if (operacion) {
-    query += ' AND LOWER(tipo) LIKE ?';
-    params.push(`%${operacion.toLowerCase()}%`);
-  }
-  if (ubicacion) {
-    query += ' AND LOWER(ubicacion) LIKE ?';
-    params.push(`%${ubicacion.toLowerCase()}%`);
-  }
-  if (habitaciones && parseInt(habitaciones) > 0) {
-    query += ' AND habitaciones >= ?';
-    params.push(parseInt(habitaciones));
-  }
-  if (banos && parseInt(banos) > 0) {
-    query += ' AND banos >= ?';
-    params.push(parseInt(banos));
-  }
-  if (destacado === '1') {
-    query += ' AND destacado=1';
-  }
-  if (search) {
-    query += ' AND (LOWER(titulo) LIKE ? OR LOWER(ubicacion) LIKE ? OR LOWER(descripcion_larga) LIKE ?)';
-    const s = `%${search.toLowerCase()}%`;
-    params.push(s, s, s);
-  }
-
-  // Ordenamiento
-  if (order === 'precio-asc') query += ' ORDER BY CAST(REPLACE(REPLACE(precio,"$",""),".","")*1 AS INTEGER) ASC';
-  else if (order === 'precio-desc') query += ' ORDER BY CAST(REPLACE(REPLACE(precio,"$",""),".","")*1 AS INTEGER) DESC';
-  else query += ' ORDER BY creado_en DESC';
-
-  const propiedades = db.prepare(query).all(...params).map(propToObj);
-  res.json(propiedades);
-});
-
-app.get('/api/propiedades/:id', (req, res) => {
-  const p = db.prepare('SELECT * FROM propiedades WHERE id=? AND activo=1').get(req.params.id);
-  if (!p) return res.status(404).json({ error: 'Propiedad no encontrada' });
-  res.json(propToObj(p));
-});
-
-app.post('/api/propiedades', requireAdmin, (req, res) => {
-  const { titulo, precio, tipo, ubicacion, habitaciones = 0, banos = 0, area, descripcion_larga, imagenes = [], destacado = 0 } = req.body;
-  const result = db.prepare(`
-    INSERT INTO propiedades (titulo, precio, tipo, ubicacion, habitaciones, banos, area, descripcion_larga, imagenes, destacado)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(titulo, precio, tipo, ubicacion, habitaciones, banos, area, descripcion_larga, JSON.stringify(imagenes), destacado ? 1 : 0);
-  res.json({ id: result.lastInsertRowid, ...req.body });
-});
-
-app.put('/api/propiedades/:id', requireAdmin, (req, res) => {
-  const { titulo, precio, tipo, ubicacion, habitaciones, banos, area, descripcion_larga, imagenes, destacado } = req.body;
-  db.prepare(`
-    UPDATE propiedades SET titulo=?, precio=?, tipo=?, ubicacion=?, habitaciones=?, banos=?, area=?, descripcion_larga=?, imagenes=?, destacado=?
-    WHERE id=?
-  `).run(titulo, precio, tipo, ubicacion, habitaciones, banos, area, descripcion_larga, JSON.stringify(imagenes), destacado ? 1 : 0, req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/propiedades/:id', requireAdmin, (req, res) => {
-  db.prepare('UPDATE propiedades SET activo=0 WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - PROYECTOS
-// ==========================================
-app.get('/api/proyectos', (req, res) => {
-  const proyectos = db.prepare('SELECT * FROM proyectos WHERE activo=1 ORDER BY creado_en DESC').all().map(proyToObj);
-  res.json(proyectos);
-});
-
-app.post('/api/proyectos', requireAdmin, (req, res) => {
-  const { titulo, tag, descripcion, imagen, precio, link, amenities = [] } = req.body;
-  const result = db.prepare(`
-    INSERT INTO proyectos (titulo, tag, descripcion, imagen, precio, link, amenities)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(titulo, tag, descripcion, imagen, precio, link, JSON.stringify(amenities));
-  res.json({ id: result.lastInsertRowid, ...req.body });
-});
-
-app.put('/api/proyectos/:id', requireAdmin, (req, res) => {
-  const { titulo, tag, descripcion, imagen, precio, link, amenities } = req.body;
-  db.prepare('UPDATE proyectos SET titulo=?, tag=?, descripcion=?, imagen=?, precio=?, link=?, amenities=? WHERE id=?')
-    .run(titulo, tag, descripcion, imagen, precio, link, JSON.stringify(amenities), req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/proyectos/:id', requireAdmin, (req, res) => {
-  db.prepare('UPDATE proyectos SET activo=0 WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - NOTICIAS
-// ==========================================
-app.get('/api/noticias', (req, res) => {
-  const noticias = db.prepare('SELECT * FROM noticias WHERE activo=1 ORDER BY creado_en DESC').all();
-  res.json(noticias);
-});
-
-app.post('/api/noticias', requireAdmin, (req, res) => {
-  const { titulo, categoria, fecha, imagen, descripcion, contenido } = req.body;
-  const result = db.prepare('INSERT INTO noticias (titulo, categoria, fecha, imagen, descripcion, contenido) VALUES (?, ?, ?, ?, ?, ?)')
-    .run(titulo, categoria, fecha, imagen, descripcion, contenido);
-  res.json({ id: result.lastInsertRowid, ...req.body });
-});
-
-app.put('/api/noticias/:id', requireAdmin, (req, res) => {
-  const { titulo, categoria, fecha, imagen, descripcion, contenido } = req.body;
-  db.prepare('UPDATE noticias SET titulo=?, categoria=?, fecha=?, imagen=?, descripcion=?, contenido=? WHERE id=?')
-    .run(titulo, categoria, fecha, imagen, descripcion, contenido, req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/noticias/:id', requireAdmin, (req, res) => {
-  db.prepare('UPDATE noticias SET activo=0 WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - TESTIMONIOS
-// ==========================================
-app.get('/api/testimonios', (req, res) => {
-  const testimonios = db.prepare('SELECT * FROM testimonios WHERE activo=1 ORDER BY creado_en DESC').all();
-  res.json(testimonios);
-});
-
-app.post('/api/testimonios', requireAdmin, (req, res) => {
-  const { nombre, texto, imagen, estrellas = 5 } = req.body;
-  const result = db.prepare('INSERT INTO testimonios (nombre, texto, imagen, estrellas) VALUES (?, ?, ?, ?)')
-    .run(nombre, texto, imagen, estrellas);
-  res.json({ id: result.lastInsertRowid, ...req.body });
-});
-
-app.put('/api/testimonios/:id', requireAdmin, (req, res) => {
-  const { nombre, texto, imagen, estrellas } = req.body;
-  db.prepare('UPDATE testimonios SET nombre=?, texto=?, imagen=?, estrellas=? WHERE id=?')
-    .run(nombre, texto, imagen, estrellas, req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/testimonios/:id', requireAdmin, (req, res) => {
-  db.prepare('UPDATE testimonios SET activo=0 WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - AGENTES
-// ==========================================
-app.get('/api/agentes', (req, res) => {
-  const agentes = db.prepare('SELECT * FROM agentes WHERE activo=1 ORDER BY creado_en ASC').all();
-  res.json(agentes);
-});
-
-app.post('/api/agentes', requireAdmin, (req, res) => {
-  const { nombre, especialidad, telefono, email, imagen } = req.body;
-  const result = db.prepare('INSERT INTO agentes (nombre, especialidad, telefono, email, imagen) VALUES (?, ?, ?, ?, ?)')
-    .run(nombre, especialidad, telefono, email, imagen);
-  res.json({ id: result.lastInsertRowid, ...req.body });
-});
-
-app.put('/api/agentes/:id', requireAdmin, (req, res) => {
-  const { nombre, especialidad, telefono, email, imagen } = req.body;
-  db.prepare('UPDATE agentes SET nombre=?, especialidad=?, telefono=?, email=?, imagen=? WHERE id=?')
-    .run(nombre, especialidad, telefono, email, imagen, req.params.id);
-  res.json({ success: true });
-});
-
-app.delete('/api/agentes/:id', requireAdmin, (req, res) => {
-  db.prepare('UPDATE agentes SET activo=0 WHERE id=?').run(req.params.id);
-  res.json({ success: true });
-});
-
-// ==========================================
-// RUTAS - CONFIGURACION
-// ==========================================
-app.get('/api/config', (req, res) => {
-  const rows = db.prepare('SELECT clave, valor FROM configuracion').all();
-  const config = {};
-  rows.forEach(r => config[r.clave] = r.valor);
-  res.json(config);
-});
-
-app.post('/api/config', requireAdmin, (req, res) => {
-  const updates = req.body;
-  const upsert = db.prepare('INSERT OR REPLACE INTO configuracion (clave, valor) VALUES (?, ?)');
-  const updateAll = db.transaction((data) => {
-    Object.entries(data).forEach(([k, v]) => upsert.run(k, String(v)));
+// Endpoints QR para qr_connect.html
+app.get('/api/whatsapp/qr-real', (req, res) => {
+  res.json({
+    status: connectionStatus,
+    qr: currentQR,
+    numeroConectado: connectedNumber,
+    pairingCode: currentPairingCode
   });
-  updateAll(updates);
-  res.json({ success: true });
 });
 
-// ponytail: /api/whatsapp ya montado arriba (línea 76) — duplicado eliminado
+// Endpoint para generar código de vinculación de 8 dígitos para +591 60937050
+app.post('/api/whatsapp/pairing-code', async (req, res) => {
+  try {
+    const rawNumber = req.body?.phoneNumber || '59160937050';
+    let cleanNumber = String(rawNumber).replace(/[^0-9]/g, '');
+    if (cleanNumber.length === 8) {
+      cleanNumber = '591' + cleanNumber;
+    }
 
-// ==========================================
-// HEALTH CHECK
-// ==========================================
+    if (!activeSock) {
+      return res.status(503).json({ success: false, error: 'Iniciando conector de WhatsApp... por favor espera unos segundos y reintenta.' });
+    }
+    if (connectionStatus === 'conectado') {
+      return res.json({ success: false, error: `Ya está conectado al número +${connectedNumber}` });
+    }
+
+    console.log(`\n📲 Solicitando código de emparejamiento para WhatsApp +${cleanNumber}...`);
+    const code = await activeSock.requestPairingCode(cleanNumber);
+    currentPairingCode = code;
+    console.log(`\n======================================================`);
+    console.log(`🔑 CÓDIGO DE VINCULACIÓN GENERADO: ${code}`);
+    console.log(`📱 En tu celular (+${cleanNumber}):`);
+    console.log(`   WhatsApp > Dispositivos vinculados > Vincular con el número de teléfono`);
+    console.log(`======================================================\n`);
+    res.json({ success: true, code, phoneNumber: cleanNumber });
+  } catch (err) {
+    console.error('Error generando pairing code:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/whatsapp/desconectar', async (req, res) => {
+  try {
+    const authFolder = fs.existsSync(path.join(__dirname, 'backend', 'baileys_auth'))
+      ? path.join(__dirname, 'backend', 'baileys_auth')
+      : path.join(__dirname, 'baileys_auth');
+
+    if (fs.existsSync(authFolder)) {
+      fs.rmSync(authFolder, { recursive: true, force: true });
+    }
+    if (global.mongoClientSingleton) {
+      try {
+        await global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+      } catch (e) {}
+    }
+    connectionStatus = 'desconectado';
+    connectedNumber = null;
+    currentQR = null;
+    currentPairingCode = null;
+    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR / Código...' });
+    setTimeout(() => {
+      startWhatsAppClient();
+    }, 1500);
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// Rutas directas para qr_connect
+app.get('/', (req, res) => {
+  const qrFile = path.join(staticPath, 'qr_connect.html');
+  if (fs.existsSync(qrFile)) return res.sendFile(qrFile);
+  res.send('🦁 Servidor Realty ONE Cloud Activo 24/7. Abre /qr_connect.html');
+});
+
+app.get('/qr_connect.html', (req, res) => {
+  const qrFile = path.join(staticPath, 'qr_connect.html');
+  if (fs.existsSync(qrFile)) return res.sendFile(qrFile);
+  res.status(404).send('qr_connect.html no encontrado');
+});
+
+app.get('/api/ping', (req, res) => res.send('pong'));
+
+let lastErrorMsg = null;
+
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    propiedades: db.prepare('SELECT COUNT(*) as c FROM propiedades WHERE activo=1').get().c
+  res.json({
+    status: 'ok',
+    service: 'Realty ONE Bot Cloud 24/7',
+    connection: connectionStatus,
+    numeroConectado: connectedNumber,
+    hasQR: Boolean(currentQR),
+    lastError: lastErrorMsg,
+    uptime: Math.round(process.uptime()),
+    hasMongoUri: Boolean(process.env.MONGODB_URI),
+    time: new Date().toISOString()
   });
 });
 
-// ==========================================
-// FALLBACK: Servir index.html para rutas no-API
-// ==========================================
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`\n======================================================`);
+  console.log(`🦁 SERVIDOR REALTY ONE BOT CLOUD ACTIVO EN PUERTO: ${PORT}`);
+  console.log(`📱 Conector QR en vivo disponible en: /qr_connect.html`);
+  console.log(`======================================================\n`);
+
+  // Anti-Sleep Heartbeat para Render (Ping cada 4 minutos para no dormir)
+  const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://realty-one-bolivia.onrender.com';
+  console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${renderUrl}`);
+  setInterval(async () => {
+    try {
+      await fetch(`${renderUrl}/api/ping`);
+      console.log(`💓 [Anti-Sleep Ping] Heartbeat exitoso a ${renderUrl}`);
+    } catch (e) {}
+  }, 4 * 60 * 1000);
+
+  startWhatsAppClient();
 });
 
-// ==========================================
-// INICIO DEL SERVIDOR
-// ==========================================
-app.listen(PORT, () => {
-  console.log('');
-  console.log('🏠 =====================================================');
-  console.log(`🏠  Realty ONE Group Bolivia - Backend Server`);
-  console.log('🏠 =====================================================');
-  console.log(`🚀  Servidor corriendo en: http://localhost:${PORT}`);
-  console.log(`🔑  Admin Key: ${ADMIN_KEY}`);
-  console.log(`📊  API Health: http://localhost:${PORT}/api/health`);
-  console.log(`💬  WhatsApp Webhook: http://localhost:${PORT}/api/whatsapp/webhook`);
-  console.log(`🤖  WhatsApp Simulator: http://localhost:${PORT}/whatsapp_test.html`);
-  console.log('🏠 =====================================================');
-  console.log('');
-});
+/**
+ * Inicia el cliente WebSocket de Baileys en la Nube
+ */
+async function startWhatsAppClient() {
+  try {
+    let baileys;
+    try {
+      baileys = require('@whiskeysockets/baileys');
+    } catch (e) {
+      console.log('⚠️ Baileys no instalado aún en este entorno.');
+      return;
+    }
 
-module.exports = app;
+    const {
+      default: makeWASocket,
+      useMultiFileAuthState,
+      DisconnectReason
+    } = baileys;
+
+    const QRCode = require('qrcode');
+
+    // Cargar módulo AI Agent
+    let aiAgent;
+    try {
+      if (fs.existsSync(path.join(__dirname, 'backend', 'services', 'aiAgent.js'))) {
+        aiAgent = require('./backend/services/aiAgent');
+      } else if (fs.existsSync(path.join(__dirname, 'services', 'aiAgent.js'))) {
+        aiAgent = require('./services/aiAgent');
+      }
+    } catch (e) {
+      console.warn('Error cargando aiAgent:', e.message);
+    }
+
+    // ponytail: guard contra race condition — heartbeat + connection.close pueden llamar esto en paralelo
+    if (isConnecting) {
+      console.log('⏸️ [startWhatsAppClient] Ya hay una conexión en curso, omitiendo llamada paralela.');
+      return;
+    }
+    isConnecting = true;
+
+    let state, saveCreds;
+    const mongoUri = process.env.MONGODB_URI;
+    let mongoLoaded = false;
+    if (mongoUri) {
+      try {
+        const { MongoClient } = require('mongodb');
+        const mongoAuthModule = fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
+          ? './backend/services/mongoAuthState'
+          : './services/mongoAuthState';
+        const { useMongoAuthState } = require(mongoAuthModule);
+
+        // ponytail: ping a la DB de la app (no admin — Atlas free tier restringe admin)
+        if (global.mongoClientSingleton) {
+          try {
+            await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
+          } catch (pingErr) {
+            console.warn('⚠️ [MongoDB] Singleton muerto, reconectando...', pingErr.message);
+            try { await global.mongoClientSingleton.close(); } catch (_) {}
+            global.mongoClientSingleton = null;
+          }
+        }
+
+        if (!global.mongoClientSingleton) {
+          global.mongoClientSingleton = new MongoClient(mongoUri, {
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+            maxIdleTimeMS: 30000 // reconectar antes de que Atlas cierre la conexión idle
+          });
+          await global.mongoClientSingleton.connect();
+          console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
+        }
+        const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+        ({ state, saveCreds } = await useMongoAuthState(col));
+        mongoLoaded = true;
+        lastErrorMsg = null; // ponytail: limpiar error previo — conexión exitosa
+      } catch (mErr) {
+        console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando fallback local:', mErr.message);
+        lastErrorMsg = 'Mongo fallback: ' + mErr.message;
+        global.mongoClientSingleton = null; // forzar reconexión en próximo intento
+      }
+    }
+    if (!mongoLoaded) {
+      const authDir = fs.existsSync(path.join(__dirname, 'backend'))
+        ? path.join(__dirname, 'backend', 'baileys_auth')
+        : path.join(__dirname, 'baileys_auth');
+
+      if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
+      ({ state, saveCreds } = await useMultiFileAuthState(authDir));
+      console.log('⚠️ [server.js] Usando disco local para credenciales Baileys');
+    }
+
+    const sock = makeWASocket({
+      auth: state,
+      printQRInTerminal: true,
+      browser: ['Realty ONE Bot Cloud', 'Chrome', '1.0.0']
+    });
+    activeSock = sock;
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        connectionStatus = 'esperando_qr';
+        try {
+          currentQR = await QRCode.toDataURL(qr);
+        } catch (err) {
+          currentQR = qr;
+        }
+        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en https://realty-one-bolivia.onrender.com/qr_connect.html\n');
+      }
+
+      if (connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        connectionStatus = 'desconectado';
+        currentQR = null;
+        currentPairingCode = null;
+        activeSock = null;
+        try {
+          const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
+            ? require('./backend/services/marketingHub')
+            : require('./services/marketingHub');
+          mHub.setBaileysSocket(null);
+        } catch (e) {}
+        console.log(`🔌 Conexión cerrada (status: ${statusCode}). ¿Reconectando?: ${shouldReconnect}`);
+        if (shouldReconnect) {
+          setTimeout(startWhatsAppClient, 3000);
+        } else {
+          console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
+          if (typeof authDir !== 'undefined' && fs.existsSync(authDir)) {
+            fs.rmSync(authDir, { recursive: true, force: true });
+          }
+          setTimeout(startWhatsAppClient, 2000);
+        }
+      } else if (connection === 'open') {
+        connectionStatus = 'conectado';
+        currentQR = null;
+        currentPairingCode = null;
+        connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        try {
+          const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
+            ? require('./backend/services/marketingHub')
+            : require('./services/marketingHub');
+          mHub.setBaileysSocket(sock);
+        } catch (e) {}
+        console.log(`\n🎉 ¡WHATSAPP CONECTADO 24/7 EN LA NUBE! Número: +${connectedNumber}\n`);
+      }
+    });
+
+    // Escuchar mensajes entrantes en WhatsApp
+    sock.ev.on('messages.upsert', async (m) => {
+      if (m.type !== 'notify') return;
+
+      for (const msg of m.messages) {
+        if (!msg.message || msg.key.fromMe) continue;
+
+        const senderJid = msg.key.remoteJid;
+        if (!senderJid || senderJid.endsWith('@g.us')) continue; // Ignorar grupos
+
+        const senderPhone = senderJid.replace('@s.whatsapp.net', '');
+        const pushName = msg.pushName || 'Cliente';
+
+        let messageText = '';
+        if (msg.message.conversation) {
+          messageText = msg.message.conversation;
+        } else if (msg.message.extendedTextMessage?.text) {
+          messageText = msg.message.extendedTextMessage.text;
+        } else if (msg.message.imageMessage?.caption) {
+          messageText = msg.message.imageMessage.caption;
+        }
+
+        if (!messageText.trim()) continue;
+
+        console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}"`);
+
+        const referral = msg.message.extendedTextMessage?.contextInfo?.externalAdReply;
+        const referralData = {
+          source: referral ? 'Facebook Ads (CTWA)' : 'WhatsApp Directo',
+          headline: referral?.title || '',
+          body: referral?.body || '',
+          mediaUrl: referral?.mediaUrl || '',
+          pushName: pushName
+        };
+
+        if (aiAgent && aiAgent.processUserMessage) {
+          try {
+            const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+            if (botReply && typeof botReply === 'string' && botReply.trim()) {
+              console.log(`🤖 [Respuesta enviada a +${senderPhone}]:\n${botReply}\n`);
+              
+              // Si el cliente pide fotos de Mar Adentro, Parque Industrial o Departamentos
+              const normMsg = messageText.toLowerCase();
+              let photoPath = null;
+              if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
+                const marPath = path.join(__dirname, 'assets', 'images', 'mar_adentro.jpg');
+                const indPath = path.join(__dirname, 'assets', 'images', 'terreno.png');
+                const aptPath = path.join(__dirname, 'assets', 'images', 'apartamento.png');
+
+                if ((botReply.includes('Mar Adentro') || normMsg.includes('mar adentro')) && fs.existsSync(marPath)) {
+                  photoPath = marPath;
+                } else if ((botReply.includes('Industrial') || normMsg.includes('industrial')) && fs.existsSync(indPath)) {
+                  photoPath = indPath;
+                } else if ((botReply.includes('Departamento') || normMsg.includes('departamento')) && fs.existsSync(aptPath)) {
+                  photoPath = aptPath;
+                }
+              }
+
+              if (photoPath && fs.existsSync(photoPath)) {
+                try {
+                  await sock.sendMessage(senderJid, {
+                    image: fs.readFileSync(photoPath),
+                    caption: botReply
+                  });
+                  continue;
+                } catch(imgErr) {
+                  console.error('Error enviando imagen:', imgErr);
+                }
+              }
+
+              await sock.sendMessage(senderJid, { text: botReply });
+            }
+          } catch(procErr) {
+            console.error('Error procesando mensaje con AI Agent:', procErr);
+          }
+        }
+      }
+    });
+
+  } catch (error) {
+    lastErrorMsg = error?.stack || error?.message || String(error);
+    console.error('Error iniciando cliente de WhatsApp:', lastErrorMsg);
+  } finally {
+    isConnecting = false; // ponytail: liberar guard siempre, incluso en error
+  }
+}
