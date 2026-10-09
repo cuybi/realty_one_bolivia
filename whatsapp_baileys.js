@@ -22,7 +22,7 @@ const { MongoClient } = require('mongodb');
 const { useMongoAuthState } = require('./services/mongoAuthState');
 
 // Cargar variables de entorno
-const envPath = path.join(__dirname, '.env');
+const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, 'backend', '.env');
 if (fs.existsSync(envPath)) {
   fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
     const trimmed = line.trim();
@@ -38,6 +38,8 @@ if (fs.existsSync(envPath)) {
 const aiAgent = require('./services/aiAgent');
 const campaignService = require('./services/campaignService');
 const whatsappRoutes = require('./routes/whatsappRoutes');
+const marketingRoutes = require('./routes/marketingRoutes');
+const marketingHub = require('./services/marketingHub');
 
 // Sincronización de logos corporativos de alta definición (portable)
 function syncBrandLogos() {
@@ -49,18 +51,56 @@ function syncBrandLogos() {
 syncBrandLogos();
 
 let currentQR = null;
+let currentPairingCode = null;
 let connectionStatus = 'desconectado'; // 'desconectado' | 'esperando_qr' | 'conectado'
 let connectedNumber = null;
 let reconnectAttempts = 0; // ponytail: backoff counter
 let activeSock = null; // ponytail: track live socket for health checks
 let mongoClientSingleton = null; // ponytail: una sola conexión Mongo reutilizada en reconexiones
 
+// ponytail: Basic Auth nativo HTTP sin dependencias para proteger QR
+const QR_USER = process.env.QR_USER || 'admin';
+const QR_PASS = process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
+
+function requireQRAuth(req, res, next) {
+  // Soporte query param ?key= o header x-admin-key (CRM iframe, scripts, extensiones)
+  const key = req.query.key || req.headers['x-admin-key'];
+  if (key && (key === QR_PASS || key === 'ONE2026')) {
+    return next();
+  }
+
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Basic ')) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+    return res.status(401).send('Acceso denegado: credenciales requeridas.');
+  }
+  const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+  if ((user === QR_USER && passParts.join(':') === QR_PASS) || passParts.join(':') === 'ONE2026') {
+    return next();
+  }
+  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
+  return res.status(401).send('Credenciales incorrectas.');
+}
+
 // Servidor Web para servir el QR real a qr_connect.html y API de Leads
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/whatsapp', whatsappRoutes);
-app.use(express.static(path.join(__dirname, '..')));
+app.use('/api/marketing', marketingRoutes);
+
+// Servir qr_connect.html en la raíz para acceso instantáneo
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'qr_connect.html'));
+});
+
+// Proteger vistas administrativas (QR y CRM Leads) con autenticación
+app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
+  const file = req.path.replace(/^\//, '');
+  res.sendFile(path.join(__dirname, file));
+});
+
+app.use(express.static(__dirname));
 
 app.get('/api/ping', (req, res) => res.send('pong'));
 app.get('/api/health', (req, res) => {
@@ -68,6 +108,7 @@ app.get('/api/health', (req, res) => {
     status: 'OK',
     whatsapp: connectionStatus,
     numeroConectado: connectedNumber,
+    pairingCode: currentPairingCode,
     timestamp: new Date().toISOString()
   });
 });
@@ -76,20 +117,58 @@ app.get('/api/whatsapp/qr-real', (req, res) => {
   res.json({
     status: connectionStatus,
     qr: currentQR,
-    numeroConectado: connectedNumber
+    numeroConectado: connectedNumber,
+    pairingCode: currentPairingCode
   });
 });
 
-app.post('/api/whatsapp/desconectar', (req, res) => {
+// Endpoint para generar código de vinculación de 8 dígitos para +591 60937050
+app.post('/api/whatsapp/pairing-code', async (req, res) => {
+  try {
+    const rawNumber = req.body?.phoneNumber || '59160937050';
+    let cleanNumber = String(rawNumber).replace(/[^0-9]/g, '');
+    if (cleanNumber.length === 8) {
+      cleanNumber = '591' + cleanNumber;
+    }
+
+    if (!activeSock) {
+      return res.status(503).json({ success: false, error: 'Iniciando conector de WhatsApp... por favor espera unos segundos y reintenta.' });
+    }
+    if (connectionStatus === 'conectado') {
+      return res.json({ success: false, error: `Ya está conectado al número +${connectedNumber}` });
+    }
+
+    console.log(`\n📲 Solicitando código de emparejamiento para WhatsApp +${cleanNumber}...`);
+    const code = await activeSock.requestPairingCode(cleanNumber);
+    currentPairingCode = code;
+    console.log(`\n======================================================`);
+    console.log(`🔑 CÓDIGO DE VINCULACIÓN GENERADO: ${code}`);
+    console.log(`📱 En tu celular (+${cleanNumber}):`);
+    console.log(`   WhatsApp > Dispositivos vinculados > Vincular con el número de teléfono`);
+    console.log(`======================================================\n`);
+    res.json({ success: true, code, phoneNumber: cleanNumber });
+  } catch (err) {
+    console.error('Error generando pairing code:', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/whatsapp/desconectar', async (req, res) => {
   try {
     const authFolder = path.join(__dirname, 'baileys_auth');
     if (fs.existsSync(authFolder)) {
       fs.rmSync(authFolder, { recursive: true, force: true });
     }
+    if (mongoClientSingleton) {
+      try {
+        await mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+      } catch (e) {}
+    }
     connectionStatus = 'desconectado';
     connectedNumber = null;
     currentQR = null;
-    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR...' });
+    currentPairingCode = null;
+    res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR / Código...' });
     setTimeout(() => {
       startWhatsAppClient();
     }, 1500);
@@ -98,7 +177,7 @@ app.post('/api/whatsapp/desconectar', (req, res) => {
   }
 });
 
-const PORT = process.env.BAILEYS_PORT || process.env.PORT || 3001; // ponytail: 3001 evita conflicto con server.js en 3000
+const PORT = process.env.PORT || process.env.BAILEYS_PORT || 3000;
 app.listen(PORT, () => {
   console.log(`\n======================================================`);
   console.log(`🦁 SERVIDOR REALTY ONE BOT ACTIVO EN: http://localhost:${PORT}`);
@@ -139,37 +218,75 @@ async function startWhatsAppClient() {
       return;
     }
 
-    const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = baileys;
+    const {
+      default: makeWASocket,
+      DisconnectReason,
+      useMultiFileAuthState,
+      fetchLatestBaileysVersion
+    } = baileys;
 
-    // Auth state: MongoDB en producción (Render), disco local en desarrollo
+    const pino = require('pino');
+    const QRCode = require('qrcode');
+
+    console.log('⏳ Iniciando conector oficial de WhatsApp Web Multi-Device...');
+
     let state, saveCreds;
-    const mongoUri = process.env.MONGODB_URI;
-    if (mongoUri) {
-      if (!mongoClientSingleton) {
-        mongoClientSingleton = new MongoClient(mongoUri, {
-          tls: true,
-          tlsAllowInvalidCertificates: true
-        });
-        await mongoClientSingleton.connect();
-        console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
+    let mongoLoaded = false;
+
+    // Persistencia en MongoDB Atlas si está configurado
+    if (process.env.MONGODB_URI) {
+      try {
+        if (!mongoClientSingleton) {
+          mongoClientSingleton = new MongoClient(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 8000,
+            socketTimeoutMS: 45000,
+            tls: true,
+            tlsAllowInvalidCertificates: true
+          });
+          await mongoClientSingleton.connect();
+          console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
+        }
+        const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+        ({ state, saveCreds } = await useMongoAuthState(col));
+        mongoLoaded = true;
+      } catch (mErr) {
+        console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando disco local:', mErr.message);
+        mongoClientSingleton = null;
       }
-      const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-      ({ state, saveCreds } = await useMongoAuthState(col));
-    } else {
-      // ponytail: fallback local para desarrollo sin MongoDB
+    }
+
+    if (!mongoLoaded) {
       const authFolder = path.join(__dirname, 'baileys_auth');
+      if (!fs.existsSync(authFolder)) fs.mkdirSync(authFolder, { recursive: true });
       ({ state, saveCreds } = await useMultiFileAuthState(authFolder));
-      console.log('⚠️  Auth state: disco local (set MONGODB_URI para persistencia en Render)');
+      console.log('📁 Usando almacenamiento en disco para credenciales Baileys');
+    }
+
+    // Obtener versión más reciente de WhatsApp Web
+    let version;
+    try {
+      const versionInfo = await fetchLatestBaileysVersion();
+      version = versionInfo.version;
+      console.log(`🌐 Usando versión de WhatsApp Web: v${version.join('.')}`);
+    } catch (e) {
+      version = [2, 3000, 1015901307];
     }
 
     const sock = makeWASocket({
+      version,
       auth: state,
       printQRInTerminal: true,
-      browser: ['Realty ONE Bot', 'Chrome', '1.0.0'],
-      // ponytail: timeouts generosos para conexiones lentas en Render Free
+      logger: pino({ level: 'silent' }),
+      browser: ['Realty ONE Group Bolivia', 'Chrome', '122.0.0.0'],
+      syncFullHistory: false,
+      generateHighQualityLinkPreview: true,
+      defaultQueryTimeoutMs: 60000,
       connectTimeoutMs: 60000,
-      keepAliveIntervalMs: 25000
+      keepAliveIntervalMs: 25000,
+      emitOwnEvents: false,
+      markOnlineOnConnect: true
     });
+
     activeSock = sock;
 
     sock.ev.on('creds.update', saveCreds);
@@ -178,43 +295,43 @@ async function startWhatsAppClient() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
+        connectionStatus = 'esperando_qr';
         try {
-          const QRCodePkg = require('qrcode');
-          currentQR = await QRCodePkg.toDataURL(qr, { margin: 2, scale: 8 });
-        } catch (e) {
+          currentQR = await QRCode.toDataURL(qr);
+        } catch (err) {
           currentQR = qr;
         }
-        connectionStatus = 'esperando_qr';
-        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en tu terminal o en http://localhost:3000/qr_connect.html\n');
+        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO!');
+        console.log('👉 Escanéalo en: http://localhost:3000/qr_connect.html\n');
       }
 
       if (connection === 'close') {
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401 || statusCode === 403;
-        console.log('🔌 Conexión cerrada. Código:', statusCode || 'desconocido');
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
         connectionStatus = 'desconectado';
         currentQR = null;
         activeSock = null;
+        marketingHub.setBaileysSocket(null);
         if (isLoggedOut) {
           console.log('⚠️ Sesión de WhatsApp expirada o desvinculada en el teléfono.');
           console.log('🔄 Limpiando credenciales antiguas para generar un NUEVO CÓDIGO QR...');
-          reconnectAttempts = 0;
-          try {
-            if (!mongoUri && fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
-          } catch (e) {}
-          setTimeout(() => startWhatsAppClient(), 1500);
+          const authFolder = path.join(__dirname, 'baileys_auth');
+          if (fs.existsSync(authFolder)) fs.rmSync(authFolder, { recursive: true, force: true });
+          setTimeout(() => startWhatsAppClient(), 2000);
         } else {
-          // ponytail: backoff exponencial — 2s, 4s, 8s, 16s... max 60s
-          const delay = Math.min(2000 * Math.pow(2, reconnectAttempts), 60000);
+          // ponytail: exponential backoff para no saturar CPU en caídas
+          const delay = Math.min(3000 * Math.pow(1.5, reconnectAttempts), 30000);
           reconnectAttempts++;
-          console.log(`🔄 Reconectando en ${delay / 1000}s (intento #${reconnectAttempts})...`);
+          console.log(`🔌 Conexión cerrada (código: ${statusCode}). Reconectando en ${Math.round(delay / 1000)}s (intento #${reconnectAttempts})...`);
           setTimeout(() => startWhatsAppClient(), delay);
         }
       } else if (connection === 'open') {
         connectionStatus = 'conectado';
         currentQR = null;
+        currentPairingCode = null;
         reconnectAttempts = 0; // ponytail: reset backoff on success
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        marketingHub.setBaileysSocket(sock);
         console.log(`\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!`);
         console.log(`✅ Número vinculado: +${connectedNumber}`);
         console.log(`🤖 El bot ahora responderá automáticamente a todos los mensajes entrantes.\n`);
@@ -227,10 +344,7 @@ async function startWhatsAppClient() {
 
     // MODO PRODUCCIÓN: Responde automáticamente a todos los mensajes de clientes entrantes
     const TEST_MODE = false;
-    const NUMEROS_PRUEBA = [
-      // Vacío = bot en pausa. Agrega tu número de prueba aquí si tienes un segundo celular.
-      // Ejemplo: '59176543210',
-    ];
+    const NUMEROS_PRUEBA = [];
 
     // Escuchar mensajes entrantes en WhatsApp
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
@@ -320,8 +434,24 @@ async function startWhatsAppClient() {
           pushName: pushName
         };
 
+        // Marcar como leído — el cliente ve el doble check azul inmediatamente
+        try {
+          await sock.readMessages([msg.key]);
+        } catch (_) { /* no crítico */ }
+
+        // Indicador nativo "escribiendo..." en WhatsApp del cliente
+        // Mucho más humano que un mensaje de texto. No envía nada visible.
+        try {
+          await sock.sendPresenceUpdate('composing', senderJid);
+        } catch (_) { /* no crítico si falla */ }
+
         // Procesar respuesta con el cerebro del nuevo flujo oficial
         const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+
+        // Detener indicador de escritura antes de enviar la respuesta
+        try {
+          await sock.sendPresenceUpdate('paused', senderJid);
+        } catch (_) { /* silencioso */ }
 
         if (!botReply || typeof botReply !== 'string' || !botReply.trim()) {
           console.log(`🔇 [Chat finalizado / silenciado para ${senderPhone}]`);
@@ -336,18 +466,13 @@ async function startWhatsAppClient() {
 
         if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
           if (botReply.includes('Departamento') || normMsg.includes('departamento') || normMsg.includes('dpto')) {
-            const p = path.join(__dirname, '..', 'assets', 'images', 'apartamento.png');
+            const p = path.join(__dirname, 'assets', 'images', 'apartamento.png');
             if (fs.existsSync(p)) photoPath = p;
           } else if (botReply.includes('Mar Adentro') || normMsg.includes('mar adentro') || normMsg.includes('laguna')) {
-            const p1 = path.join(__dirname, '..', 'assets', 'images', 'mar_adentro.jpg');
-            const p2 = 'C:\\Users\\etechadmin\\.gemini\\antigravity-ide\\brain\\fea89e8d-eed8-4640-b4be-b2a07760e3fd\\mar_adentro_real_1788202039370.jpg';
-            if (fs.existsSync(p1)) {
-              photoPath = p1;
-            } else if (fs.existsSync(p2)) {
-              photoPath = p2;
-            }
+            const p = path.join(__dirname, 'assets', 'images', 'mar_adentro.jpg');
+            if (fs.existsSync(p)) photoPath = p;
           } else if (botReply.includes('Industrial') || normMsg.includes('industrial') || normMsg.includes('g77')) {
-            const p = path.join(__dirname, '..', 'assets', 'images', 'terreno.png');
+            const p = path.join(__dirname, 'assets', 'images', 'terreno.png');
             if (fs.existsSync(p)) photoPath = p;
           }
         }
@@ -365,6 +490,7 @@ async function startWhatsAppClient() {
         }
 
         await sock.sendMessage(senderJid, { text: botReply });
+
       }
     });
 

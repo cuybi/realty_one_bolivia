@@ -12,19 +12,19 @@ async function testCases() {
     pushName: 'Marcos'
   };
 
-  // Paso 1: Al entrar por el anuncio, el bot entrega ficha y realiza preguntas consultivas
+  // Paso 1: Al entrar por el anuncio, el bot saluda cordial y solicita datos de contacto y visita
   const reply1a = await aiAgent.processUserMessage(user1, msg1, referral1);
   console.log('BOT REPLY 1a (Ficha inicial y preguntas consultivas):\n', reply1a);
-  if (reply1a.includes('Departamento de 4 Dormitorios') && reply1a.includes('vivienda propia o como inversión')) {
-    console.log('✅ PASO 1 OK: Entrega detalles del inmueble y preguntas consultivas.\n');
+  if (reply1a.includes('Departamento de 4 Dormitorios') && reply1a.includes('Nombre completo') && reply1a.includes('agendar una visita')) {
+    console.log('✅ PASO 1 OK: Saluda cordial y solicita datos para agendar visita.\n');
   } else {
-    console.error('❌ PASO 1 FALLÓ: No entregó detalles o preguntas consultivas.\n');
+    console.error('❌ PASO 1 FALLÓ: No entregó detalles o solicitud de datos.\n');
   }
 
   // Paso 2: Usuario responde calificación de propósito
   const reply1b = await aiAgent.processUserMessage(user1, 'es para vivienda propia', referral1);
   console.log('BOT REPLY 1b (Respuesta a calificación de propósito):\n', reply1b);
-  if (reply1b.includes('vivienda familiar') && reply1b.includes('visita presencial')) {
+  if (reply1b.includes('familia') && (reply1b.includes('visita') || reply1b.includes('verlo'))) {
     console.log('✅ PASO 2 OK: Responde empáticamente a vivienda propia invitando a visita.\n');
   } else {
     console.error('❌ PASO 2 FALLÓ: No respondió adecuadamente a calificación.\n');

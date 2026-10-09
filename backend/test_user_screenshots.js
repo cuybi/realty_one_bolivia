@@ -90,8 +90,73 @@ async function runScreenshotTests() {
     process.exit(1);
   }
 
+  // CASO 7: MENSAJE EXACTO DE LA CAPTURA DEL USUARIO (Departamento 4 Dormitorios)
+  console.log('--- TEST CAPTURA 7: Mensaje exacto de la captura del usuario ---');
+  const user3 = '59177889900';
+  const replyDpto = await aiAgent.processUserMessage(user3, 'Hola, vi la publicidad en Facebook del Departamento de 4 dormitorios de 119 m2 ($120.000) y deseo más información.', { pushName: 'Marcos' });
+  console.log('🤖 RESPUESTA BOT A MENSAJE DE LA CAPTURA:\n', replyDpto);
+
+  if (
+    replyDpto.includes('Departamento de 4 Dormitorios') &&
+    replyDpto.includes('Nombre completo') &&
+    replyDpto.includes('celular') &&
+    replyDpto.includes('Correo electrónico') &&
+    replyDpto.includes('agendar una visita') &&
+    !replyDpto.includes('📐 Superficie: 119 m² construidos') &&
+    !replyDpto.includes('🚛 Accesibilidad:')
+  ) {
+    console.log('✅ ÉXITO CAPTURA 7: NO repite la ficha técnica; saluda cordial y solicita Nombre completo, Celular, Email y Agendar visita.\n');
+  } else {
+    console.error('❌ ERROR CAPTURA 7: Volvió a enviar la ficha técnica robótica o falló la solicitud de datos.\n');
+    process.exit(1);
+  }
+
+  // CASO 8: Pregunta sobre crédito bancario
+  console.log('--- TEST 8: Cliente pregunta por crédito bancario ---');
+  const replyCredit = await aiAgent.processUserMessage(user3, '¿Aceptan crédito bancario o cómo se financia?', { pushName: 'Marcos' });
+  console.log('🤖 RESPUESTA A CRÉDITO:\n', replyCredit);
+  if (replyCredit.includes('Crédito Bancario') && replyCredit.includes('Folio Real')) {
+    console.log('✅ ÉXITO TEST 8: Responde como asesor financiero inmobiliario.\n');
+  } else {
+    console.error('❌ ERROR TEST 8: Falló respuesta a crédito bancario.\n');
+    process.exit(1);
+  }
+
+  // CASO 9: Pregunta sobre permuta o vehículo
+  console.log('--- TEST 9: Cliente pregunta si aceptan permuta por vehículo ---');
+  const replyPermuta = await aiAgent.processUserMessage(user3, '¿Aceptan permuta por vehículo en parte de pago?', { pushName: 'Marcos' });
+  console.log('🤖 RESPUESTA A PERMUTA:\n', replyPermuta);
+  if (replyPermuta.includes('Permutas') && replyPermuta.includes('vehículos')) {
+    console.log('✅ ÉXITO TEST 9: Responde sobre evaluación de permutas.\n');
+  } else {
+    console.error('❌ ERROR TEST 9: Falló respuesta a permuta.\n');
+    process.exit(1);
+  }
+
+  // CASO 10: Pregunta sobre expensas
+  console.log('--- TEST 10: Cliente pregunta por expensas ---');
+  const replyExpensas = await aiAgent.processUserMessage(user3, '¿Cuánto se paga de expensas?', { pushName: 'Marcos' });
+  console.log('🤖 RESPUESTA A EXPENSAS:\n', replyExpensas);
+  if (replyExpensas.includes('Expensas') && replyExpensas.includes('mantenimiento')) {
+    console.log('✅ ÉXITO TEST 10: Responde sobre expensas del edificio.\n');
+  } else {
+    console.error('❌ ERROR TEST 10: Falló respuesta a expensas.\n');
+    process.exit(1);
+  }
+
+  // CASO 11: Cliente envía nombre, teléfono, email y horario de visita
+  console.log('--- TEST 11: Cliente envía nombre, teléfono, email y horario de visita ---');
+  const replyLeadData = await aiAgent.processUserMessage(user3, 'Marcos Pérez, 70123456, marcos@gmail.com, este sábado a las 10:00 am', { pushName: 'Marcos' });
+  console.log('🤖 RESPUESTA A ENVÍO DE DATOS:\n', replyLeadData);
+  if (replyLeadData.includes('Cita agendada') && replyLeadData.includes('Asesor Asignado')) {
+    console.log('✅ ÉXITO TEST 11: Captura datos de contacto y agenda cita correctamente.\n');
+  } else {
+    console.error('❌ ERROR TEST 11: Falló confirmación de captura de datos o cita.\n');
+    process.exit(1);
+  }
+
   console.log('🎉 ========================================================');
-  console.log('🎉  TODAS LAS VALIDACIONES DE ANUNCIOS PASARON AL 100%');
+  console.log('🎉  TODAS LAS VALIDACIONES (INCLUYENDO CAPTURA DEL USUARIO) PASARON AL 100%');
   console.log('🎉 ========================================================');
 }
 

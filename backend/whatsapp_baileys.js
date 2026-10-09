@@ -126,6 +126,7 @@ app.get('/api/whatsapp/qr-real', (req, res) => {
 // Endpoint para generar código de vinculación de 8 dígitos para +591 60937050
 app.post('/api/whatsapp/pairing-code', async (req, res) => {
   try {
+    const rawNumber = req.body?.phoneNumber || '59160937050';
     let cleanNumber = String(rawNumber).replace(/[^0-9]/g, '');
     if (cleanNumber.length === 8) {
       cleanNumber = '591' + cleanNumber;

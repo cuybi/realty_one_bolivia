@@ -17,6 +17,7 @@ const LEADS_FILE = path.join(__dirname, '..', 'leads.json');
 // URL de SiteGround como base de datos primaria
 const SG_HOSTNAME = 'realyonegroupbolivia.e-techgroupbolivia.com';
 const SG_SYNC_PATH = '/save_leads_sync.php';
+const SG_ADMIN_KEY = process.env.ADMIN_KEY || 'ONE2026';
 
 // Cache en memoria para evitar lecturas repetidas en el mismo proceso
 let _memoryCache = null;
@@ -103,9 +104,13 @@ function fetchLeadsFromSiteGround() {
     const options = {
       hostname: SG_HOSTNAME,
       port: 443,
-      path: SG_SYNC_PATH,
+      path: `${SG_SYNC_PATH}?key=${encodeURIComponent(SG_ADMIN_KEY)}`,
       method: 'GET',
-      headers: { 'Accept': 'application/json' },
+      headers: {
+        'Accept': 'application/json',
+        'X-Admin-Key': SG_ADMIN_KEY,
+        'User-Agent': 'RealtyONEBot/2.0'
+      },
       timeout: 8000
     };
     const req = https.request(options, (res) => {
@@ -200,13 +205,14 @@ function syncLeadsToSiteGround(leads) {
       const options = {
         hostname: SG_HOSTNAME,
         port: 443,
-        path: SG_SYNC_PATH,
+        path: `${SG_SYNC_PATH}?key=${encodeURIComponent(SG_ADMIN_KEY)}`,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
           'User-Agent': 'RealtyONEBot/2.0',
-          'Accept': 'application/json'
+          'Accept': 'application/json',
+          'X-Admin-Key': SG_ADMIN_KEY
         },
         timeout: 10000
       };
@@ -839,6 +845,12 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     lead.accion_sugerida = priorityResult.accion_sugerida;
     lead.resumen = priorityResult.resumen;
 
+    // Aliases para compatibilidad con vistas CRM, reportes y tests
+    lead.calificacion_lead = priorityResult.prioridad_label || priorityResult.prioridad;
+    lead.score_interes = priorityResult.score;
+    lead.campana_origen = lead.campana;
+    lead.tipo_operacion_detectada = lead.tipo_interes;
+
     await saveLeads(leads);
     return lead;
   } catch (error) {
@@ -936,6 +948,20 @@ function getERealtors() {
   return E_REALTORS;
 }
 
+/**
+ * Extrae entidades completas del prospecto a partir del texto
+ */
+function extractLeadEntities(text = '') {
+  return {
+    nombre: extractName(text) || '',
+    email: extractEmail(text) || '',
+    zona_interes: extractZone(text) || '',
+    tipo_interes: extractOperation(text) || '',
+    presupuesto: extractBudget(text) || '',
+    horario_visita: extractSchedule(text) || ''
+  };
+}
+
 module.exports = {
   E_REALTORS,
   getERealtors,
@@ -950,6 +976,7 @@ module.exports = {
   generateTimeBreakdown,
   calculateLeadPriority,
   assignERealtorByAI,
+  extractLeadEntities,
   extractName,
   extractEmail,
   extractZone,

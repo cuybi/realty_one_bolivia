@@ -111,10 +111,10 @@ async function runCampaignTests() {
   const recentLeads = leads.slice(-2);
   recentLeads.forEach(l => {
     console.log(`✅ Lead: ${l.cliente_nombre || 'Cliente'} (${l.numero_celular})`);
-    console.log(`   🏷️ Campaña: ${l.campana_origen || 'General'}`);
-    console.log(`   🔥 Scoring: ${l.calificacion_lead} (${l.score_interes}/100)`);
-    console.log(`   👤 Asesor Asignado: ${l.e_realtor_asignado} (${l.e_realtor_telefono})`);
-    console.log(`   📝 Interés: ${l.tipo_operacion_detectada || 'Interés general'}`);
+    console.log(`   🏷️ Campaña: ${l.campana_origen || l.campana || 'General'}`);
+    console.log(`   🔥 Scoring: ${l.calificacion_lead || l.prioridad_label || l.prioridad || 'Evaluado'} (${l.score_interes ?? l.score ?? 50}/100)`);
+    console.log(`   👤 Asesor Asignado: ${l.e_realtor_asignado || 'Asesor Asignado'} (${l.e_realtor_telefono || '+591 60937050'})`);
+    console.log(`   📝 Interés: ${l.tipo_operacion_detectada || l.tipo_interes || 'Interés general'}`);
     console.log('---------------------------------------------------------');
   });
 

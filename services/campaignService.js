@@ -203,6 +203,12 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   const data = campaign.datos_inmueble || {};
   const ofi = campaign.oficina || {};
 
+  const campId = (campaign.id || '').toLowerCase();
+  const campTitle = (campaign.titulo_campana || '').toLowerCase();
+  const isMarAdentro = campId.includes('mar-adentro') || campTitle.includes('mar adentro');
+  const isDpto = campId.includes('departamento') || campTitle.includes('departamento');
+  const isFicha = campId.includes('ficha-tecnica') || campTitle.includes('ficha tecnica');
+
   // Sesión del usuario
   const sessionKey = userId || 'default';
   const session = campaignUserSessions.get(sessionKey) || { datosCapturados: false, nombre: pushName || '', fichaEntregada: false };
@@ -212,9 +218,9 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   const saludoNom = firstName ? ` ${firstName}` : '';
   const dirNom = firstName ? `${firstName}, ` : '';
 
-  // Verificar si el mensaje actual contiene datos de contacto (Email, o formato separado por comas)
+  // Verificar si el mensaje actual contiene datos de contacto (Email, o formato separado por comas con teléfono)
   const hasEmail = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(cleanUserMsg);
-  const hasCommaData = cleanUserMsg.split(',').length >= 2;
+  const hasCommaData = cleanUserMsg.split(',').length >= 3 && (/\d{7,}/.test(cleanUserMsg) || hasEmail);
   if (hasEmail || hasCommaData) {
     session.datosCapturados = true;
     campaignUserSessions.set(sessionKey, session);
@@ -275,84 +281,127 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
     (session.esperandoHorario && !isGenericVisitRequest)
   );
 
-  if (isDateTimeMessage && !isAdEntry && !isGenericVisitRequest && !msg.includes('precio') && !msg.includes('medida') && !msg.includes('ubicacion')) {
+  if (isDateTimeMessage && !hasEmail && !hasCommaData && !isAdEntry && !isGenericVisitRequest && !msg.includes('precio') && !msg.includes('medida') && !msg.includes('ubicacion')) {
     session.esperandoHorario = false;
     session.visitaConfirmada = true;
-    session.horarioVisita = cleanUserMsg;
+
+    let horarioLimpio = cleanUserMsg;
+    const timeMatch = cleanUserMsg.match(/\b(?:el\s+)?(?:este\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mañana|hoy|fin de semana)\b[^\n.?]*/i);
+    if (timeMatch) {
+      horarioLimpio = timeMatch[0].trim();
+    } else {
+      const hourMatch = cleanUserMsg.match(/\b(?:a\s+las\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs)?\b/i);
+      if (hourMatch) horarioLimpio = hourMatch[0].trim();
+    }
+    session.horarioVisita = horarioLimpio;
     campaignUserSessions.set(sessionKey, session);
 
+    const legalNote = (msg.includes('folio real') || msg.includes('papel') || msg.includes('alodial') || msg.includes('legal'))
+      ? `\n\n📑 *Documentación:* La propiedad cuenta con Folio Real individualizado e impuestos al día, lista para transferencia notariada inmediata.`
+      : '';
+
     return `📅 *¡Perfecto${saludoNom}! Cita agendada con éxito.* ✨\n\n` +
-      `Te esperamos el *${cleanUserMsg}* en *${campaign.titulo_campana}*.\n\n` +
+      `Te esperamos el *${horarioLimpio}* en *${campaign.titulo_campana}*.${legalNote}\n\n` +
       `El asesor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te registrará el ingreso autorizado en portería.\n\n` +
       `¡Muchas gracias y que tengas un excelente día! 🤝`;
   }
 
-  // 2. ENTRADA DESDE ANUNCIO O PRIMERA CONSULTA: ATENCIÓN CONSULTIVA HUMANA INMEDIATA
+  // ponytail: 2. ENTRADA DESDE ANUNCIO O PRIMERA CONSULTA: ASESOR INMOBILIARIO REAL Y CONVERSACIONAL
   if ((isAdEntry || !session.fichaEntregada) && !hasEmail && !hasCommaData && !msg.includes('foto') && !msg.includes('medida') && !msg.includes('precio') && !msg.includes('ubicacion')) {
     session.fichaEntregada = true;
     campaignUserSessions.set(sessionKey, session);
-    const precioPrincipal = (data.precio_usd && data.precio_bs)
-      ? `${data.precio_usd} (${data.precio_bs})`
-      : (data.precio_usd || data.precio_bs || 'Consultar');
 
-    return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
-      `Con gusto te comparto los detalles del *${campaign.titulo_campana}*:\n\n` +
-      `📍 *Ubicación:* ${data.ubicacion}\n` +
-      `📐 *Superficie:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +
-      `💰 *Precio de Venta:* *${precioPrincipal}*\n` +
-      (data.referencia_acceso ? `🚛 *Accesibilidad:* ${data.referencia_acceso}\n` : '') +
-      (data.distribucion ? `🛏️ *Distribución:* ${data.distribucion}\n` : '') +
-      (data.servicios_basicos ? `⚡ *Servicios:* ${data.servicios_basicos}\n` : '') +
-      (data.amenidades ? `🏖️ *Amenidades:* ${data.amenidades}\n` : '') +
-      (data.uso_suelo ? `🏗️ *Uso de Suelo:* ${data.uso_suelo}\n` : '') +
-      `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
-      `Cuéntame${saludoNom}:\n` +
-      `• ¿Lo buscas para vivienda propia o como inversión?\n` +
-      `• ¿Te gustaría que coordinemos una visita presencial para conocerlo esta semana? 🤝`;
+    if (isDpto) {
+      return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
+        `Vi que consultaste por el *Departamento de 4 Dormitorios* (119 m²) cerca del 2do Anillo. ¡Es una opción fantástica, súper amplia y muy bien ubicada!\n\n` +
+        `Para brindarte la carpeta digital completa (planos de planta, fotos en alta resolución) y coordinar una atención preferencial con nuestro asesor especialista, por favor compártenos:\n\n` +
+        `1. 👤 *Nombre completo:*\n` +
+        `2. 📱 *Número de celular o WhatsApp:*\n` +
+        `3. ✉️ *Correo electrónico:*\n` +
+        `4. 📅 *¿Qué día y hora te gustaría agendar una visita presencial?*\n\n` +
+        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🤝`;
+    }
+
+    if (isMarAdentro) {
+      return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
+        `Vi tu consulta sobre el terreno en *Condominio Mar Adentro* (Urubó). ¡Vivir o invertir a pasos de la laguna cristalina Crystal Lagoons es un lujo total!\n\n` +
+        `Para gestionarte el pase de visita a la laguna y compartirte la carpeta con planos y ubicaciones disponibles, por favor compártenos:\n\n` +
+        `1. 👤 *Nombre completo:*\n` +
+        `2. 📱 *Número de celular o WhatsApp:*\n` +
+        `3. ✉️ *Correo electrónico:*\n` +
+        `4. 📅 *¿Qué día y hora te gustaría agendar tu visita a Mar Adentro?*\n\n` +
+        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🏖️🤝`;
+    }
+
+    if (campId.includes('industrial') || campTitle.includes('industrial') || campTitle.includes('g77')) {
+      return `¡Hola${saludoNom}! 👋 Un saludo cordial. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
+        `Vi tu interés en el *Terreno Industrial de 7.000 m²* con salida directa a la Av. G77. Es un predio estratégico con 185 metros de frente y factibilidad trifásica en puerta.\n\n` +
+        `Para prepararte el informe técnico de linderos y coordinar la inspección en el terreno, por favor facilítanos:\n\n` +
+        `1. 👤 *Nombre completo o Razón Social:*\n` +
+        `2. 📱 *Número de celular o WhatsApp:*\n` +
+        `3. ✉️ *Correo electrónico:*\n` +
+        `4. 📅 *¿Qué día y hora te gustaría agendar una inspección técnica en el predio?*\n\n` +
+        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, mañana 15:00)_ 🤝`;
+    }
+
+    return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Bolivia'}* 🦁\n\n` +
+      `Vi tu consulta sobre *${campaign.titulo_campana}*. ¡Es una excelente oportunidad inmobiliaria en Santa Cruz!\n\n` +
+      `Para enviarte la carpeta digital completa con planos y coordinar tu atención prioritaria, por favor compártenos:\n\n` +
+      `1. 👤 *Nombre completo:*\n` +
+      `2. 📱 *Número de celular o WhatsApp:*\n` +
+      `3. ✉️ *Correo electrónico:*\n` +
+      `4. 📅 *¿Qué día y hora te gustaría agendar una visita presencial?*\n\n` +
+      `✍️ _Puedes responder con tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🤝`;
   }
 
   // 3. SI EL USUARIO ENVÍA DATOS DE CONTACTO (Email / comas)
   if (hasEmail || hasCommaData) {
     session.datosCapturados = true;
     session.fichaEntregada = true;
-    campaignUserSessions.set(sessionKey, session);
-    const precioPrincipal = (data.precio_usd && data.precio_bs)
-      ? `${data.precio_usd} (${data.precio_bs})`
-      : (data.precio_usd || data.precio_bs || 'Consultar');
 
-    return `¡Muchas gracias${saludoNom}! 🦁✨ Hemos registrado tus datos con éxito.\n\n` +
-      `Aquí tienes los detalles del *${campaign.titulo_campana}*:\n\n` +
-      `📍 *Ubicación:* ${data.ubicacion}\n` +
-      `📐 *Superficie:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +
-      `💰 *Precio de Venta:* *${precioPrincipal}*\n` +
-      (data.referencia_acceso ? `🚛 *Accesibilidad:* ${data.referencia_acceso}\n` : '') +
-      (data.distribucion ? `🛏️ *Distribución:* ${data.distribucion}\n` : '') +
-      (data.servicios_basicos ? `⚡ *Servicios:* ${data.servicios_basicos}\n` : '') +
-      (data.amenidades ? `🏖️ *Amenidades:* ${data.amenidades}\n` : '') +
-      (data.uso_suelo ? `🏗️ *Uso de Suelo:* ${data.uso_suelo}\n` : '') +
-      `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
-      `👤 *Asesor Asignado:* Asesor Realty ONE (Tel: +591 60937050)\n\n` +
-      `👉 *${dirNom}¿te gustaría conocer las facilidades de pago o coordinar una visita presencial para conocer la propiedad este fin de semana?*`;
+    if (hasTimeIndicator) {
+      session.visitaConfirmada = true;
+      let horarioExtraido = cleanUserMsg;
+      const parts = cleanUserMsg.split(',');
+      if (parts.length >= 4) {
+        horarioExtraido = parts.slice(3).join(',').trim();
+      } else {
+        const timeMatch = cleanUserMsg.match(/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mañana|hoy|fin de semana).*$/i);
+        if (timeMatch) horarioExtraido = timeMatch[0].trim();
+      }
+      session.horarioVisita = horarioExtraido;
+      campaignUserSessions.set(sessionKey, session);
+
+      return `🎉 *¡Excelente${saludoNom}! Cita agendada y datos registrados con éxito.* 🦁✨\n\n` +
+        `📋 *Detalles de tu Solicitud:*\n` +
+        `• 🏡 *Propiedad:* ${campaign.titulo_campana}\n` +
+        `• 📅 *Visita Agendada:* ${horarioExtraido}\n` +
+        `• 👤 *Asesor Asignado:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (Tel: +591 60937050)\n\n` +
+        `Tu asesor te enviará los planos y la ubicación exacta por GPS para registrar tu ingreso autorizado en portería.\n\n` +
+        `¡Muchas gracias y nos vemos en la visita! 🤝`;
+    }
+
+    campaignUserSessions.set(sessionKey, session);
+    return `¡Muchas gracias${saludoNom}! 🦁✨ Hemos registrado tus datos con éxito en nuestro sistema de atención.\n\n` +
+      `👤 *Asesor Asignado:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (Tel: +591 60937050)\n` +
+      `🏡 *Propiedad:* ${campaign.titulo_campana}\n\n` +
+      `Tu asesor se comunicará contigo para compartirte los planos y carpeta digital.\n\n` +
+      `👉 *${dirNom}¿qué día y hora te queda más cómodo para agendar tu visita presencial?* (ej: *mañana por la tarde* o *este sábado a las 10:00 am*). 🤝`;
   }
 
   // 3b. CALIFICACIÓN: RESPUESTA A PROPÓSITO (VIVIENDA / INVERSIÓN)
   if (msg.includes('vivienda') || msg.includes('vivir') || msg.includes('familiar') || msg.includes('mi familia') || msg.includes('para mi')) {
     session.esperandoHorario = true;
     campaignUserSessions.set(sessionKey, session);
-    return `¡Excelente elección${saludoNom}! 🏡 Es una magnífica opción para vivienda familiar por su comodidad, seguridad y ubicación estratégica.\n\n` +
-      `¿Te gustaría que coordinemos una visita presencial para conocer los ambientes esta semana? Indícanos qué día y horario te queda más cómodo (ej: *mañana por la tarde* o *este sábado por la mañana*). 🤝`;
+    return `¡Espectacular elección${saludoNom}! 🏡 Tener un espacio cómodo, seguro y bien ubicado para la familia te cambia el día a día. Lo mejor es sentir la amplitud en persona.\n\n` +
+      `¿Te quedaría cómodo pasar a verlo entre semana por la tarde o preferís este sábado en la mañana? 🤝`;
   }
 
   if (msg.includes('inversion') || msg.includes('invertir') || msg.includes('renta') || msg.includes('alquilar') || msg.includes('alquiler') || msg.includes('plusvalia') || msg.includes('negocio')) {
-    return `¡Excelente visión de inversión${saludoNom}! 📈 Esta propiedad tiene un gran potencial de plusvalía y retorno de inversión en la zona.\n\n` +
-      `Podemos facilitarte los datos de rendimiento o coordinar una visita presencial para evaluar el potencial en el lugar. ¿Te gustaría coordinar una visita para estos días? 🤝`;
+    return `¡Excelente visión de inversión${saludoNom}! 📈 En esta zona la demanda y la plusvalía se mantienen muy firmes.\n\n` +
+      `¿Querés que te prepare los números de retorno estimado y proforma, o preferís que coordinemos una visita para evaluar el potencial en el lugar? 🤝`;
   }
 
-  const campId = (campaign.id || '').toLowerCase();
-  const campTitle = (campaign.titulo_campana || '').toLowerCase();
-  const isMarAdentro = campId.includes('mar-adentro') || campTitle.includes('mar adentro');
-  const isDpto = campId.includes('departamento') || campTitle.includes('departamento');
-  const isFicha = campId.includes('ficha-tecnica') || campTitle.includes('ficha tecnica');
 
   // 4. AGENDAR VISITA, COORDINAR INSPECCIÓN O CITAS
   if (msg.includes('visita') || msg.includes('gustaria') || msg.includes('coordinar') || msg.includes('pase') || msg.includes('ir a ver') || msg.includes('ver el terreno') || msg.includes('ver el dpto') || msg.includes('ver el departamento') || msg.includes('ver el lote') || msg.includes('recorrer') || msg.includes('inspeccion') || msg.includes('cuando puedo') || msg.includes('horario') || msg.includes('agendar') || msg.includes('cita')) {
@@ -431,18 +480,40 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
       `👉 ${dirNom}¿deseas coordinar una visita presencial para conocer el terreno y verificar linderos?`;
   }
 
-  // 9. PRECIO, VALOR, FORMAS DE PAGO, CRÉDITO, MONEDA, EXPENSAS
-  if (msg.includes('precio') || msg.includes('cuanto cuesta') || msg.includes('cuanto piden') || msg.includes('valor') || msg.includes('costo') || msg.includes('bolivianos') || msg.includes('bs') || msg.includes('pago') || msg.includes('financiamiento') || msg.includes('credito') || msg.includes('oferta') || msg.includes('rebaja') || msg.includes('negociable') || msg.includes('expensa') || msg.includes('mantenimiento')) {
+  // 9a. CRÉDITO BANCARIO, FINANCIAMIENTO Y CUOTA INICIAL
+  if (msg.includes('credito') || msg.includes('crédito') || msg.includes('banco') || msg.includes('financiamiento') || msg.includes('cuota inicial')) {
+    return `🏦 *Crédito Bancario y Financiamiento:* 🦁\n\n` +
+      `Hola${saludoNom}, la propiedad cuenta con documentación 100% al día (Folio Real individualizado e impuestos saneados), por lo que es *apta para crédito hipotecario / de vivienda* con cualquier entidad financiera de Bolivia.\n\n` +
+      `• Generalmente los bancos financian entre el 80% y 90%, requiriendo un 10% a 20% de cuota inicial.\n\n` +
+      `👉 ¿Cuentas ya con pre-aprobación bancaria o te gustaría que nuestro equipo te oriente con el trámite? 🤝`;
+  }
+
+  // 9b. PERMUTAS Y VEHÍCULOS
+  if (msg.includes('permuta') || msg.includes('auto') || msg.includes('vehiculo') || msg.includes('vehículo') || msg.includes('cambio') || msg.includes('reciben')) {
+    return `🚗 *Permutas y Formas de Pago:* 🦁\n\n` +
+      `Hola${saludoNom}, los propietarios pueden evaluar propuestas formales que incluyan bienes de menor valor (como vehículos o lotes) como parte de pago, previa tasación comercial.\n\n` +
+      `👉 Cuéntame, ¿qué bien o propuesta tienes en mente? Con gusto la analizamos con el asesor a cargo. 🤝`;
+  }
+
+  // 9c. PRECIO, VALOR, FORMAS DE PAGO Y OFERTAS
+  if (msg.includes('precio') || msg.includes('cuanto cuesta') || msg.includes('cuanto piden') || msg.includes('valor') || msg.includes('costo') || msg.includes('bolivianos') || msg.includes('bs') || msg.includes('pago') || msg.includes('oferta') || msg.includes('rebaja') || msg.includes('negociable')) {
     const precioPrincipal = data.precio_usd || data.precio_bs || 'Consultar con asesor';
 
     return `💰 *Inversión y Condiciones Financieras:*\n\n` +
       `Hola${saludoNom}, el precio de venta es de *${precioPrincipal}*.\n\n` +
-      `• *Superficie:* ${data.superficie_total}\n\n` +
-      `• *Modalidades Aceptadas:*\n` +
+      `• *Superficie:* ${data.superficie_total}\n` +
+      `• *Modalidades:*\n` +
       `  ✅ Pago al contado vía transferencia bancaria.\n` +
-      `  ✅ Apto para Crédito Bancario / Financiamiento institucional.\n` +
+      `  ✅ Apto para Crédito Bancario institucional.\n` +
       `  ✅ Se pueden evaluar propuestas formales de compra.\n\n` +
-      `👉 ${dirNom}¿deseas que te facilitemos la proforma o coordinamos una reunión con nuestro asesor *${ofi.asesor_a_cargo}*?`;
+      `👉 ${dirNom}¿deseas que te preparemos la proforma o coordinamos una visita para conocer la propiedad?`;
+  }
+
+  // 9d. EXPENSAS Y MANTENIMIENTO
+  if (msg.includes('expensa') || msg.includes('expensas') || msg.includes('mantenimiento')) {
+    return `🏢 *Expensas y Mantenimiento:* 🦁\n\n` +
+      `Hola${saludoNom}, las expensas son moderadas y están destinadas al mantenimiento de áreas comunes, seguridad y servicios.\n\n` +
+      `👉 ¿Te gustaría que coordinemos una visita presencial para conocer los ambientes e instalaciones en persona? 🤝`;
   }
 
   // 10. ENVÍO DIRECTO DE UBICACIÓN GOOGLE MAPS / RESPUESTAS AFIRMATIVAS ("si", "claro", "dale")
@@ -523,23 +594,30 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
       `👉 ${dirNom}¿deseas que nuestro asesor te contacte directamente por llamada o seguimos por aquí?`;
   }
 
-  // 16. FICHA COMPLETA POR DEFECTO
-  const precioPrincipal = (data.precio_usd && data.precio_bs)
-    ? `${data.precio_usd} (${data.precio_bs})`
-    : (data.precio_usd || data.precio_bs || 'Consultar con asesor');
+  // 16. FICHA TÉCNICA O DETALLES COMPLETOS (SOLO SI EL CLIENTE LO SOLICITA EXPLÍCITAMENTE)
+  if (msg.includes('ficha') || msg.includes('detalles completos') || msg.includes('especificaciones') || msg.includes('todo el detalle') || msg.includes('carpeta')) {
+    const precioPrincipal = (data.precio_usd && data.precio_bs)
+      ? `${data.precio_usd} (${data.precio_bs})`
+      : (data.precio_usd || data.precio_bs || 'Consultar con asesor');
 
-  return `¡Hola${saludoNom}! 👋 Gracias por comunicarte con *${ofi.nombre}* 🦁\n\n` +
-    `Detalles de la propiedad *${campaign.titulo_campana}*:\n\n` +
-    `📍 *Ubicación:* ${data.ubicacion}\n` +
-    `📐 *Superficie Total:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +
-    `💰 *Precio de Venta:* *${precioPrincipal}*\n` +
-    (data.referencia_acceso ? `🚛 *Accesibilidad:* ${data.referencia_acceso}\n` : '') +
-    (data.servicios_basicos ? `⚡ *Servicios:* ${data.servicios_basicos}\n` : '') +
-    (data.amenidades ? `🏖️ *Amenidades:* ${data.amenidades}\n` : '') +
-    (data.uso_suelo ? `🏗️ *Uso de Suelo:* ${data.uso_suelo}\n` : '') +
-    `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
-    `👤 *Asesor Responsable:* Asesor Realty ONE (Tel: +591 60937050)\n\n` +
-    `👉 *${dirNom}¿deseas conocer más detalles técnicos, revisar formas de pago o agendar una visita para conocer la propiedad?*`;
+    return `📋 *Ficha Técnica — ${campaign.titulo_campana}:*\n\n` +
+      `📍 *Ubicación:* ${data.ubicacion}\n` +
+      `📐 *Superficie Total:* *${data.superficie_total}*${data.dimensiones ? ` (${data.dimensiones})` : ''}\n` +
+      `💰 *Precio de Venta:* *${precioPrincipal}*\n` +
+      (data.referencia_acceso ? `🚛 *Accesibilidad:* ${data.referencia_acceso}\n` : '') +
+      (data.servicios_basicos ? `⚡ *Servicios:* ${data.servicios_basicos}\n` : '') +
+      (data.amenidades ? `🏖️ *Amenidades:* ${data.amenidades}\n` : '') +
+      (data.uso_suelo ? `🏗️ *Uso de Suelo:* ${data.uso_suelo}\n` : '') +
+      `📑 *Estado Legal:* ${data.estado_legal}\n\n` +
+      `👤 *Asesor Responsable:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (Tel: +591 60937050)\n\n` +
+      `👉 *${dirNom}¿te gustaría coordinar una visita presencial para conocerla esta semana?*`;
+  }
+
+  // 17. RESPUESTA CONSULTIVA HUMANA POR DEFECTO (Agente Inmobiliario)
+  return `¡Con mucho gusto te oriento${saludoNom}! 🦁✨\n\n` +
+    `Respecto a *${campaign.titulo_campana}*, es una excelente opción inmobiliaria con documentación saneada y gran plusvalía en Santa Cruz.\n\n` +
+    `¿Te gustaría que coordinemos una visita presencial para conocer la propiedad esta semana, o prefieres que nuestro asesor te prepare una propuesta a medida por aquí? 🤝\n\n` +
+    `📞 *Línea directa asesor:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (+591 60937050)`;
 }
 
 module.exports = {
