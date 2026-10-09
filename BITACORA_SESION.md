@@ -222,8 +222,17 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
     - Sincronización no bloqueante a SiteGround. Sincronizado en `backend/` y `services/`.
 - **Estado Actual:**
   - Bot WhatsApp Baileys conectado y en vivo (`+591 60937050`).
-  - Total leads sincronizados en SiteGround y local: **23 leads** con `Marcos Antezana` activo al inicio.
+  - Total leads sincronizados en SiteGround y local: **23 leads** con `Marcos` activo al inicio.
 
+---
 
-
-
+### 5.7. Despliegue en la Nube (Render) y Acceso Multidispositivo en Línea
+- **Objetivo:** Permitir el acceso al panel "Ingreso Leads" desde cualquier computadora o dispositivo en la casa o fuera de ella, sin depender únicamente de `localhost`.
+- **Acciones Ejecutadas:**
+  1. Commit `69bbe61` integrado en la rama `main` y subido a GitHub (`cuybi/realty_one_bolivia`).
+  2. Auto-despliegue exitoso en Render Cloud (`https://realty-one-bolivia.onrender.com`).
+  3. Verificación de endpoints en vivo:
+     - Health check: `HTTP 200 OK`
+     - API de Leads en Render: `https://realty-one-bolivia.onrender.com/api/whatsapp/leads?key=ONE2026` (23 leads cargados en tiempo real).
+     - Dashboard en línea: `https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026`
+  4. Primer lead ordenado por actividad reciente: `Marcos` (17:17:24, Visita Agendada: Lunes 15 de marzo a las 10:00 AM).
