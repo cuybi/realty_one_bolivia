@@ -103,3 +103,51 @@
 4. Al abrir el panel `INGRESO LEADS`:
    - Hacer clic en cualquier botón rápido (`👋 Bienvenida`, `📅 Agendar Visita`, `🏠 Catálogo Inmuebles`, `📋 Requisitos`): el texto se copia y se pega directamente en el chat.
    - Hacer clic en `[📊 EXCEL] Exportar Prospectos a Excel (.xlsx)`: descarga inmediatamente el archivo con todos los leads registrados.
+
+---
+
+## 📌 4. Sesión del 09 de Octubre, 2026: Auditoría Integral y Nuevo Asistente de Atención al Cliente (5 Estados / 6 Reglas)
+
+### 4.1. Depuración Técnica y Corrección de Errores (Doubt-Driven Development)
+1. **Fix `rawNumber` ReferenceError:**
+   - Corregido en `backend/whatsapp_baileys.js` y `whatsapp_baileys.js` en el endpoint `POST /api/whatsapp/pairing-code`.
+2. **Autenticación SiteGround HTTP 200:**
+   - Se configuró cabecera `X-Admin-Key: ONE2026` y parámetro `?key=ONE2026` en `leadClassifier.js` para cumplir la regla `$isAdmin` de `save_leads_sync.php`. Sincronización en vivo validada con código 200.
+3. **Limpieza de Extracción de Citas:**
+   - En `campaignService.js`, se implementó regex para separar preguntas complejas (ej. "¿Tiene Folio Real?") de la fecha de visita ("el sábado a las 10:00 AM").
+4. **Validación de Suites de Prueba:**
+   - `test_lead_classifier.js`: 5/5 pasadas.
+   - `test_campaign_accuracy.js`: 6/6 pasadas.
+   - `test_campaign_bot.js`: 3/3 pasadas.
+   - `test_user_screenshots.js`: 11/11 pasadas.
+   - `test_bot.js`: 8/8 pasadas.
+
+---
+
+### 4.2. Nuevo Rol y Motor de Estados: Asistente Virtual de Atención al Cliente
+Implementado en `backend/services/aiAgent.js` y `services/aiAgent.js`:
+
+* **Reglas Estrictas de Comportamiento:**
+  1. **Regla 1:** NUNCA ofrecer listas de opciones, menús ni viñetas. Preguntas abiertas y libres.
+  2. **Regla 2:** Flujo paso a paso estricto. No avanzar hasta que el usuario responda al estado actual.
+  3. **Regla 3:** Validación de datos (teléfono, correo y ciudad). Si omite alguno, pedir amablemente antes de avanzar al Estado 3.
+  4. **Regla 4:** Manejo de objeciones. Si se niega a dar datos, explicar que son indispensables. Si insiste, indicar que puede llamar y saltar al Estado 5.
+  5. **Regla 5:** Validación de fecha. Obligatorio: día de la semana, fecha exacta y hora. Si es incompleta, pedir amablemente completar formato.
+  6. **Regla 6:** Tono cordial y directo.
+
+* **Flujo de la Conversación:**
+  * **ESTADO 1 (Saludo Inicial):** `"Hola [Nombre del cliente]. ¿En qué puedo ayudarte?"` (o `"Hola. ¿En qué puedo ayudarte?"`).
+  * **ESTADO 2 (Solicitud de Datos):** `"Para que un agente especializado se contacte contigo, por favor compárteme tu número de teléfono, correo electrónico y ciudad."`
+  * **ESTADO 3 (Agendamiento):** `"Si tienes clara tu decisión, ¿quieres agendar una visita? (Por favor indícame día, fecha y hora, por ejemplo: Lunes 15 de marzo a las 10:00 AM)."`
+  * **ESTADO 4 (Recordatorio):** `"Muchas gracias por tu agendamiento. ¿Quieres que te recuerde un día antes de tu visita?"`
+  * **ESTADO 5 (Despedida):** Despedida usando el nombre del cliente y obligatoriamente la frase: `"Cualquier duda o inquietud no dude en llamar."`
+
+* **Suite de Pruebas de Integración:**
+  - Creado `backend/test_customer_service_flow.js` con 5 escenarios exhaustivos. Todos pasando al 100% con exit code 0.
+
+---
+
+### 4.3. Despliegue en la Nube (Render) y Vinculación Activa
+1. **GitHub Push:** Cambios subidos a la rama `main` de `cuybi/realty_one_bolivia` (commits `657cca0` y `5a895cb`).
+2. **MongoDB Atlas TLS Fix:** En `server.js` y `backend/server.js`, se ajustaron las opciones del cliente MongoDB eliminando flags que causaban conflicto de SNI / OpenSSL en Linux (SSL alert 80).
+3. **Vinculación en WhatsApp Cloud:** Generado código de emparejamiento de 8 dígitos para +591 60937050: **`KAM8-D2KP`** (y disponible en `/qr_connect.html`).
