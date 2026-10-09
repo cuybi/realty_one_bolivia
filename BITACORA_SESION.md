@@ -190,4 +190,18 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
   - Servidor local activo en `http://localhost:3000` con visualizador en `/qr_connect.html`.
   - Código de emparejamiento de 8 dígitos generado para **+591 60937050**: **`G7FY-8D1S`**.
 
+### 5.5. Conexión Exitosa en Vivo y Flujo Oficial de Atención al Cliente
+- **Vinculación Confirmada:** El dispositivo móvil vinculó exitosamente la línea **+591 60937050** con Baileys.
+- **Corrección de Enrutamiento Orgánico vs. Anuncios:**
+  - Se eliminaron las plantillas con listas numeradas (`1. 🎯`, `2. 📅`) de todo el motor.
+  - Al recibir saludos ("Hola") o solicitudes de atención ("Un agente"), se resetea cualquier sesión publicitaria previa en `userFlowSessions`.
+  - Se implementó el flujo exacto solicitado con emojis profesionales:
+    1. Saludo cordial como asistente virtual con nombre del cliente: *¿En qué puedo ayudarte hoy? 😊*
+    2. Respuesta personalizada según interés del cliente (sin listas ni menús) y solicitud de datos principales (teléfono, correo, ciudad) para que un agente especializado se contacte.
+    3. Si datos completos: Pregunta si tiene clara su decisión para agendar visita (día, fecha y hora).
+    4. Si no agenda visita: Despedida directa con frase obligatoria. Si agenda visita: Agradecimiento y pregunta condicional de recordatorio.
+    5. Despedida cordial con nombre y frase obligatoria: *"Cualquier duda o inquietud no dude en llamar."*
+- **Validación:** 100% de las 6 suites de pruebas pasando con éxito (commit `41ea14d`).
+
+
 
