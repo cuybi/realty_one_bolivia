@@ -123,4 +123,11 @@ Consultar `GET /api/health` en Render. Debe mostrar:
 
 Si `lastError` contiene `"Mongo fallback"` → el fix no aplicó o Render no terminó el deploy.
 
+## 8. Arquitectura Híbrida del Chatbot (`aiAgent.js`) — Octubre 2026
+El motor de IA conversacional (`backend/services/aiAgent.js` y `services/aiAgent.js`) opera con un enrutador híbrido de alta precisión:
+1. **Canal Facebook Ads / Campañas (CTWA):** Si el mensaje contiene metadatos de pauta (`referralData`, `fb.me`) o coincide con propiedades (*Condominio Mar Adentro*, *Terreno Industrial G77*, *Depto 4D*, *Westgate Tower*, *Buenavista*), entrega fichas técnicas, fotos, asesora sobre crédito bancario/permutas/expensas y gestiona citas.
+2. **Canal Orgánico / General (Atención al Cliente):** Ejecuta la máquina de 5 estados y 6 reglas (`ESTADO_1_GREETING` a `ESTADO_5_FAREWELL`), validando teléfono, correo y ciudad, agendamiento de visita con formato estricto y despedida obligatoria (*"Cualquier duda o inquietud no dude en llamar."*).
+3. **Suites de Prueba Validadas al 100%:** `test_customer_service_flow.js` (5/5), `test_campaign_accuracy.js` (8/8), `test_user_screenshots.js` (11/11), `test_campaign_bot.js`, `test_lead_classifier.js` (5/5) y `test_bot.js` (8/8).
+
+
 

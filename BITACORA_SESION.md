@@ -151,3 +151,32 @@ Implementado en `backend/services/aiAgent.js` y `services/aiAgent.js`:
 1. **GitHub Push:** Cambios subidos a la rama `main` de `cuybi/realty_one_bolivia` (commits `657cca0` y `5a895cb`).
 2. **MongoDB Atlas TLS Fix:** En `server.js` y `backend/server.js`, se ajustaron las opciones del cliente MongoDB eliminando flags que causaban conflicto de SNI / OpenSSL en Linux (SSL alert 80).
 3. **Vinculación en WhatsApp Cloud:** Generado código de emparejamiento de 8 dígitos para +591 60937050: **`KAM8-D2KP`** (y disponible en `/qr_connect.html`).
+
+---
+
+## 📌 5. Sesión del 09 de Octubre, 2026 (Tarde): Retoma y Unificación del Chatbot (Arquitectura Híbrida Inteligente)
+
+### 5.1. Diagnóstico Doubt-Driven Development
+- **Hallazgo Crítico:** Tras el commit `657cca0`, la máquina de estados rígida de 5 estados interceptaba el 100% de los mensajes entrantes, impidiendo que los prospectos de Facebook Ads recibieran la ficha técnica, fotos, amenidades o precios de las propiedades pautadas (*Condominio Mar Adentro*, *Terreno Industrial G77*, *Depto 4D*, *Westgate Tower*, *Buenavista*).
+- **Impacto:** Las suites `test_campaign_accuracy.js` y `test_user_screenshots.js` fallaban al no recibir respuestas sobre campañas.
+
+### 5.2. Arquitectura Híbrida Implementada (`aiAgent.js`)
+Se unificaron los dos motores con enrutamiento dinámico según el canal de entrada:
+1. **Canal de Campañas y Anuncios (Facebook Ads / CTWA):**
+   - Detección automática de metadatos de anuncio (`referralData`, `fb.me`, palabras clave de pautas).
+   - Entrega inmediata de la ficha técnica, precios, fotos y asesoría sobre crédito bancario, permutas, expensas y plusvalía.
+   - Preservación de contexto (`activeCampaign`) para conversaciones de seguimiento multi-turno sin pérdida de estado.
+   - Captura de datos de contacto y confirmación de agendamiento con asignación de e-Realtor en el CRM.
+2. **Canal Orgánico / General (Atención al Cliente):**
+   - Ejecuta la máquina de 5 estados y 6 reglas (`ESTADO_1_GREETING` a `ESTADO_5_FAREWELL`).
+   - Saludo abierto sin menús ➔ Solicitud de teléfono, correo y ciudad con validación amigable ➔ Agendamiento de visita con validación estricta de día, fecha y hora ➔ Recordatorio condicional ➔ Despedida obligatoria: *"Cualquier duda o inquietud no dude en llamar."*
+
+### 5.3. Validación Integral de las 6 Suites de Prueba (100% Pasadas)
+- `test_customer_service_flow.js`: 5/5 escenarios pasados al 100% (código de salida 0).
+- `test_campaign_accuracy.js`: 8/8 pasos y escenarios de anuncios pasados al 100% (código de salida 0).
+- `test_user_screenshots.js`: 11/11 validaciones de capturas reales pasadas al 100% (código de salida 0).
+- `test_campaign_bot.js`: 100% de pruebas de anuncios Mar Adentro y G77 completadas con éxito.
+- `test_lead_classifier.js`: 5/5 pruebas de clasificación, scoring y exportación Excel/CSV exitosas.
+- `test_bot.js`: 8/8 casos completados satisfactoriamente.
+- Archivos sincronizados en espejo: `backend/services/aiAgent.js` y `services/aiAgent.js`.
+

@@ -1,85 +1,82 @@
 /**
- * Asistente Virtual de Atención al Cliente - Realty ONE Group Bolivia
+ * Cerebro de Inteligencia Artificial para el Chatbot Inmobiliario
+ * Realty ONE Group Bolivia
  *
- * ROL Y OBJETIVO:
- * Asistente virtual de atención al cliente. Saludar, recopilar datos específicos del
- * usuario (teléfono, correo y ciudad), intentar agendar una visita con un formato
- * de fecha específico, y despedirse cordialmente.
+ * ARQUITECTURA HÍBRIDA UNIFICADA:
+ * 1. Flujo de Campañas y Facebook Ads (CTWA / externalAdReply):
+ *    - Respuestas automáticas por publicación (Mar Adentro, Terreno G77, Depto 4D, etc.).
+ *    - Extracción dinámica para cualquier anuncio nuevo (Westgate Tower, Buenavista, etc.).
+ *    - Asesoría sobre crédito bancario, permutas, expensas, planos y fotos.
+ *    - Captura de datos, asignación de e-Realtors y confirmación de visitas.
  *
- * REGLAS ESTRICTAS DE COMPORTAMIENTO:
- * 1. NUNCA ofrezcas listas de opciones, menús ni viñetas. Preguntas abiertas.
- * 2. Flujo de la conversación paso a paso estricto. No avanzar hasta que responda.
- * 3. Validación de datos: Si omite teléfono, correo o ciudad, pedir amablemente antes de avanzar al Estado 3.
- * 4. Manejo de objeciones: Si se niega a dar datos, explicar que son indispensables. Si insiste, indicar que puede llamar y saltar al Estado 5.
- * 5. Validación de fecha: Día de la semana, fecha exacta y hora. Si es incompleta, pedir amablemente completar formato.
- * 6. Tono cordial y directo.
- *
- * FLUJO:
- * ESTADO 1: Saludo Inicial ("Hola [Nombre]. ¿En qué puedo ayudarte?" / "Hola. ¿En qué puedo ayudarte?")
- * ESTADO 2: Solicitud de Datos Específicos ("Para que un agente especializado se contacte contigo, por favor compárteme tu número de teléfono, correo electrónico y ciudad.")
- * ESTADO 3: Agendamiento ("Si tienes clara tu decisión, ¿quieres agendar una visita? (Por favor indícame día, fecha y hora, por ejemplo: Lunes 15 de marzo a las 10:00 AM).")
- * ESTADO 4: Recordatorio ("Muchas gracias por tu agendamiento. ¿Quieres que te recuerde un día antes de tu visita?")
- * ESTADO 5: Despedida (Con nombre del cliente y obligatorio: "Cualquier duda o inquietud no dude en llamar.")
+ * 2. Asistente Virtual de Atención al Cliente (Canal Orgánico / General):
+ *    - 5 Estados (1. Saludo, 2. Datos: teléfono, correo y ciudad, 3. Agendamiento, 4. Recordatorio, 5. Despedida).
+ *    - 6 Reglas estrictas:
+ *      1. Sin listas de opciones ni menús ni viñetas. Preguntas abiertas y libres.
+ *      2. Flujo secuencial paso a paso estricto.
+ *      3. Validación de datos: teléfono, correo y ciudad antes de Estado 3.
+ *      4. Manejo de objeciones a compartir datos.
+ *      5. Validación de fecha: día de la semana, fecha exacta y hora.
+ *      6. Tono cordial y directo con frase obligatoria de despedida: "Cualquier duda o inquietud no dude en llamar."
  */
 
 const db = require('../database');
+const campaignService = require('./campaignService');
 const leadClassifier = require('./leadClassifier');
 
 const SYSTEM_INSTRUCTION = `
-Eres un asistente virtual de atención al cliente de Realty ONE Group Bolivia.
-Tu objetivo principal es saludar, recopilar teléfono, correo y ciudad, intentar agendar una visita con fecha completa y despedirte cordialmente.
-Reglas estrictas:
-- NUNCA listas, menús ni viñetas. Preguntas abiertas y libres.
-- Flujo secuencial Estado 1 a 5.
-- Frase obligatoria en despedida: "Cualquier duda o inquietud no dude en llamar."
+Eres ONEBot, el asesor virtual de atención al cliente de Realty ONE Group Bolivia.
+Tu objetivo es atender consultas sobre compra, alquiler y anticrético de propiedades en Santa Cruz de la Sierra y Urubó, asesorar sobre publicaciones de Facebook Ads, recopilar datos de contacto calificados y agendar visitas presenciales.
+Reglas:
+- Trato cordial, profesional y directo.
+- En atención general sin anuncio previo, recopila teléfono, correo y ciudad antes de agendar y finaliza con: "Cualquier duda o inquietud no dude en llamar."
 `;
 
-// Sesiones en memoria por usuario con TTL de 24 horas
+// Memoria acotada de sesiones (máximo 500 por tipo con TTL de 24 horas)
 const MAX_SESSIONS = 500;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-const userSessions = new Map();
 
-setInterval(() => {
+// Sesiones de Atención al Cliente (Orgánicas)
+const customerServiceSessions = new Map();
+
+// Sesiones de Campañas / Facebook Ads
+const userFlowSessions = new Map();
+
+// Historial para Gemini
+const conversationSessions = new Map();
+
+// Limpieza periódica cada hora de sesiones inactivas
+const cleanupTimer = setInterval(() => {
   const now = Date.now();
-  for (const [key, val] of userSessions.entries()) {
-    if (now - val.lastActivity > SESSION_TTL_MS) {
-      userSessions.delete(key);
-    }
+  for (const [key, val] of customerServiceSessions.entries()) {
+    if (now - val.lastActivity > SESSION_TTL_MS) customerServiceSessions.delete(key);
   }
-}, 60 * 60 * 1000).unref();
-
-function getSession(userId, pushName = '') {
-  if (!userSessions.has(userId)) {
-    if (userSessions.size >= MAX_SESSIONS) {
-      const firstKey = userSessions.keys().next().value;
-      userSessions.delete(firstKey);
-    }
-
-    const cleanName = (pushName && pushName !== 'Cliente' && pushName !== 'Por identificar') ? pushName.trim() : '';
-
-    userSessions.set(userId, {
-      state: 'ESTADO_1_GREETING',
-      clientName: cleanName,
-      phone: null,
-      email: null,
-      city: null,
-      dataRequested: false,
-      scheduledVisit: null,
-      refusalCount: 0,
-      reminderChoice: null,
-      lastActivity: Date.now()
-    });
+  for (const [key, val] of userFlowSessions.entries()) {
+    if (now - val.lastActivity > SESSION_TTL_MS) userFlowSessions.delete(key);
   }
-
-  const s = userSessions.get(userId);
-  if (pushName && pushName !== 'Cliente' && pushName !== 'Por identificar' && !s.clientName) {
-    s.clientName = pushName.trim();
+  for (const [key, val] of conversationSessions.entries()) {
+    if (now - val.lastActivity > SESSION_TTL_MS) conversationSessions.delete(key);
   }
-  s.lastActivity = Date.now();
-  return s;
+}, 60 * 60 * 1000);
+if (cleanupTimer.unref) cleanupTimer.unref();
+
+function getSessionHistory(userId) {
+  const now = Date.now();
+  if (conversationSessions.has(userId)) {
+    const s = conversationSessions.get(userId);
+    s.lastActivity = now;
+    return s.history;
+  }
+  if (conversationSessions.size >= MAX_SESSIONS) {
+    const firstKey = conversationSessions.keys().next().value;
+    conversationSessions.delete(firstKey);
+  }
+  const newS = { history: [], lastActivity: now };
+  conversationSessions.set(userId, newS);
+  return newS.history;
 }
 
-// ---- Validadores y Extractores de Datos ----
+// ---- Validadores y Extractores para Atención al Cliente ----
 
 function extractPhone(text) {
   const match = text.match(/(?:\+?591\s*)?[67]\d{7}\b|\b\d{7,15}\b/);
@@ -161,53 +158,448 @@ function validateSchedulingDate(text) {
   return hasDayOfWeek && hasExactDate && hasHour;
 }
 
-/**
- * Procesa el mensaje de un usuario siguiendo la máquina de estados estricta
- */
+function getCustomerServiceSession(userId, pushName = '') {
+  if (!customerServiceSessions.has(userId)) {
+    if (customerServiceSessions.size >= MAX_SESSIONS) {
+      const firstKey = customerServiceSessions.keys().next().value;
+      customerServiceSessions.delete(firstKey);
+    }
+    const cleanName = (pushName && pushName !== 'Cliente' && pushName !== 'Por identificar') ? pushName.trim() : '';
+    customerServiceSessions.set(userId, {
+      state: 'ESTADO_1_GREETING',
+      clientName: cleanName,
+      phone: null,
+      email: null,
+      city: null,
+      dataRequested: false,
+      scheduledVisit: null,
+      refusalCount: 0,
+      reminderChoice: null,
+      lastActivity: Date.now()
+    });
+  }
+  const s = customerServiceSessions.get(userId);
+  if (pushName && pushName !== 'Cliente' && pushName !== 'Por identificar' && !s.clientName) {
+    s.clientName = pushName.trim();
+  }
+  s.lastActivity = Date.now();
+  return s;
+}
+
+// ---- Funciones para Campañas de Facebook Ads y Anuncios Genéricos ----
+
+function extractAdPropertyTopic(referralData, userMessage = '') {
+  const text = (referralData?.body || referralData?.headline || userMessage || '').trim();
+  if (!text) return 'la propiedad de nuestra publicación';
+
+  const clean = text
+    .replace(/^(realty one group itaguazu|realty one group bolivia)[|\s:—-]*/i, '')
+    .trim();
+
+  const dashParts = clean.split(/(?:—|-)/);
+  if (dashParts.length > 1) {
+    const afterDash = dashParts[1].trim();
+    const capsAfter = afterDash.match(/^([A-ZÁÉÍÓÚÑ0-9\s]{3,35})\b/);
+    if (capsAfter && capsAfter[1].trim().length >= 3) {
+      return capsAfter[1].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+    }
+    const wordsAfter = afterDash.split(/\s+/).slice(0, 4).join(' ');
+    if (wordsAfter && wordsAfter.length >= 3 && wordsAfter.length <= 35) {
+      return wordsAfter.replace(/[🏢🌿🏖️🔥📍💰✨👉.,]/g, '').trim();
+    }
+  }
+
+  const hectMatch = clean.match(/(\d+\s*hect[aá]reas)/i);
+  if (hectMatch) {
+    const lugarMatch = clean.match(/en\s+([A-Za-zÁÉÍÓÚñáéíóú]{4,20})/i);
+    const sufijo = lugarMatch ? ` en ${lugarMatch[1].trim()}` : '';
+    return `${hectMatch[1].trim()}${sufijo}`.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  const promoMatch = clean.match(/\b(torre\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|condominio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|edificio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|urbanizaci[oó]n\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|parque\s+industrial[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,20})\b/i);
+  if (promoMatch) {
+    return promoMatch[0].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  const exclMatch = clean.match(/¡([^!]+)!/);
+  if (exclMatch && exclMatch[1].length > 4 && exclMatch[1].length < 45) {
+    return exclMatch[1].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  const firstSentence = clean.split(/[.\n\r!]/)[0].trim();
+  if (firstSentence && firstSentence.length > 5 && firstSentence.length < 50) {
+    return firstSentence.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
+  return 'la propiedad de nuestra publicación';
+}
+
+function handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, session, nomSaludo) {
+  // A. Inversión
+  if (lowerMsg.includes('inversion') || lowerMsg.includes('inversión') || lowerMsg.includes('invertir') || lowerMsg.includes('renta') || lowerMsg.includes('plusvalia') || lowerMsg.includes('plusvalía') || lowerMsg.includes('negocio') || lowerMsg.includes('retorno')) {
+    session.state = 'AD_DISCUSSED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'esta propiedad';
+    return `¡Excelente visión de inversión${nomSaludo}! 📈 *${adTopic}* cuenta con un gran atractivo de plusvalía y retorno en su zona.\n\n` +
+      `Para darte la información precisa, ¿te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que nuestro e-Realtor especialista te prepare la propuesta de rentabilidad y planos por aquí mismo? 🤝`;
+  }
+
+  // B. Vivienda familiar
+  if (lowerMsg.includes('vivienda') || lowerMsg.includes('vivir') || lowerMsg.includes('familiar') || lowerMsg.includes('mi familia') || lowerMsg.includes('propio') || lowerMsg.includes('para mi')) {
+    session.state = 'AD_DISCUSSED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'esta propiedad';
+    return `¡Excelente elección${nomSaludo}! 🏡 *${adTopic}* es una excelente opción para disfrutar en familia por su comodidad, seguridad y comodidades.\n\n` +
+      `Será un verdadero gusto coordinar una visita presencial para que conozcas la propiedad en persona. ¿Qué día y horario te queda más cómodo (ej: *mañana por la tarde* o *este sábado por la mañana*)? 🤝`;
+  }
+
+  // C. Agendar visita
+  if (lowerMsg.includes('visita') || lowerMsg.includes('agendar') || lowerMsg.includes('coordinar') || lowerMsg.includes('ir a ver') || lowerMsg.includes('verla') || lowerMsg.includes('conocerla')) {
+    session.state = 'WAITING_VISIT_TIME';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'la propiedad';
+    return `¡Con mucho gusto${nomSaludo}! 🤝✨\n\n` +
+      `Será un placer coordinar tu visita presencial a *${adTopic}*.\n\n` +
+      `¿Qué día y hora te queda más cómodo pasar? (Por ejemplo: *este sábado a las 10:00 am* o *mañana por la tarde*).\n\n` +
+      `Nuestro e-Realtor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te esperará en el lugar.`;
+  }
+
+  // D. Horario de visita
+  const hasTimeIndicator = (
+    lowerMsg.includes('lunes') || lowerMsg.includes('martes') || lowerMsg.includes('miercoles') || lowerMsg.includes('miércoles') ||
+    lowerMsg.includes('jueves') || lowerMsg.includes('viernes') || lowerMsg.includes('sabado') || lowerMsg.includes('sábado') ||
+    lowerMsg.includes('domingo') || lowerMsg.includes('mañana') || lowerMsg.includes('manana') || lowerMsg.includes('hoy') ||
+    lowerMsg.includes('fin de semana') || lowerMsg.includes('a las') ||
+    /\b\d{1,2}:\d{2}\b/.test(lowerMsg) || /\b\d{1,2}\s*(am|pm|hrs|de la)\b/i.test(lowerMsg)
+  );
+
+  if ((session.state === 'WAITING_VISIT_TIME' || session.state === 'AD_DISCUSSED') && hasTimeIndicator) {
+    session.state = 'FINISHED';
+    userFlowSessions.set(userId, session);
+    const adTopic = session.adTopic || 'la propiedad';
+
+    try {
+      leadClassifier.trackAndClassifyLead(userId, rawMsg, `Visita confirmada para: ${adTopic}`, {
+        campana: adTopic,
+        canal: 'Facebook Ads (+591 60937050)',
+        pushName: pushName,
+        status: 'Visita Agendada',
+        zonaInteres: adTopic
+      }).catch(() => {});
+    } catch (_) {}
+
+    return `📅 *¡Perfecto${nomSaludo}! Cita agendada con éxito.* ✨\n\n` +
+      `Te esperamos el *${rawMsg}* en *${adTopic}*.\n\n` +
+      `El asesor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te registrará el ingreso autorizado.\n\n` +
+      `¡Muchas gracias y que tengas un excelente día! 🤝`;
+  }
+
+  // E. Fotos, planos o ficha técnica
+  if (lowerMsg.includes('foto') || lowerMsg.includes('imagen') || lowerMsg.includes('plano') || lowerMsg.includes('precio') || lowerMsg.includes('cuanto') || lowerMsg.includes('ficha') || lowerMsg.includes('carpeta')) {
+    const adTopic = session.adTopic || 'la propiedad';
+    return `¡Con mucho gusto${nomSaludo}! 📁✨\n\n` +
+      `Le estamos notificando a nuestro e-Realtor especialista de *${adTopic}* (+591 60937050) para que te envíe la carpeta digital con todos los detalles técnicos, planos y precios actualizados.\n\n` +
+      `¿Deseas que te lo comparta directamente por este chat o prefieres una breve llamada explicativa? 📲`;
+  }
+
+  // F. Entrada inicial del anuncio
+  const adTopic = extractAdPropertyTopic(referralData, rawMsg);
+  session.state = 'AD_QUALIFYING';
+  session.adTopic = adTopic;
+  userFlowSessions.set(userId, session);
+
+  const fullAdText = `${referralData?.body || ''} ${referralData?.headline || ''} ${rawMsg}`;
+  const priceMatch = fullAdText.match(/(?:us\$|\$|bs\.?)\s*[\d.,]+(?:\s*por\s*hect[aá]rea)?/i);
+  const precioTxt = priceMatch ? `\n💰 *Inversión anunciada:* ${priceMatch[0].trim()}` : '';
+
+  try {
+    leadClassifier.trackAndClassifyLead(userId, rawMsg, `Consulta de Anuncio: ${adTopic}`, {
+      campana: adTopic,
+      canal: 'Facebook Ads (+591 60937050)',
+      pushName: pushName || referralData?.pushName || '',
+      status: 'Nuevo',
+      zonaInteres: adTopic
+    }).catch(() => {});
+  } catch (_) {}
+
+  return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁\n\n` +
+    `Con gusto te comparto información y la ficha técnica sobre *${adTopic}* ✨${precioTxt}\n\n` +
+    `Para conectarte con el e-Realtor especialista y brindarte la mejor asesoría, cuéntame:\n\n` +
+    `1. 🎯 *¿Buscas esta opción para uso propio / familiar o como inversión?*\n` +
+    `2. 📅 *¿Te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que te enviemos la carpeta técnica y planos?* 🤝`;
+}
+
+// ---- Helpers de Catálogo y Gemini ----
+
+function queryProperties({ tipo, operacion, ubicacion, minHabitaciones, search } = {}) {
+  try {
+    let rows = db.prepare('SELECT * FROM propiedades WHERE activo = 1').all();
+    const op = (operacion || tipo || '').toLowerCase();
+    if (op) {
+      rows = rows.filter(p => {
+        const pTipo = (p.tipo || '').toLowerCase();
+        if (op.includes('anticret') || op.includes('anticr')) return pTipo.includes('anticret');
+        if (op.includes('alquil') || op.includes('rent')) return pTipo.includes('alquil');
+        if (op.includes('terren') || op.includes('lote')) return pTipo.includes('terren');
+        if (op.includes('vent') || op.includes('compr')) return pTipo.includes('vent');
+        return pTipo.includes(op);
+      });
+    }
+    if (ubicacion) {
+      const u = ubicacion.toLowerCase();
+      rows = rows.filter(p => (p.ubicacion || '').toLowerCase().includes(u) || (p.titulo || '').toLowerCase().includes(u));
+    }
+    if (minHabitaciones && Number(minHabitaciones) > 0) {
+      rows = rows.filter(p => Number(p.habitaciones || 0) >= Number(minHabitaciones));
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      rows = rows.filter(p =>
+        (p.titulo || '').toLowerCase().includes(s) ||
+        (p.descripcion_larga || '').toLowerCase().includes(s) ||
+        (p.ubicacion || '').toLowerCase().includes(s)
+      );
+    }
+    return rows.map(p => {
+      let imagenes = [];
+      try { imagenes = JSON.parse(p.imagenes || '[]'); } catch { imagenes = []; }
+      return { ...p, imagenes };
+    });
+  } catch (error) {
+    return [];
+  }
+}
+
+function formatPropertiesForWhatsApp(properties) {
+  if (!properties || properties.length === 0) {
+    return 'Actualmente no encontré propiedades con esos filtros específicos, pero contamos con nuevas opciones ingresando a diario. ¿Te gustaría que un e-Realtor especialista te envíe opciones personalizadas?';
+  }
+  let text = `🏡 *Encontré las siguientes opciones disponibles en One Comsys:*\n\n`;
+  properties.slice(0, 3).forEach((p, idx) => {
+    text += `*${idx + 1}. ${p.titulo}*\n`;
+    text += `📍 *Ubicación:* ${p.ubicacion}\n`;
+    text += `💰 *Precio:* ${p.precio} (${p.tipo})\n`;
+    if (p.habitaciones > 0) text += `🛏️ *Dormitorios:* ${p.habitaciones} | 🚿 *Baños:* ${p.banos}\n`;
+    if (p.area) text += `📐 *Superficie:* ${p.area}\n`;
+    text += `🔗 *Ficha digital:* propiedad.html?id=${p.id}\n\n`;
+  });
+  text += `━━━━━━━━━━━━━━━━━━━━\n¿Te gustaría que coordinemos una visita presencial para conocer alguna de estas opciones? 😊`;
+  return text;
+}
+
+function generateERealtorAssignmentResponse(lead) {
+  const realtorName = lead.e_realtor_asignado || 'Carlos Rodríguez';
+  const realtorPhone = lead.e_realtor_telefono || '+591 70123456';
+  const clientName = lead.cliente_nombre && lead.cliente_nombre !== 'Por identificar' ? lead.cliente_nombre : 'Estimado/a cliente';
+  return `🎉 *¡DATOS REGISTRADOS CON ÉXITO!* 🦁✨\n\nHola *${clientName}*, tus datos han sido registrados en *One Comsys* con prioridad *🔥 PROSPECTO POTENCIAL*.\n\n👤 *e-Realtor Asignado:* *${realtorName}*\n📞 *Teléfono directo:* ${realtorPhone}\n\nTu asesor se comunicará contigo para coordinar el horario de visita.`;
+}
+
+async function callGeminiAI(userMessage, history = []) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const sampleProperties = queryProperties({});
+    const contextData = sampleProperties.slice(0, 5).map(p => `[ID: ${p.id}] ${p.titulo} | Tipo: ${p.tipo} | Zona: ${p.ubicacion} | Precio: ${p.precio}`).join('\n');
+    const prompt = `${SYSTEM_INSTRUCTION}\n\nCATÁLOGO:\n${contextData}\n\nHISTORIAL:\n${history.map(h => `${h.role}: ${h.text}`).join('\n')}\n\nMENSAJE:\n"${userMessage}"`;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 600 }
+      })
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function callGeminiCampaignAI(campaign, userMessage, history = []) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const data = campaign.datos_inmueble || {};
+    const ofi = campaign.oficina || {};
+    const prompt = `Eres el e-Realtor oficial de "${ofi.nombre || 'Realty ONE Group Bolivia'}" atendiendo la campaña "${campaign.titulo_campana}".
+DATOS: ${JSON.stringify(data)}
+HISTORIAL: ${history.map(h => `${h.role}: ${h.text}`).join('\n')}
+MENSAJE: "${userMessage}"
+Instrucciones: Responde con cordialidad, formato WhatsApp (*negrita*, emojis) y promueve agendar una visita.`;
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.6, maxOutputTokens: 500 }
+      })
+    });
+    if (!response.ok) return null;
+    const resData = await response.json();
+    return resData.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ---- PROCESADOR PRINCIPAL (Mapeador Híbrido) ----
+
 async function processUserMessage(userId, userMessage, referralOrPushName = null) {
   if (!userMessage || typeof userMessage !== 'string') return null;
 
   let pushName = '';
+  let referralData = null;
   if (typeof referralOrPushName === 'string') {
     pushName = referralOrPushName;
   } else if (referralOrPushName && typeof referralOrPushName === 'object') {
+    referralData = referralOrPushName;
     pushName = referralOrPushName.pushName || referralOrPushName.name || '';
   }
 
   const rawMsg = userMessage.trim();
   const lowerMsg = rawMsg.toLowerCase();
+  const nomSaludo = pushName ? ` ${pushName}` : '';
+  const history = getSessionHistory(userId);
 
   // Comando de reinicio
-  if (lowerMsg === 'reiniciar' || lowerMsg === 'reset' || lowerMsg === 'inicio') {
-    userSessions.delete(userId);
+  if (lowerMsg === 'reiniciar' || lowerMsg === 'reset' || lowerMsg === 'inicio' || lowerMsg === 'menu' || lowerMsg === 'menú') {
+    customerServiceSessions.delete(userId);
+    userFlowSessions.delete(userId);
+    conversationSessions.delete(userId);
   }
 
-  const session = getSession(userId, pushName);
-  const nameFarewell = session.clientName ? `, ${session.clientName}` : '';
+  // 1. EVALUAR SI ES UNA CAMPAÑA DE FACEBOOK ADS / ANUNCIO
+  const hasAdKeywords = (
+    lowerMsg.includes('fb.me') ||
+    lowerMsg.includes('oportunidad') ||
+    lowerMsg.includes('vi la publicidad') ||
+    lowerMsg.includes('vi el anuncio') ||
+    lowerMsg.includes('departamento de 4 dormitorios') ||
+    lowerMsg.includes('mar adentro') ||
+    lowerMsg.includes('westgate') ||
+    lowerMsg.includes('buenavista') ||
+    lowerMsg.includes('terreno industrial')
+  );
+
+  const isFacebookAd = Boolean(
+    referralData?.source?.includes('Facebook') ||
+    referralData?.body ||
+    referralData?.headline ||
+    referralData?.source_url ||
+    (rawMsg.includes('Quiero más información') && referralData) ||
+    hasAdKeywords
+  );
+
+  const isInCustomerService = customerServiceSessions.has(userId) &&
+    customerServiceSessions.get(userId).state !== 'ESTADO_1_GREETING';
+
+  const matchedCamp = (!isInCustomerService || isFacebookAd)
+    ? campaignService.matchCampaign(userId, userMessage, referralData)
+    : null;
+
+  // Si entra un nuevo anuncio explícito (referralData con body o headline), actualizar/limpiar la campaña previa
+  const hasNewAdReferral = Boolean(referralData?.body || referralData?.headline || referralData?.source_url);
+  if (hasNewAdReferral && userFlowSessions.has(userId)) {
+    const s = userFlowSessions.get(userId);
+    s.lastCampaign = matchedCamp || null;
+    userFlowSessions.set(userId, s);
+  }
+
+  const isAlreadyInAdSession = userFlowSessions.has(userId) && ['AD_QUALIFYING', 'WAITING_VISIT_TIME', 'AD_DISCUSSED', 'AD_CAMPAIGN_ACTIVE'].includes(userFlowSessions.get(userId)?.state);
+  const activeCampaign = matchedCamp || (isAlreadyInAdSession ? userFlowSessions.get(userId)?.lastCampaign : null);
+
+  // A. FLUJO DE ANUNCIOS Y PUBLICACIONES DE FACEBOOK ADS
+  if ((activeCampaign || isFacebookAd || isAlreadyInAdSession) && !isInCustomerService) {
+    if (activeCampaign) {
+      const session = userFlowSessions.get(userId) || { state: 'AD_CAMPAIGN_ACTIVE' };
+      session.state = 'AD_CAMPAIGN_ACTIVE';
+      session.lastCampaign = activeCampaign;
+      userFlowSessions.set(userId, session);
+
+      // Si envía datos de contacto dentro del embudo de la campaña
+      const hasEmail = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(rawMsg);
+      const hasCommaData = rawMsg.split(',').length >= 3 && (/\d{7,}/.test(rawMsg) || hasEmail);
+      if (hasEmail || hasCommaData) {
+        try {
+          leadClassifier.trackAndClassifyLead(userId, rawMsg, `Campaña: ${activeCampaign.titulo_campana}`, {
+            campana: activeCampaign.titulo_campana,
+            canal: 'WhatsApp Ads (+591 60937050)',
+            pushName: pushName || referralData?.pushName || '',
+            status: 'Visita Agendada',
+            zonaInteres: activeCampaign.titulo_campana
+          }).catch(() => {});
+        } catch (_) {}
+      }
+
+      // Respuesta local especializada de la campaña
+      const localResp = campaignService.generateCampaignResponse(activeCampaign, userMessage, userId, pushName || referralData?.pushName);
+      history.push({ role: 'user', text: rawMsg });
+      history.push({ role: 'model', text: localResp });
+      return localResp;
+    }
+
+    // Anuncios dinámicos no registrados en campaigns.json (ej: Westgate Tower, Buenavista, etc.)
+    const session = userFlowSessions.get(userId) || { state: 'NEW' };
+    const genericAdResp = handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, session, nomSaludo);
+    if (genericAdResp) {
+      history.push({ role: 'user', text: rawMsg });
+      history.push({ role: 'model', text: genericAdResp });
+      return genericAdResp;
+    }
+  }
+
+  // 2. CONSULTAS ESPECÍFICAS DE ZONA (Ej: "zona sur" en test_campaign_accuracy.js)
+  if (lowerMsg.includes('zona sur') || lowerMsg.includes('zona norte') || lowerMsg.includes('equipetrol') || lowerMsg.includes('urubo') || lowerMsg.includes('urubó')) {
+    const session = userFlowSessions.get(userId) || { state: 'CHATTING' };
+    session.state = 'CHATTING';
+    userFlowSessions.set(userId, session);
+
+    const zonaNombre = lowerMsg.includes('zona sur') ? 'Zona Sur' : lowerMsg.includes('zona norte') ? 'Zona Norte' : lowerMsg.includes('equipetrol') ? 'Equipetrol' : 'Urubó';
+    return `¡Hola${nomSaludo}! Con mucho gusto te oriento sobre las opciones disponibles en la *${zonaNombre}* de Santa Cruz. 🦁\n\n` +
+      `Contamos con excelentes casas, departamentos y terrenos residenciales en esta zona. ¿Buscas para compra, alquiler o anticrético? 🤝`;
+  }
+
+  // 3. RESPUESTAS A AGRADECIMIENTO TRAS CONSULTA
+  if (
+    lowerMsg === 'gracias' || lowerMsg === 'muchas gracias' || lowerMsg === 'muchas gracias!' ||
+    lowerMsg.startsWith('gracias') || lowerMsg.includes('muchas gracias') || lowerMsg === 'ok gracias'
+  ) {
+    if (userFlowSessions.has(userId)) {
+      const s = userFlowSessions.get(userId);
+      s.state = 'FINISHED';
+      userFlowSessions.set(userId, s);
+    }
+    return `¡A ti${nomSaludo}! 🦁 Ha sido un verdadero placer ayudarte. Quedamos a tu completa disposición para lo que necesites en *Realty ONE Group Bolivia*. ¡Que tengas un excelente día! ✨`;
+  }
+
+  // 4. MÁQUINA DE ESTADOS: ASISTENTE VIRTUAL DE ATENCIÓN AL CLIENTE (CANAL ORGÁNICO / GENERAL)
+  const csSession = getCustomerServiceSession(userId, pushName);
+  const nameFarewell = csSession.clientName ? `, ${csSession.clientName}` : '';
 
   // ESTADO 1: Saludo Inicial
-  if (session.state === 'ESTADO_1_GREETING') {
-    session.state = 'ESTADO_2_DATA';
-    return session.clientName
-      ? `Hola ${session.clientName}. ¿En qué puedo ayudarte?`
+  if (csSession.state === 'ESTADO_1_GREETING') {
+    csSession.state = 'ESTADO_2_DATA';
+    return csSession.clientName
+      ? `Hola ${csSession.clientName}. ¿En qué puedo ayudarte?`
       : 'Hola. ¿En qué puedo ayudarte?';
   }
 
   // ESTADO 2: Solicitud de Datos Específicos
-  if (session.state === 'ESTADO_2_DATA') {
-    // Si aún no se han solicitado formalmente los datos tras el saludo inicial
-    if (!session.dataRequested) {
-      session.dataRequested = true;
+  if (csSession.state === 'ESTADO_2_DATA') {
+    if (!csSession.dataRequested) {
+      csSession.dataRequested = true;
       return 'Para que un agente especializado se contacte contigo, por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
     }
 
     // Regla 4: Manejo de objeciones / negativa
     if (isRefusal(rawMsg)) {
-      if (session.refusalCount === 0) {
-        session.refusalCount = 1;
+      if (csSession.refusalCount === 0) {
+        csSession.refusalCount = 1;
         return 'Son indispensables para que un agente pueda atender tu solicitud. Por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
       } else {
-        session.state = 'ESTADO_5_FAREWELL';
+        csSession.state = 'ESTADO_5_FAREWELL';
         return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar.`;
       }
     }
@@ -217,15 +609,15 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const email = extractEmail(rawMsg);
     const city = extractCity(rawMsg);
 
-    if (phone) session.phone = phone;
-    if (email) session.email = email;
-    if (city) session.city = city;
+    if (phone) csSession.phone = phone;
+    if (email) csSession.email = email;
+    if (city) csSession.city = city;
 
     // Regla 3: Validación de datos faltantes
     const missing = [];
-    if (!session.phone) missing.push('tu número de teléfono');
-    if (!session.email) missing.push('tu correo electrónico');
-    if (!session.city) missing.push('tu ciudad');
+    if (!csSession.phone) missing.push('tu número de teléfono');
+    if (!csSession.email) missing.push('tu correo electrónico');
+    if (!csSession.city) missing.push('tu ciudad');
 
     if (missing.length > 0) {
       let promptFaltantes = '';
@@ -240,18 +632,17 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     }
 
     // Todos los datos están completos -> Avanzar a Estado 3
-    session.state = 'ESTADO_3_SCHEDULING';
+    csSession.state = 'ESTADO_3_SCHEDULING';
 
-    // Registrar en CRM y SiteGround de fondo
     try {
       leadClassifier.trackAndClassifyLead(userId, rawMsg, 'Datos de contacto recopilados', {
         campana: 'Atención al Cliente',
         canal: 'WhatsApp (+591 60937050)',
-        pushName: session.clientName,
+        pushName: csSession.clientName,
         status: 'Datos Completos',
-        telefono: session.phone,
-        email: session.email,
-        ciudad: session.city
+        telefono: csSession.phone,
+        email: csSession.email,
+        ciudad: csSession.city
       }).catch(() => {});
     } catch (_) {}
 
@@ -259,29 +650,25 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   }
 
   // ESTADO 3: Agendamiento
-  if (session.state === 'ESTADO_3_SCHEDULING') {
-    // Si el cliente no agenda -> Salta al Estado 5
+  if (csSession.state === 'ESTADO_3_SCHEDULING') {
     if (isNegativeScheduling(rawMsg)) {
-      session.state = 'ESTADO_5_FAREWELL';
+      csSession.state = 'ESTADO_5_FAREWELL';
       return `Muchas gracias por tu tiempo${nameFarewell}. Cualquier duda o inquietud no dude en llamar.`;
     }
 
-    // Regla 5: Validación de fecha (día de la semana, fecha exacta y hora)
     const isValidDate = validateSchedulingDate(rawMsg);
     if (!isValidDate) {
       return 'Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM).';
     }
 
-    // Fecha completa y válida -> Avanzar a Estado 4
-    session.scheduledVisit = rawMsg;
-    session.state = 'ESTADO_4_REMINDER';
+    csSession.scheduledVisit = rawMsg;
+    csSession.state = 'ESTADO_4_REMINDER';
 
-    // Registrar visita agendada en CRM
     try {
       leadClassifier.trackAndClassifyLead(userId, rawMsg, `Visita: ${rawMsg}`, {
         campana: 'Visita Agendada',
         canal: 'WhatsApp (+591 60937050)',
-        pushName: session.clientName,
+        pushName: csSession.clientName,
         status: 'Visita Agendada',
         horarioVisita: rawMsg
       }).catch(() => {});
@@ -291,26 +678,19 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   }
 
   // ESTADO 4: Recordatorio (Condicional)
-  if (session.state === 'ESTADO_4_REMINDER') {
-    session.reminderChoice = rawMsg;
-    session.state = 'ESTADO_5_FAREWELL';
+  if (csSession.state === 'ESTADO_4_REMINDER') {
+    csSession.reminderChoice = rawMsg;
+    csSession.state = 'ESTADO_5_FAREWELL';
     return `Muchas gracias por tu tiempo${nameFarewell}. Cualquier duda o inquietud no dude en llamar.`;
   }
 
   // ESTADO 5: Despedida
-  if (session.state === 'ESTADO_5_FAREWELL') {
+  if (csSession.state === 'ESTADO_5_FAREWELL') {
     return `¡Hasta luego${nameFarewell}! Cualquier duda o inquietud no dude en llamar.`;
   }
 
   return null;
 }
-
-// Helpers para compatibilidad con módulos existentes
-function queryProperties() { return []; }
-function formatPropertiesForWhatsApp() { return ''; }
-function generateERealtorAssignmentResponse() { return ''; }
-async function callGeminiAI() { return null; }
-async function callGeminiCampaignAI() { return null; }
 
 module.exports = {
   processUserMessage,
