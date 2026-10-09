@@ -1265,12 +1265,13 @@
         // En Render o Node local consultar /api/whatsapp/leads primero. En SiteGround usar PHP.
         const candidateUrls = [];
         if (IS_NODE_BACKEND) {
-          candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
+          candidateUrls.push(`/api/whatsapp/leads?key=ONE2026&${cacheBuster}`);
         }
         candidateUrls.push(`save_leads_sync.php?key=ONE2026&${cacheBuster}`);
+        candidateUrls.push(`https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php?key=ONE2026&${cacheBuster}`);
         candidateUrls.push(`leads.json?${cacheBuster}`);
         if (!IS_NODE_BACKEND) {
-          candidateUrls.push(`/api/whatsapp/leads?${cacheBuster}`);
+          candidateUrls.push(`/api/whatsapp/leads?key=ONE2026&${cacheBuster}`);
         }
 
         for (const u of candidateUrls) {
@@ -1309,9 +1310,16 @@
           }
         });
 
+        // Ordenar leads: actividad o registro más reciente al inicio
+        newLeads.sort((a, b) => {
+          const tA = a.ultima_actividad ? new Date(a.ultima_actividad).getTime() : (a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0);
+          const tB = b.ultima_actividad ? new Date(b.ultima_actividad).getTime() : (b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0);
+          return tB - tA;
+        });
+
         const prevCount = allLeads.length;
         // Comparar ids + ultimo mensaje + cantidad historial + etapa — detecta nuevos, borrados y actualizados
-        const snapshotFn = arr => arr.map(l => `${l.id}|${l.ultimo_mensaje || ''}|${(l.historial || []).length}|${l.etapa_embudo || ''}`).sort().join(';;');
+        const snapshotFn = arr => arr.map(l => `${l.id}|${l.ultimo_mensaje || ''}|${(l.historial || []).length}|${l.etapa_embudo || ''}|${l.hora || ''}`).join(';;');
         const prevSnapshot = snapshotFn(allLeads);
         const newSnapshot  = snapshotFn(newLeads);
         const hasChanged = prevSnapshot !== newSnapshot;
@@ -1590,7 +1598,7 @@
       }
 
       // Sincronizar en SiteGround (siempre, ruta relativa)
-      fetch('save_leads_sync.php', {
+      fetch('save_leads_sync.php?key=ONE2026', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
         body: JSON.stringify(allLeads)
@@ -1634,7 +1642,7 @@
           headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(payload)
         }).catch(() => {}),
-        fetch(`save_leads_sync.php?t=${Date.now()}`, {
+        fetch(`save_leads_sync.php?key=ONE2026&t=${Date.now()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(allLeads)
@@ -1853,7 +1861,7 @@
       }
 
       // Sincronizar: siempre save_leads_sync.php (PHP relativo). Si local, también Node.
-      fetch('save_leads_sync.php', {
+      fetch('save_leads_sync.php?key=ONE2026', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
         body: JSON.stringify(allLeads)

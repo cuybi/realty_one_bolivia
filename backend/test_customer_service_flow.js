@@ -33,7 +33,7 @@ async function runTests() {
   // Paso 2: Usuario responde con su consulta, Bot toma control y pide datos (Estado 2)
   const r1_2 = await aiAgent.processUserMessage('client_happy', 'Estoy interesado en comprar un departamento', 'Marcos');
   console.log('Bot 1.2:', r1_2);
-  assert(r1_2.includes('Para que un agente especializado se contacte contigo') && r1_2.includes('número de teléfono'), 'Paso 1.2 falló');
+  assert(r1_2.includes('tenemos a disposición') && r1_2.includes('agente especializado se pondrá en contacto') && r1_2.includes('número de teléfono'), 'Paso 1.2 falló');
   assertNoBulletsOrMenus(r1_2, '1.2');
 
   // Paso 3: Usuario envía datos completos, Bot pide agendamiento (Estado 3)
@@ -64,7 +64,7 @@ async function runTests() {
   assert(r2_1.includes('Valeria') && r2_1.includes('¿En qué puedo ayudarte'), 'Paso 2.1 falló');
 
   const r2_2 = await aiAgent.processUserMessage('client_incomplete', 'Quiero alquilar una casa', 'Valeria');
-  assert(r2_2.includes('Para que un agente especializado se contacte contigo'), 'Paso 2.2 falló');
+  assert(r2_2.includes('agente especializado se pondrá en contacto'), 'Paso 2.2 falló');
 
   // Usuario da solo teléfono
   const r2_3 = await aiAgent.processUserMessage('client_incomplete', 'Solo tengo mi celular: 78901234', 'Valeria');
@@ -84,7 +84,7 @@ async function runTests() {
   console.log('👉 [ESCENARIO 3]: Manejo de Negativa a dar datos');
   const r3_1 = await aiAgent.processUserMessage('client_refusal', 'Hola', 'Carlos');
   const r3_2 = await aiAgent.processUserMessage('client_refusal', 'Quiero info de un lote', 'Carlos');
-  assert(r3_2.includes('Para que un agente especializado se contacte contigo'), 'Paso 3.2 falló');
+  assert(r3_2.includes('agente especializado se pondrá en contacto'), 'Paso 3.2 falló');
 
   // 1ra negativa
   const r3_3 = await aiAgent.processUserMessage('client_refusal', 'No quiero dar mis datos por este medio', 'Carlos');
@@ -132,7 +132,7 @@ async function runTests() {
   assert(r5_1.includes('¿En qué puedo ayudarte'), 'Paso 5.1 falló');
 
   const r5_2 = await aiAgent.processUserMessage('client_noname', 'Quiero info');
-  assert(r5_2.includes('Para que un agente especializado se contacte contigo'), 'Paso 5.2 falló');
+  assert(r5_2.includes('agente especializado se pondrá en contacto'), 'Paso 5.2 falló');
 
   const r5_3 = await aiAgent.processUserMessage('client_noname', '77397850, contacto@empresa.bo, Santa Cruz');
   assert(r5_3.includes('Si tienes clara tu decisión, ¿quieres agendar una visita?'), 'Paso 5.3 falló');

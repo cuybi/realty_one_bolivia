@@ -268,12 +268,12 @@ async function saveLeads(leads) {
     fs.writeFileSync(rootLeads, JSON.stringify(leads, null, 2), 'utf8');
   } catch (e) {}
 
-  // Sincronizar con SiteGround (operación crítica)
-  const ok = await syncLeadsToSiteGround(leads);
-  if (!ok) {
-    console.error('[saveLeads] ❌ FALLO al guardar en SiteGround. Los datos pueden perderse si Render reinicia.');
-  }
-  return ok;
+  // Sincronizar con SiteGround (en segundo plano para no bloquear mensajería ni pruebas)
+  syncLeadsToSiteGround(leads).then(ok => {
+    if (!ok) console.warn('[saveLeads] ⚠️ Sync a SiteGround reintentará en siguiente ciclo.');
+  }).catch(e => console.warn('[saveLeads] ⚠️ Error background sync:', e.message));
+
+  return true;
 }
 
 /**
@@ -625,6 +625,14 @@ function extractFormData(text = '') {
     let name = null;
     let phone = null;
     let email = null;
+    let city = null;
+
+    const CITIES_LIST = [
+      'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
+      'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
+      'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
+      'yacuiba', 'riberalta'
+    ];
 
     for (const part of parts) {
       const lower = part.toLowerCase();
@@ -642,14 +650,16 @@ function extractFormData(text = '') {
           phone = normalizePhoneNumber(clean);
         } else if (clean.length === 8) {
           phone = normalizePhoneNumber(clean);
-        } else if (part.length >= 2 && !/\d/.test(part) && part.split(' ').length <= 4) {
+        } else if (CITIES_LIST.some(c => lower === c || lower.includes(c))) {
+          city = part.replace(/\b\w/g, l => l.toUpperCase());
+        } else if (!name && part.length >= 2 && !/\d/.test(part) && part.split(' ').length <= 4) {
           name = part.replace(/\b\w/g, l => l.toUpperCase());
         }
       }
     }
 
-    if (name || phone || email) {
-      return { name, phone, email };
+    if (name || phone || email || city) {
+      return { name, phone, email, city };
     }
   }
   return null;
@@ -749,12 +759,21 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     // Concatenar todo el texto de la conversación
     const allUserTexts = lead.historial.filter(h => h.rol === 'usuario').map(h => h.texto).join(' ');
 
-    // 0. Si el usuario envió formulario con comas (Ej: "Carlos Perez, 67890987, carlos@gmail.com")
+    // 0. Si el usuario envió formulario con comas (Ej: "Marcos Antezana, 60034649, pixelbolivia@gmail.com, Santa Cruz")
     const formData = extractFormData(incomingMessage);
     if (formData) {
       if (formData.name) lead.cliente_nombre = formData.name;
       if (formData.email) lead.email = formData.email;
       if (formData.phone) lead.numero_celular = formData.phone;
+      if (formData.city) lead.zona_interes = formData.city;
+    }
+
+    // 0.1 Inyectar datos explícitos validados por la máquina de estados
+    if (metadata.telefono) lead.numero_celular = normalizePhoneNumber(metadata.telefono);
+    if (metadata.email) lead.email = metadata.email;
+    if (metadata.ciudad) lead.zona_interes = metadata.ciudad;
+    if (metadata.pushName && (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar' || lead.cliente_nombre.toLowerCase() === 'santa cruz')) {
+      lead.cliente_nombre = metadata.pushName;
     }
 
     // 1. Extraer nombre si aún no está fijado

@@ -203,5 +203,27 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
     5. Despedida cordial con nombre y frase obligatoria: *"Cualquier duda o inquietud no dude en llamar."*
 - **Validación:** 100% de las 6 suites de pruebas pasando con éxito (commit `41ea14d`).
 
+---
+
+### 5.6. Diagnóstico y Solución Definitiva de Sincronización en Tiempo Real ("No actualiza")
+- **Causa Raíz Diagnosticada con Doubt-Driven Development:**
+  1. **Autenticación en Polling:** `ingreso_leads.html` consultaba `/api/whatsapp/leads` sin `?key=ONE2026` en la URL. Al no incluir credenciales HTTP Basic Auth ni el encabezado en peticiones cross-origin o sin sesión, el backend respondía `401 Unauthorized`, bloqueando el refresco automático.
+  2. **Sobreescritura de Nombre en Formularios:** Al recibir mensajes multilínea o separados por comas (ej. `"marcos antezana, 60034649, pixelbolivia@gmail.com, santa cruz"`), la función anterior asignaba el último elemento (`santa cruz`) como nombre del cliente en lugar de la ciudad. Corregido en `leadClassifier.js`.
+  3. **Ordenamiento de Prospectos Existentes:** Al re-interactuar un prospecto existente (ej. creado a las 14:03 y activo a las 15:47), la tabla mantenía el orden por fecha de creación antigua en lugar de actividad reciente, dejándolo más abajo en la lista.
+  4. **Latencia de Red SiteGround:** `saveLeads` esperaba síncronamente la respuesta de SiteGround (10s de timeout). Se optimizó a sincronización en segundo plano (non-blocking) para respuesta inmediata en WhatsApp.
+- **Acciones Implementadas:**
+  - **`ingreso_leads.html`:**
+    - Parámetro `?key=ONE2026` inyectado en todas las llamadas de lectura y escritura (`/api/whatsapp/leads`, `save_leads_sync.php`).
+    - Fallback resiliente a `https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php?key=ONE2026` si el backend local no responde.
+    - Ordenamiento automático por `ultima_actividad` o `fecha_creacion` más reciente en cada ciclo de polling (cada 2.5s).
+    - Detección de cambio en `snapshotFn` sensible a hora y posición.
+  - **`leadClassifier.js`:**
+    - Extracción precisa de nombre, teléfono, email y ciudad en `extractFormData`.
+    - Sincronización no bloqueante a SiteGround. Sincronizado en `backend/` y `services/`.
+- **Estado Actual:**
+  - Bot WhatsApp Baileys conectado y en vivo (`+591 60937050`).
+  - Total leads sincronizados en SiteGround y local: **23 leads** con `Marcos Antezana` activo al inicio.
+
+
 
 
