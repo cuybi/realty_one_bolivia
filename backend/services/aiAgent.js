@@ -131,6 +131,39 @@ function isRefusal(text) {
   return ['no', 'no quiero', 'no gracias', 'no los daré', 'no los dare'].includes(lo);
 }
 
+function extractFullName(text) {
+  if (!text || isRefusal(text)) return null;
+  const cities = [
+    'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
+    'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
+    'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
+    'yacuiba', 'riberalta'
+  ];
+  // 1. Patrón explícito "mi nombre es X", "me llamo X", "soy X"
+  const m = text.match(/(?:mi nombre es|me llamo|soy)\s+([A-Za-zÁÉÍÓÚÑñáéíóú\s]{3,35})/i);
+  if (m) {
+    const cand = m[1].trim();
+    if (!extractEmail(cand) && !extractPhone(cand)) {
+      return cand.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+  }
+  // 2. Campo separado por coma / punto y coma / salto de línea
+  const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+  for (const p of parts) {
+    if (extractEmail(p) || extractPhone(p)) continue;
+    const pLo = p.toLowerCase();
+    if (cities.some(c => pLo === c || pLo === `en ${c}` || pLo === `de ${c}`)) continue;
+    // Si contiene al menos 2 palabras (nombre y apellido) con solo letras
+    if (/^[A-Za-zÁÉÍÓÚÑñáéíóú\s.'-]+$/.test(p) && p.length >= 4 && p.length <= 40) {
+      const words = p.split(/\s+/).filter(w => w.length >= 2);
+      if (words.length >= 2) {
+        return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
+  }
+  return null;
+}
+
 function extractCity(text) {
   if (isRefusal(text)) return null;
   const cities = [
@@ -150,9 +183,12 @@ function extractCity(text) {
   if (vm && !/(?:lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo|gmail|hotmail)/i.test(vm[1])) {
     return vm[1].trim();
   }
-  // Tercer campo separado por coma/punto y coma que no sea email ni teléfono
+  // Tercer campo separado por coma/punto y coma que no sea email, teléfono ni nombre de 2+ palabras
   for (const p of text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean)) {
     if (!extractEmail(p) && !extractPhone(p) && p.length >= 3 && p.length <= 30 && !/\d{4}/.test(p)) {
+      if (p.split(/\s+/).length >= 2 && !cities.some(c => p.toLowerCase().includes(c))) {
+        continue;
+      }
       return p;
     }
   }
@@ -461,6 +497,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   );
   if (isOrganicGreeting) {
     userFlowSessions.delete(userId);
+    sessions.delete(userId);
   }
 
   // 1. EVALUAR SI ES UNA CAMPAÑA DE FACEBOOK ADS / ANUNCIO
@@ -572,8 +609,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // 4. MÁQUINA DE ESTADOS: ATENCIÓN AL CLIENTE (CANAL ORGÁNICO / GENERAL)
   const s    = getSession(userId, pushName);
-  const name = s.clientName ? ` ${s.clientName}` : '';
-  const nom  = s.clientName || '';
+  let name   = s.clientName ? ` ${s.clientName}` : '';
+  let nom    = s.clientName || '';
 
   // ── ESTADO 1: Saludo ──────────────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
@@ -589,7 +626,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.state = 'ESTADO_3_DATA';
     s.dataRequested = true;
     const tema = getTopicDisposicion(raw);
-    return `¡Sí, tenemos a disposición ${tema}! 🏡✨ Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su número de teléfono, correo electrónico y ciudad. 📲`;
+    return `¡Sí, tenemos a disposición ${tema}! 🏡✨ Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
   }
 
   // ── ESTADO 3: Recopilar datos ─────────────────────────────────────────────
@@ -598,7 +635,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     if (isRefusal(raw)) {
       if (s.refusalCount === 0) {
         s.refusalCount = 1;
-        return 'Son indispensables para que un agente especializado pueda contactarte y atender tu solicitud. 🤝 Por favor compárteme tu número de teléfono, correo electrónico y ciudad.';
+        return 'Son indispensables para que un agente especializado pueda contactarte y atender tu solicitud. 🤝 Por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad.';
       } else {
         s.state = 'ESTADO_6_FAREWELL';
         return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${name}! Cualquier duda o inquietud no dude en llamar. 📞🤝`;
@@ -609,9 +646,15 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const phone = extractPhone(raw);
     const email = extractEmail(raw);
     const city  = extractCity(raw);
+    const fullName = extractFullName(raw);
     if (phone) s.phone = phone;
     if (email) s.email = email;
     if (city)  s.city  = city;
+    if (fullName && (!s.clientName || s.clientName === 'Por identificar' || s.clientName === 'Cliente')) {
+      s.clientName = fullName;
+      name = ` ${s.clientName}`;
+      nom = s.clientName;
+    }
 
     // ¿Faltan datos?
     const missing = [];
@@ -679,9 +722,25 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     return `¡Muchas gracias por tu tiempo${name}! 🦁✨ Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
   }
 
-  // ── ESTADO 6: Despedida (corta conversación, no responde a nada posterior) ─
+  // ── ESTADO 6: Despedida y Reactivación Automática ──────────────────────────
   if (s.state === 'ESTADO_6_FAREWELL') {
-    return null;
+    // Si el usuario escribe nuevamente tras haberse despedido, reactivar atención
+    s.scheduledVisit = null;
+    s.reminderChoice = null;
+    s.refusalCount = 0;
+
+    // Si saluda
+    if (isOrganicGreeting || /^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches)/i.test(lo)) {
+      s.state = 'ESTADO_2_INTEREST';
+      return nom
+        ? `¡Hola ${nom}! 👋😊 Con gusto te atiendo nuevamente en *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`
+        : `¡Hola! 👋😊 Con gusto te atiendo nuevamente en *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`;
+    }
+
+    // Si envía una nueva consulta o pide más información
+    const tema = getTopicDisposicion(raw);
+    s.state = 'ESTADO_3_DATA';
+    return `¡Hola${name}! Con gusto te brindamos asesoría sobre ${tema}. 🏡✨ Un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
   }
 
   return null;

@@ -142,8 +142,32 @@ async function runTests() {
   assert(r5_4.includes('Cualquier duda o inquietud no dude en llamar.'));
   console.log('✅ ESCENARIO 5 VERIFICADO AL 100%\n');
 
+  // -------------------------------------------------------------
+  // ESCENARIO 6: EXTRACCIÓN DE NOMBRE EN TEXTO Y REACTIVACIÓN TRAS DESPEDIDA
+  // -------------------------------------------------------------
+  console.log('👉 [ESCENARIO 6]: Extracción de Nombre y Reactivación post-despedida');
+  const r6_1 = await aiAgent.processUserMessage('client_reactivate', 'Hola');
+  const r6_2 = await aiAgent.processUserMessage('client_reactivate', 'mas informacion');
+  assert(r6_2.includes('nombre y apellido') && r6_2.includes('número de teléfono'), 'Debe solicitar nombre y apellido');
+
+  // Enviar nombre y datos en texto libre
+  const r6_3 = await aiAgent.processUserMessage('client_reactivate', 'marcos antezana, 60034649, pixelbolivia@gmail.com, santa cruz');
+  console.log('Bot 6.3 (Extracción de Marcos Antezana):', r6_3);
+  assert(r6_3.includes('Marcos Antezana'), 'Debe haber extraído Marcos Antezana como nombre');
+
+  // Completar agendamiento y despedida
+  await aiAgent.processUserMessage('client_reactivate', 'sabado 9 de octubre a las 9:30 am');
+  const r6_5 = await aiAgent.processUserMessage('client_reactivate', 'si');
+  assert(r6_5.includes('Muchas gracias por tu tiempo Marcos Antezana'), 'Paso 6.5 falló');
+
+  // Reactivación: El usuario vuelve a escribir después de la despedida
+  const r6_6 = await aiAgent.processUserMessage('client_reactivate', 'Hola nuevamente');
+  console.log('Bot 6.6 (Reactivación post-despedida):', r6_6);
+  assert(r6_6 && r6_6.includes('Marcos Antezana') && r6_6.includes('¿En qué puedo ayudarte'), 'El bot no debe enmudecer post-despedida');
+  console.log('✅ ESCENARIO 6 VERIFICADO AL 100%\n');
+
   console.log('🎉 ========================================================');
-  console.log('🎉  TODOS LOS 5 ESCENARIOS Y 6 REGLAS VALIDADOS CON ÉXITO');
+  console.log('🎉  TODOS LOS 6 ESCENARIOS Y REGLAS VALIDADOS CON ÉXITO');
   console.log('🎉 ========================================================');
 }
 
