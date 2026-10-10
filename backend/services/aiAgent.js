@@ -479,7 +479,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   const raw = userMessage.trim();
   const lo  = raw.toLowerCase();
-  const nomSaludo = pushName ? ` ${pushName}` : '';
   const history = getSessionHistory(userId);
 
   // Comando de reinicio
@@ -489,154 +488,67 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     conversationSessions.delete(userId);
   }
 
-  // Detección de inicio orgánico para limpiar sesiones publicitarias previas
-  const isOrganicGreeting = !referralData && (
+  const s = getSession(userId, pushName);
+
+  // REGLA: "Una ves te despediste no responde a nada de lo que te escriba."
+  if (s.state === 'ESTADO_6_FAREWELL') {
+    return null;
+  }
+
+  // Actualizar nombre si viene en pushName y no lo teníamos
+  if (pushName && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
+    s.clientName = pushName.trim();
+  }
+  let name = s.clientName ? ` ${s.clientName}` : '';
+  let nom  = s.clientName || '';
+
+  // Detección de saludo general
+  const isGreeting = (
     lo === 'hola' || lo === '¡hola!' || lo === 'hola!' || lo === 'buenas' ||
     lo === 'buenas tardes' || lo === 'buenos dias' || lo === 'buenos días' ||
-    lo === 'buenas noches'
-  );
-  if (isOrganicGreeting) {
-    userFlowSessions.delete(userId);
-    sessions.delete(userId);
-  }
-
-  // 1. EVALUAR SI ES UNA CAMPAÑA DE FACEBOOK ADS / ANUNCIO
-  const hasAdKeywords = (
-    lo.includes('fb.me') ||
-    lo.includes('oportunidad') ||
-    lo.includes('vi la publicidad') ||
-    lo.includes('vi el anuncio') ||
-    lo.includes('departamento de 4 dormitorios') ||
-    lo.includes('mar adentro') ||
-    lo.includes('westgate') ||
-    lo.includes('buenavista') ||
-    lo.includes('terreno industrial')
+    lo === 'buenas noches' || lo === 'ola' || lo === 'hi' || lo === 'hello'
   );
 
-  const isFacebookAd = Boolean(
-    referralData?.source?.includes('Facebook') ||
-    referralData?.body ||
-    referralData?.headline ||
-    referralData?.source_url ||
-    (raw.includes('Quiero más información') && referralData) ||
-    hasAdKeywords
-  );
-
-  const isInCustomerService = sessions.has(userId) &&
-    sessions.get(userId).state !== 'ESTADO_1_GREETING' &&
-    sessions.get(userId).state !== 'ESTADO_6_FAREWELL';
-
-  const hasNewAdReferral = Boolean(referralData?.body || referralData?.headline || referralData?.source_url);
-
-  const matchedCamp = (!isInCustomerService || hasNewAdReferral || isFacebookAd)
-    ? campaignService.matchCampaign(userId, raw, referralData)
-    : null;
-
-  if (hasNewAdReferral && userFlowSessions.has(userId)) {
-    const s = userFlowSessions.get(userId);
-    s.lastCampaign = matchedCamp || null;
-    userFlowSessions.set(userId, s);
-  }
-
-  const isAlreadyInAdSession = userFlowSessions.has(userId) && [
-    'AD_QUALIFYING', 'WAITING_VISIT_TIME', 'AD_DISCUSSED', 'AD_CAMPAIGN_ACTIVE'
-  ].includes(userFlowSessions.get(userId)?.state);
-
-  const activeCampaign = matchedCamp || (isAlreadyInAdSession ? userFlowSessions.get(userId)?.lastCampaign : null);
-
-  // A. FLUJO DE ANUNCIOS Y PUBLICACIONES DE FACEBOOK ADS
-  if ((activeCampaign || isFacebookAd || isAlreadyInAdSession) && (!isInCustomerService || hasNewAdReferral)) {
-    if (activeCampaign) {
-      const session = userFlowSessions.get(userId) || { state: 'AD_CAMPAIGN_ACTIVE' };
-      session.state = 'AD_CAMPAIGN_ACTIVE';
-      session.lastCampaign = activeCampaign;
-      userFlowSessions.set(userId, session);
-
-      // Si envía datos de contacto dentro del embudo de la campaña (después de la presentación)
-      const isInitialAdMsg = raw.includes('fb.me') || raw.includes('http') || raw.includes('anuncio') || raw.includes('publicidad');
-      const hasEmail = !isInitialAdMsg && /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(raw);
-      const hasCommaData = !isInitialAdMsg && raw.split(',').length >= 3 && (/\d{7,}/.test(raw) || hasEmail);
-      if (hasEmail || hasCommaData) {
-        try {
-          leadClassifier.trackAndClassifyLead(userId, raw, `Campaña: ${activeCampaign.titulo_campana}`, {
-            campana: activeCampaign.titulo_campana,
-            canal: 'WhatsApp Ads (+591 60937050)',
-            pushName: pushName || referralData?.pushName || '',
-            status: 'Visita Agendada',
-            zonaInteres: activeCampaign.titulo_campana
-          }).catch(() => {});
-        } catch (_) {}
-      }
-
-      const localResp = campaignService.generateCampaignResponse(activeCampaign, raw, userId, pushName || referralData?.pushName);
-      history.push({ role: 'user', text: raw });
-      history.push({ role: 'model', text: localResp });
-      return localResp;
-    }
-
-    // Anuncios dinámicos no registrados en campaigns.json (ej: Westgate Tower, Buenavista, etc.)
-    const session = userFlowSessions.get(userId) || { state: 'NEW' };
-    const genericAdResp = handleGenericAdFlow(userId, raw, lo, referralData, pushName, session, nomSaludo);
-    if (genericAdResp) {
-      history.push({ role: 'user', text: raw });
-      history.push({ role: 'model', text: genericAdResp });
-      return genericAdResp;
-    }
-  }
-
-  // 2. CONSULTAS ESPECÍFICAS DE ZONA (Ej: "zona sur" en test_campaign_accuracy.js)
-  if (!isInCustomerService && (lo.includes('zona sur') || lo.includes('zona norte') || lo.includes('equipetrol') || lo.includes('urubo') || lo.includes('urubó'))) {
-    const session = userFlowSessions.get(userId) || { state: 'CHATTING' };
-    session.state = 'CHATTING';
-    userFlowSessions.set(userId, session);
-
-    const zonaNombre = lo.includes('zona sur') ? 'Zona Sur' : lo.includes('zona norte') ? 'Zona Norte' : lo.includes('equipetrol') ? 'Equipetrol' : 'Urubó';
-    return `¡Hola${nomSaludo}! Con mucho gusto te oriento sobre las opciones disponibles en la *${zonaNombre}* de Santa Cruz. 🦁\n\n` +
-      `Contamos con excelentes casas, departamentos y terrenos residenciales en esta zona. ¿Buscas para compra, alquiler o anticrético? 🤝`;
-  }
-
-  // 3. RESPUESTAS A AGRADECIMIENTO TRAS CONSULTA DE CAMPAÑA O ZONA
-  if (
-    lo === 'gracias' || lo === 'muchas gracias' || lo === 'muchas gracias!' ||
-    lo.startsWith('gracias') || lo.includes('muchas gracias') || lo === 'ok gracias'
-  ) {
-    if (userFlowSessions.has(userId)) {
-      const s = userFlowSessions.get(userId);
-      s.state = 'FINISHED';
-      userFlowSessions.set(userId, s);
-      return `¡A ti${nomSaludo}! 🦁 Ha sido un verdadero placer ayudarte. Quedamos a tu completa disposición para lo que necesites en *Realty ONE Group Bolivia*. ¡Que tengas un excelente día! ✨`;
-    }
-  }
-
-  // 4. MÁQUINA DE ESTADOS: ATENCIÓN AL CLIENTE (CANAL ORGÁNICO / GENERAL)
-  const s    = getSession(userId, pushName);
-  let name   = s.clientName ? ` ${s.clientName}` : '';
-  let nom    = s.clientName || '';
-
-  // ── ESTADO 1: Saludo ──────────────────────────────────────────────────────
+  // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
+    if (isGreeting) {
+      s.state = 'ESTADO_2_INTEREST';
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
+    }
+    // Si no es un saludo aislado, sino que entró directo con consulta o anuncio de Facebook
     s.state = 'ESTADO_2_INTEREST';
-    return nom
-      ? `¡Hola ${nom}! 👋😊 Soy tu asistente de *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`
-      : `¡Hola! 👋😊 Soy tu asistente de *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`;
   }
 
-  // ── ESTADO 2: Escuchar al cliente → pedir datos ───────────────────────────
+  // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
   if (s.state === 'ESTADO_2_INTEREST') {
     s.interestMsg = raw;
     s.state = 'ESTADO_3_DATA';
-    s.dataRequested = true;
-    const tema = getTopicDisposicion(raw);
-    return `¡Sí, tenemos a disposición ${tema}! 🏡✨ Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
+
+    const isSelling = (
+      lo.includes('vender') || lo.includes('consignar') ||
+      lo.includes('captacion') || lo.includes('captación') ||
+      lo.includes('poner en venta') || lo.includes('vender mi') ||
+      lo.includes('quiero vender') || lo.includes('tengo una casa') ||
+      lo.includes('tengo un dpto') || lo.includes('tengo un departamento') ||
+      lo.includes('tengo un terreno') || lo.includes('tengo un lote') ||
+      lo.includes('tengo un monoambiente')
+    );
+
+    if (isSelling) {
+      return `¡Con mucho gusto te ayudamos con la venta de tu propiedad! 🏡✨ Para tener una idea más clara, ¿en qué zona y en qué departamento se encuentra? Y si es casa, lote o terreno, por favor describe cómo es (dimensiones y ambientes). Además, para que un agente especializado te contacte, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    }
+
+    // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o anuncio
+    return `¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
   }
 
-  // ── ESTADO 3: Recopilar datos ─────────────────────────────────────────────
+  // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
   if (s.state === 'ESTADO_3_DATA') {
-    // ¿Se niega a dar datos?
+    // Si se niega a dar datos
     if (isRefusal(raw)) {
       if (s.refusalCount === 0) {
         s.refusalCount = 1;
-        return 'Son indispensables para que un agente especializado pueda contactarte y atender tu solicitud. 🤝 Por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad.';
+        return `Son indispensables para que un agente especializado pueda contactarte y atender tu solicitud. 🤝 Por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
       } else {
         s.state = 'ESTADO_6_FAREWELL';
         return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${name}! Cualquier duda o inquietud no dude en llamar. 📞🤝`;
@@ -651,32 +563,36 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     if (phone) s.phone = phone;
     if (email) s.email = email;
     if (city)  s.city  = city;
-    if (fullName && (!s.clientName || s.clientName === 'Por identificar' || s.clientName === 'Cliente')) {
+    if (fullName) {
       s.clientName = fullName;
       name = ` ${s.clientName}`;
       nom = s.clientName;
     }
 
-    // ¿Faltan datos?
-    const missing = [];
-    if (!s.phone) missing.push('número de teléfono');
-    if (!s.email) missing.push('correo electrónico');
-    if (!s.city)  missing.push('ciudad');
-
-    if (missing.length > 0) {
-      const lista = missing.length === 1
-        ? missing[0]
-        : missing.length === 2
-          ? `${missing[0]} y ${missing[1]}`
-          : `${missing[0]}, ${missing[1]} y ${missing[2]}`;
-      return `Por favor compárteme amablemente tu ${lista} antes de continuar. 😊`;
+    // Si también envió el agendamiento completo de visita en el mismo mensaje
+    if (hasValidDate(raw)) {
+      s.scheduledVisit = raw;
+      s.state = 'ESTADO_5_REMINDER';
+      try {
+        leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
+          campana: s.interestMsg || 'Atención al Cliente',
+          canal: 'WhatsApp (+591 60937050)',
+          pushName: s.clientName,
+          status: 'Visita Agendada',
+          telefono: s.phone,
+          email: s.email,
+          ciudad: s.city,
+          horarioVisita: raw
+        }).catch(() => {});
+      } catch (_) {}
+      return `¡Muchas gracias por tu agendamiento${name}! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔`;
     }
 
-    // Datos completos → pasar a agendamiento
+    // Datos principales recopilados -> Pasa a agendamiento
     s.state = 'ESTADO_4_SCHEDULE';
     try {
       leadClassifier.trackAndClassifyLead(userId, raw, 'Datos recopilados', {
-        campana: 'Atención al Cliente',
+        campana: s.interestMsg || 'Atención al Cliente',
         canal: 'WhatsApp (+591 60937050)',
         pushName: s.clientName,
         status: 'Datos Completos',
@@ -686,26 +602,28 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       }).catch(() => {});
     } catch (_) {}
 
-    return `¡Perfecto${name}! 🎉 Ya tengo tus datos principales. Si tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
+    return `¡Perfecto${name}! 🎉 Ya tengo tus datos principales. Si ya tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
   }
 
-  // ── ESTADO 4: Agendamiento ────────────────────────────────────────────────
+  // ── ESTADO 4: Agendamiento de visita ──────────────────────────────────────
   if (s.state === 'ESTADO_4_SCHEDULE') {
+    // Si no quiere visita / responde negativamente
     if (isNegative(raw)) {
-      // No quiere visita → agradece opción de habernos elegido + despedida directa
       s.state = 'ESTADO_6_FAREWELL';
       return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
     }
 
+    // Si responde pero no da día, fecha y hora exacta
     if (!hasValidDate(raw)) {
       return `Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️`;
     }
 
+    // Agendamiento con fecha y hora completa
     s.scheduledVisit = raw;
     s.state = 'ESTADO_5_REMINDER';
     try {
       leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
-        campana: 'Visita Agendada',
+        campana: s.interestMsg || 'Visita Agendada',
         canal: 'WhatsApp (+591 60937050)',
         pushName: s.clientName,
         status: 'Visita Agendada',
@@ -721,27 +639,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.reminderChoice = raw;
     s.state = 'ESTADO_6_FAREWELL';
     return `¡Muchas gracias por tu tiempo${name}! 🦁✨ Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
-  }
-
-  // ── ESTADO 6: Despedida y Reactivación Automática ──────────────────────────
-  if (s.state === 'ESTADO_6_FAREWELL') {
-    // Si el usuario escribe nuevamente tras haberse despedido, reactivar atención
-    s.scheduledVisit = null;
-    s.reminderChoice = null;
-    s.refusalCount = 0;
-
-    // Si saluda
-    if (isOrganicGreeting || /^(hola|buenas|buenos d[ií]as|buenas tardes|buenas noches)/i.test(lo)) {
-      s.state = 'ESTADO_2_INTEREST';
-      return nom
-        ? `¡Hola ${nom}! 👋😊 Con gusto te atiendo nuevamente en *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`
-        : `¡Hola! 👋😊 Con gusto te atiendo nuevamente en *Realty ONE Group Bolivia* 🦁\n\n¿En qué puedo ayudarte hoy?`;
-    }
-
-    // Si envía una nueva consulta o pide más información
-    const tema = getTopicDisposicion(raw);
-    s.state = 'ESTADO_3_DATA';
-    return `¡Hola${name}! Con gusto te brindamos asesoría sobre ${tema}. 🏡✨ Un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
   }
 
   return null;

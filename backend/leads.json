@@ -1,12 +1,262 @@
 [
   {
+    "id": "lead_1791636926175_ttpc",
+    "numero_celular": "+59170123456",
+    "cliente_nombre": "Marcos Antezana",
+    "email": "marcos@gmail.com",
+    "fecha_creacion": "2026-10-10T08:55:26-04:00",
+    "fecha_completa": "2026-10-10",
+    "hora": "08:55:26",
+    "dia": "10",
+    "dia_semana": "Sábado",
+    "mes": "Octubre",
+    "mes_numero": "10",
+    "anio": "2026",
+    "canal_origen": "WhatsApp (+591 60937050)",
+    "campana": "tienes terrenos en venta?",
+    "estado_comercial": "Nuevo",
+    "etapa_embudo": "ASIGNADO_E_REALTOR",
+    "notas_asesor": "",
+    "ultimo_mensaje": "Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz",
+    "total_mensajes": 1,
+    "historial": [
+      {
+        "rol": "usuario",
+        "texto": "Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz",
+        "fecha": "2026-10-10",
+        "hora": "08:55:26"
+      },
+      {
+        "rol": "bot",
+        "texto": "Datos recopilados",
+        "fecha": "2026-10-10",
+        "hora": "08:55:26"
+      }
+    ],
+    "zona_interes": "Santa Cruz (General)",
+    "tipo_interes": "Consulta General",
+    "presupuesto": "701",
+    "formulario_datos": {
+      "nombre": "Marcos Antezana",
+      "telefono": "+59170123456",
+      "email": "marcos@gmail.com",
+      "zona": "Santa Cruz (General)",
+      "operacion": "Consulta General",
+      "presupuesto": "701",
+      "horario_visita": null,
+      "completado": true
+    },
+    "e_realtor_asignado": "Carlos Rodríguez",
+    "e_realtor_id": "carlos_rodriguez",
+    "e_realtor_telefono": "+591 70123456",
+    "e_realtor_email": "carlos@realtyonebolivia.com.bo",
+    "e_realtor_especialidad": "Venta de Lujo & Casas Exclusivas",
+    "e_realtor_avatar": "assets/agente_carlos.png",
+    "prioridad": "POTENCIAL",
+    "prioridad_label": "🔥 Potencial (Alta)",
+    "prioridad_badge": "badge-potencial",
+    "score": 65,
+    "accion_sugerida": "Atención urgente de e-Realtor vía WhatsApp para confirmar visita y enviar ficha técnica.",
+    "resumen": "Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.",
+    "calificacion_lead": "🔥 Potencial (Alta)",
+    "score_interes": 65,
+    "campana_origen": "tienes terrenos en venta?",
+    "tipo_operacion_detectada": "Consulta General"
+  },
+  {
+    "id": "lead_1791567151718_cvmq",
+    "numero_celular": "+59170123456",
+    "cliente_nombre": "Marcos PéRez",
+    "email": "marcos@gmail.com",
+    "fecha_creacion": "2026-10-09T13:32:31-04:00",
+    "fecha_completa": "2026-10-10",
+    "hora": "07:49:36",
+    "dia": "10",
+    "dia_semana": "Sábado",
+    "mes": "Octubre",
+    "mes_numero": "10",
+    "anio": "2026",
+    "canal_origen": "WhatsApp Web",
+    "campana": "Terreno Industrial 7.000 m² (G77)",
+    "estado_comercial": "Visita Agendada",
+    "etapa_embudo": "VISITA_AGENDADA",
+    "notas_asesor": "",
+    "ultimo_mensaje": "Marcos Pérez, 70123456, marcos@gmail.com, este sábado a las 10:00 am",
+    "total_mensajes": 22,
+    "historial": [
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-09",
+        "hora": "13:32:31"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-09",
+        "hora": "13:32:31"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-09",
+        "hora": "13:50:21"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-09",
+        "hora": "13:50:21"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-09",
+        "hora": "14:27:58"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-09",
+        "hora": "14:27:58"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "00:14:24"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "00:14:24"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "00:26:58"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "00:26:58"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "00:30:07"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "00:30:07"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "00:53:13"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "00:53:13"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "01:31:59"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "01:31:59"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "03:00:58"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "03:00:58"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "fecha": "2026-10-10",
+        "hora": "03:06:18"
+      },
+      {
+        "rol": "bot",
+        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
+        "fecha": "2026-10-10",
+        "hora": "03:06:18"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Marcos Pérez, 70123456, marcos@gmail.com, este sábado a las 10:00 am",
+        "fecha": "2026-10-10",
+        "hora": "07:49:36"
+      },
+      {
+        "rol": "bot",
+        "texto": "Campaña: Departamento de 4 Dormitorios (119 m²) - Entre 2do y 3er Anillo ($120.000 USD)",
+        "fecha": "2026-10-10",
+        "hora": "07:49:36"
+      }
+    ],
+    "zona_interes": "Parque Industrial / G77",
+    "tipo_interes": "Terreno Industrial (G77)",
+    "presupuesto": "Por definir",
+    "formulario_datos": {
+      "nombre": "Marcos PéRez",
+      "telefono": "+59170123456",
+      "email": "marcos@gmail.com",
+      "zona": "Parque Industrial / G77",
+      "operacion": "Terreno Industrial (G77)",
+      "presupuesto": "Por definir",
+      "horario_visita": "este sábado a las 10:00 am",
+      "completado": true
+    },
+    "e_realtor_asignado": "Andrés Montaño",
+    "e_realtor_id": "andres_montano",
+    "e_realtor_telefono": "+591 70345678",
+    "e_realtor_email": "andres@realtyonebolivia.com.bo",
+    "e_realtor_especialidad": "Terrenos, Loteamientos & Parque Industrial",
+    "e_realtor_avatar": "assets/agente_andres.png",
+    "prioridad": "POTENCIAL",
+    "prioridad_label": "🔥 Potencial (Alta)",
+    "prioridad_badge": "badge-potencial",
+    "score": 100,
+    "accion_sugerida": "Atención urgente de e-Realtor vía WhatsApp para confirmar visita y enviar ficha técnica.",
+    "resumen": "Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.",
+    "calificacion_lead": "🔥 Potencial (Alta)",
+    "score_interes": 100,
+    "campana_origen": "Terreno Industrial 7.000 m² (G77)",
+    "tipo_operacion_detectada": "Terreno Industrial (G77)",
+    "ultima_actividad": "2026-10-10T07:49:36-04:00",
+    "horario_visita_solicitado": "este sábado a las 10:00 am"
+  },
+  {
     "id": "lead_1791520149940_proh",
     "numero_celular": "+59177000099",
     "cliente_nombre": "Marcos",
     "email": "Pendiente",
     "fecha_creacion": "2026-10-09T00:29:09-04:00",
     "fecha_completa": "2026-10-10",
-    "hora": "07:49:39",
+    "hora": "07:49:32",
     "dia": "10",
     "dia_semana": "Sábado",
     "mes": "Octubre",
@@ -17,7 +267,7 @@
     "estado_comercial": "Visita Agendada",
     "etapa_embudo": "VISITA_AGENDADA",
     "notas_asesor": "",
-    "ultimo_mensaje": "este sabado a las 10:00 am",
+    "ultimo_mensaje": "¡Hola! Quiero más información",
     "total_mensajes": 14,
     "historial": [
       {
@@ -94,15 +344,15 @@
       },
       {
         "rol": "usuario",
-        "texto": "este sabado a las 10:00 am",
+        "texto": "¡Hola! Quiero más información",
         "fecha": "2026-10-10",
-        "hora": "07:49:39"
+        "hora": "07:49:32"
       },
       {
         "rol": "bot",
-        "texto": "Visita confirmada para: 217 HECTÁREAS en BUENAVISTA",
+        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
         "fecha": "2026-10-10",
-        "hora": "07:49:39"
+        "hora": "07:49:32"
       }
     ],
     "zona_interes": "Santa Cruz (General)",
@@ -135,108 +385,7 @@
     "score_interes": 100,
     "campana_origen": "217 HECTÁREAS en BUENAVISTA",
     "tipo_operacion_detectada": "Consulta General",
-    "ultima_actividad": "2026-10-10T07:49:39-04:00"
-  },
-  {
-    "id": "lead_1791610316901_aphs",
-    "numero_celular": "+59177000098",
-    "cliente_nombre": "Marcos",
-    "email": "Pendiente",
-    "fecha_creacion": "2026-10-10T01:31:56-04:00",
-    "fecha_completa": "2026-10-10",
-    "hora": "07:49:37",
-    "dia": "10",
-    "dia_semana": "Sábado",
-    "mes": "Octubre",
-    "mes_numero": "10",
-    "anio": "2026",
-    "canal_origen": "Facebook Ads (+591 60937050)",
-    "campana": "217 HECTÁREAS en BUENAVISTA",
-    "estado_comercial": "Nuevo",
-    "etapa_embudo": "ASIGNADO_E_REALTOR",
-    "notas_asesor": "",
-    "ultimo_mensaje": "¡Hola! Quiero más información",
-    "total_mensajes": 8,
-    "historial": [
-      {
-        "rol": "usuario",
-        "texto": "¡Hola! Quiero más información",
-        "fecha": "2026-10-10",
-        "hora": "01:31:56"
-      },
-      {
-        "rol": "bot",
-        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
-        "fecha": "2026-10-10",
-        "hora": "01:31:56"
-      },
-      {
-        "rol": "usuario",
-        "texto": "¡Hola! Quiero más información",
-        "fecha": "2026-10-10",
-        "hora": "03:05:02"
-      },
-      {
-        "rol": "bot",
-        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
-        "fecha": "2026-10-10",
-        "hora": "03:05:02"
-      },
-      {
-        "rol": "usuario",
-        "texto": "¡Hola! Quiero más información",
-        "fecha": "2026-10-10",
-        "hora": "03:06:16"
-      },
-      {
-        "rol": "bot",
-        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
-        "fecha": "2026-10-10",
-        "hora": "03:06:16"
-      },
-      {
-        "rol": "usuario",
-        "texto": "¡Hola! Quiero más información",
-        "fecha": "2026-10-10",
-        "hora": "07:49:37"
-      },
-      {
-        "rol": "bot",
-        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
-        "fecha": "2026-10-10",
-        "hora": "07:49:37"
-      }
-    ],
-    "zona_interes": "Santa Cruz (General)",
-    "tipo_interes": "Consulta General",
-    "presupuesto": "Por definir",
-    "formulario_datos": {
-      "nombre": "Marcos",
-      "telefono": "+59177000098",
-      "email": null,
-      "zona": "Santa Cruz (General)",
-      "operacion": "Consulta General",
-      "presupuesto": "Por definir",
-      "horario_visita": null,
-      "completado": true
-    },
-    "e_realtor_asignado": "Carlos Rodríguez",
-    "e_realtor_id": "carlos_rodriguez",
-    "e_realtor_telefono": "+591 70123456",
-    "e_realtor_email": "carlos@realtyonebolivia.com.bo",
-    "e_realtor_especialidad": "Venta de Lujo & Casas Exclusivas",
-    "e_realtor_avatar": "assets/agente_carlos.png",
-    "prioridad": "POTENCIAL",
-    "prioridad_label": "🔥 Potencial (Alta)",
-    "prioridad_badge": "badge-potencial",
-    "score": 60,
-    "accion_sugerida": "Atención urgente de e-Realtor vía WhatsApp para confirmar visita y enviar ficha técnica.",
-    "resumen": "Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.",
-    "calificacion_lead": "🔥 Potencial (Alta)",
-    "score_interes": 60,
-    "campana_origen": "217 HECTÁREAS en BUENAVISTA",
-    "tipo_operacion_detectada": "Consulta General",
-    "ultima_actividad": "2026-10-10T07:49:37-04:00"
+    "ultima_actividad": "2026-10-10T07:49:32-04:00"
   },
   {
     "id": "lead_1791617369013_jdqn",
@@ -316,177 +465,93 @@
     "ultima_actividad": "2026-10-10T07:35:04-04:00"
   },
   {
-    "id": "lead_1791567151718_cvmq",
-    "numero_celular": "+59177889900",
-    "cliente_nombre": "Roberto Torrico",
-    "email": "rtorrico@empresa.bo",
-    "fecha_creacion": "2026-10-09T13:32:31-04:00",
+    "id": "lead_1791610316901_aphs",
+    "numero_celular": "+59177000098",
+    "cliente_nombre": "Marcos",
+    "email": "Pendiente",
+    "fecha_creacion": "2026-10-10T01:31:56-04:00",
     "fecha_completa": "2026-10-10",
-    "hora": "03:06:18",
+    "hora": "03:06:16",
     "dia": "10",
     "dia_semana": "Sábado",
     "mes": "Octubre",
     "mes_numero": "10",
     "anio": "2026",
-    "canal_origen": "WhatsApp Web",
-    "campana": "Terreno Industrial 7.000 m² (G77)",
+    "canal_origen": "Facebook Ads (+591 60937050)",
+    "campana": "217 HECTÁREAS en BUENAVISTA",
     "estado_comercial": "Nuevo",
     "etapa_embudo": "ASIGNADO_E_REALTOR",
     "notas_asesor": "",
-    "ultimo_mensaje": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-    "total_mensajes": 20,
+    "ultimo_mensaje": "¡Hola! Quiero más información",
+    "total_mensajes": 6,
     "historial": [
       {
         "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-09",
-        "hora": "13:32:31"
+        "texto": "¡Hola! Quiero más información",
+        "fecha": "2026-10-10",
+        "hora": "01:31:56"
       },
       {
         "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-09",
-        "hora": "13:32:31"
+        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
+        "fecha": "2026-10-10",
+        "hora": "01:31:56"
       },
       {
         "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-09",
-        "hora": "13:50:21"
+        "texto": "¡Hola! Quiero más información",
+        "fecha": "2026-10-10",
+        "hora": "03:05:02"
       },
       {
         "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-09",
-        "hora": "13:50:21"
+        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
+        "fecha": "2026-10-10",
+        "hora": "03:05:02"
       },
       {
         "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-09",
-        "hora": "14:27:58"
+        "texto": "¡Hola! Quiero más información",
+        "fecha": "2026-10-10",
+        "hora": "03:06:16"
       },
       {
         "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-09",
-        "hora": "14:27:58"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
+        "texto": "Consulta de Anuncio: 217 HECTÁREAS en BUENAVISTA",
         "fecha": "2026-10-10",
-        "hora": "00:14:24"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "00:14:24"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "00:26:58"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "00:26:58"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "00:30:07"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "00:30:07"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "00:53:13"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "00:53:13"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "01:31:59"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "01:31:59"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "03:00:58"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "03:00:58"
-      },
-      {
-        "rol": "usuario",
-        "texto": "Mi nombre es Roberto Torrico (rtorrico@empresa.bo). Deseo agendar una visita técnica al terreno en Parque Industrial para mañana a las 10:00.",
-        "fecha": "2026-10-10",
-        "hora": "03:06:18"
-      },
-      {
-        "rol": "bot",
-        "texto": "Con gusto Roberto, te esperamos mañana con Robert Oliva.",
-        "fecha": "2026-10-10",
-        "hora": "03:06:18"
+        "hora": "03:06:16"
       }
     ],
-    "zona_interes": "Parque Industrial / G77",
-    "tipo_interes": "Terreno Industrial (G77)",
+    "zona_interes": "Santa Cruz (General)",
+    "tipo_interes": "Consulta General",
     "presupuesto": "Por definir",
     "formulario_datos": {
-      "nombre": "Roberto Torrico",
-      "telefono": "+59177889900",
-      "email": "rtorrico@empresa.bo",
-      "zona": "Parque Industrial / G77",
-      "operacion": "Terreno Industrial (G77)",
+      "nombre": "Marcos",
+      "telefono": "+59177000098",
+      "email": null,
+      "zona": "Santa Cruz (General)",
+      "operacion": "Consulta General",
       "presupuesto": "Por definir",
       "horario_visita": null,
       "completado": true
     },
-    "e_realtor_asignado": "Andrés Montaño",
-    "e_realtor_id": "andres_montano",
-    "e_realtor_telefono": "+591 70345678",
-    "e_realtor_email": "andres@realtyonebolivia.com.bo",
-    "e_realtor_especialidad": "Terrenos, Loteamientos & Parque Industrial",
-    "e_realtor_avatar": "assets/agente_andres.png",
+    "e_realtor_asignado": "Carlos Rodríguez",
+    "e_realtor_id": "carlos_rodriguez",
+    "e_realtor_telefono": "+591 70123456",
+    "e_realtor_email": "carlos@realtyonebolivia.com.bo",
+    "e_realtor_especialidad": "Venta de Lujo & Casas Exclusivas",
+    "e_realtor_avatar": "assets/agente_carlos.png",
     "prioridad": "POTENCIAL",
     "prioridad_label": "🔥 Potencial (Alta)",
     "prioridad_badge": "badge-potencial",
-    "score": 100,
+    "score": 60,
     "accion_sugerida": "Atención urgente de e-Realtor vía WhatsApp para confirmar visita y enviar ficha técnica.",
     "resumen": "Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.",
     "calificacion_lead": "🔥 Potencial (Alta)",
-    "score_interes": 100,
-    "campana_origen": "Terreno Industrial 7.000 m² (G77)",
-    "tipo_operacion_detectada": "Terreno Industrial (G77)",
-    "ultima_actividad": "2026-10-10T03:06:18-04:00"
+    "score_interes": 60,
+    "campana_origen": "217 HECTÁREAS en BUENAVISTA",
+    "tipo_operacion_detectada": "Consulta General",
+    "ultima_actividad": "2026-10-10T03:06:16-04:00"
   },
   {
     "id": "lead_1791615967957_tccj",
