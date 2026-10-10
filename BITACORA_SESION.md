@@ -236,3 +236,19 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
      - API de Leads en Render: `https://realty-one-bolivia.onrender.com/api/whatsapp/leads?key=ONE2026` (23 leads cargados en tiempo real).
      - Dashboard en línea: `https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026`
   4. Primer lead ordenado por actividad reciente: `Marcos` (17:17:24, Visita Agendada: Lunes 15 de marzo a las 10:00 AM).
+
+---
+
+### 5.8. Sesión del 10 de Octubre, 2026: Conciliación Definitiva bajo Doubt-Driven Development
+- **Diagnóstico y Causa Raíz:** En commits intermedios se había aislado el flujo de Atención al Cliente de 5 estados para cumplir las 6 reglas estrictas, pero se omitió el router de anuncios de Facebook Ads (activeCampaign, campaignService, handleGenericAdFlow), lo que provocaba 5 fallas en test_campaign_accuracy.js y bloqueaba la entrega de fichas técnicas para anuncios de Westgate Tower, Buenavista, Mar Adentro y G77.
+- **Acciones Implementadas:**
+  - Se unificó backend/services/aiAgent.js y services/aiAgent.js en una **arquitectura híbrida desacoplada**:
+    1. Si entra anuncio de Facebook Ads (referralData, fb.me, palabras clave de campaña) ➔ Despacha inmediatamente a campaignService o handleGenericAdFlow manteniendo el contexto de la propiedad, fotos, precios y agendamiento.
+    2. Si entra saludo orgánico o consulta directa ➔ Resetea cualquier contexto publicitario previo y ejecuta estrictamente el embudo de 5 estados y 6 reglas de Atención al Cliente sin menús ni viñetas.
+    3. Soporte para consultas de zonas (Zona Sur, Equipetrol, Urubó) y cierre cordial de agradecimiento (gracias).
+- **Validación de Suites de Prueba (100% Pasadas):**
+  - backend/test_customer_service_flow.js: 5/5 escenarios pasados al 100%.
+  - backend/test_campaign_accuracy.js: 100% pasado (Paso 1 a 6 + Zona Sur + Agradecimiento).
+  - backend/test_user_screenshots.js: 11/11 casos pasados al 100% (Westgate Tower, Buenavista 217 Has, Depto 4D, crédito, permutas, expensas).
+  - backend/test_campaign_bot.js: 100% validado para Mar Adentro y G77.
+  - backend/test_lead_classifier.js: 5/5 pasadas (Lead scoring, desglose temporal, exportación Excel y CSV).
