@@ -197,8 +197,9 @@ function extractCity(text) {
 
 function isNegative(text) {
   const lo = text.toLowerCase().trim();
-  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(lo)) return false;
-  return /^(no|no gracias|todav[ií]a no|a[uú]n no|por ahora no|paso|m[aá]s adelante|despu[eé]s|ninguna)\b/i.test(lo);
+  if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
+  if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
+  return /\b(no|no gracias|todav[ií]a no|a[uú]n no|por ahora no|por el momento no|paso|m[aá]s adelante|despu[eé]s|ninguna|prefiero no|no quiero|no deseo)\b/i.test(lo);
 }
 
 function hasValidDate(text) {

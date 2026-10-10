@@ -1,12 +1,12 @@
 [
   {
-    "id": "lead_1791639817084_i2rm",
+    "id": "lead_1791641295498_3n9o",
     "numero_celular": "+59170123456",
     "cliente_nombre": "Marcos Antezana",
     "email": "marcos@gmail.com",
-    "fecha_creacion": "2026-10-10T09:43:37-04:00",
+    "fecha_creacion": "2026-10-10T10:08:15-04:00",
     "fecha_completa": "2026-10-10",
-    "hora": "09:43:37",
+    "hora": "10:08:15",
     "dia": "10",
     "dia_semana": "Sábado",
     "mes": "Octubre",
@@ -24,13 +24,13 @@
         "rol": "usuario",
         "texto": "Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz",
         "fecha": "2026-10-10",
-        "hora": "09:43:37"
+        "hora": "10:08:15"
       },
       {
         "rol": "bot",
         "texto": "Datos recopilados",
         "fecha": "2026-10-10",
-        "hora": "09:43:37"
+        "hora": "10:08:15"
       }
     ],
     "zona_interes": "Santa Cruz (General)",
@@ -62,6 +62,84 @@
     "score_interes": 65,
     "campana_origen": "tienes departamento de 2 dormitorios para alquilar?",
     "tipo_operacion_detectada": "Consulta General"
+  },
+  {
+    "id": "lead_1791639817058_cjhv",
+    "numero_celular": "+59170123456",
+    "cliente_nombre": "Marcos Antezana",
+    "email": "marcos@gmail.com",
+    "fecha_creacion": "2026-10-10T09:43:36-04:00",
+    "fecha_completa": "2026-10-10",
+    "hora": "10:08:08",
+    "dia": "10",
+    "dia_semana": "Sábado",
+    "mes": "Octubre",
+    "mes_numero": "10",
+    "anio": "2026",
+    "canal_origen": "WhatsApp (+591 60937050)",
+    "campana": "tienes departamento de 2 dormitorios para alquilar?",
+    "estado_comercial": "Visita Agendada",
+    "etapa_embudo": "VISITA_AGENDADA",
+    "notas_asesor": "",
+    "ultimo_mensaje": "Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz",
+    "total_mensajes": 4,
+    "historial": [
+      {
+        "rol": "usuario",
+        "texto": "Lunes 15 de marzo a las 10:00 AM",
+        "fecha": "2026-10-10",
+        "hora": "09:43:36"
+      },
+      {
+        "rol": "bot",
+        "texto": "Visita: Lunes 15 de marzo a las 10:00 AM",
+        "fecha": "2026-10-10",
+        "hora": "09:43:36"
+      },
+      {
+        "rol": "usuario",
+        "texto": "Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz",
+        "fecha": "2026-10-10",
+        "hora": "10:08:08"
+      },
+      {
+        "rol": "bot",
+        "texto": "Datos recopilados",
+        "fecha": "2026-10-10",
+        "hora": "10:08:08"
+      }
+    ],
+    "zona_interes": "Santa Cruz (General)",
+    "tipo_interes": "Consulta General",
+    "presupuesto": "Por definir",
+    "horario_visita_solicitado": "Lunes 15 de marzo a las 10:00 AM",
+    "formulario_datos": {
+      "nombre": "Marcos Antezana",
+      "telefono": "+59170123456",
+      "email": "marcos@gmail.com",
+      "zona": "Santa Cruz (General)",
+      "operacion": "Consulta General",
+      "presupuesto": "Por definir",
+      "horario_visita": "Lunes 15 de marzo a las 10:00 AM",
+      "completado": true
+    },
+    "e_realtor_asignado": "Carlos Rodríguez",
+    "e_realtor_id": "carlos_rodriguez",
+    "e_realtor_telefono": "+591 70123456",
+    "e_realtor_email": "carlos@realtyonebolivia.com.bo",
+    "e_realtor_especialidad": "Venta de Lujo & Casas Exclusivas",
+    "e_realtor_avatar": "assets/agente_carlos.png",
+    "prioridad": "POTENCIAL",
+    "prioridad_label": "🔥 Potencial (Alta)",
+    "prioridad_badge": "badge-potencial",
+    "score": 100,
+    "accion_sugerida": "Atención urgente de e-Realtor vía WhatsApp para confirmar visita y enviar ficha técnica.",
+    "resumen": "Prospecto con datos completos y alta intención comercial. Listo para atención de e-Realtor.",
+    "calificacion_lead": "🔥 Potencial (Alta)",
+    "score_interes": 100,
+    "campana_origen": "tienes departamento de 2 dormitorios para alquilar?",
+    "tipo_operacion_detectada": "Consulta General",
+    "ultima_actividad": "2026-10-10T10:08:08-04:00"
   },
   {
     "id": "lead_1791638122397_z5gw",
