@@ -16,8 +16,8 @@ async function runTests() {
 
   const r2 = await processUserMessage(u1, 'tienes departamento de 2 dormitorios para alquilar?', { pushName: 'Marcos Antezana' });
   console.log('\n2. Consulta Cliente -> Bot:\n' + r2);
-  if (!r2.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
-    throw new Error('Fallo en respuesta a opciones');
+  if (!r2.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+    throw new Error('Fallo en respuesta a opciones con saludo cordial');
   }
 
   const r3 = await processUserMessage(u1, 'Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz', { pushName: 'Marcos Antezana' });
@@ -86,8 +86,8 @@ async function runTests() {
   const u4 = 'user_flow_ad';
   const rAd = await processUserMessage(u4, 'Hola, vi este anuncio en Facebook: https://fb.me/7fDPWEH23\nWESTGATE TOWER\nMonoambientes, departamentos de 1 y 2 dormitorios', { pushName: 'Marcos Antezana' });
   console.log('Respuesta Bot a anuncio:\n' + rAd);
-  if (!rAd.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
-    throw new Error('Fallo en entrada directa por anuncio');
+  if (!rAd.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+    throw new Error('Fallo en entrada directa por anuncio con saludo cordial');
   }
   console.log('✅ CASO 4 APROBADO 100%\n');
 

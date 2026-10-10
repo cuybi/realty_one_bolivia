@@ -535,11 +535,11 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     );
 
     if (isSelling) {
-      return `¡Con mucho gusto te ayudamos con la venta de tu propiedad! 🏡✨ Para tener una idea más clara, ¿en qué zona y en qué departamento se encuentra? Y si es casa, lote o terreno, por favor describe cómo es (dimensiones y ambientes). Además, para que un agente especializado te contacte, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Con mucho gusto te ayudamos con la venta de tu propiedad! 🏡✨ Para tener una idea más clara, ¿en qué zona y en qué departamento se encuentra? Y si es casa, lote o terreno, por favor describe cómo es (dimensiones y ambientes). Además, para que un agente especializado te contacte, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
     }
 
     // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o anuncio
-    return `¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
   }
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
