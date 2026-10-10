@@ -42,7 +42,6 @@
       "450 m2",
       "300m",
       "300 m",
-      "60937050",
       "lote mar adentro",
       "playa",
       "crystal lagoons",
@@ -133,8 +132,7 @@
       "area operativa",
       "galpon industrial",
       "srl",
-      "sa",
-      "60937050"
+      "sa"
     ],
     "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20solicito%20la%20Ficha%20T%C3%A9cnica%20y%20Folio%20Real%20del%20Terreno%20Industrial%20de%207.000%20m2%20en%20Parque%20Industrial."
   },
@@ -145,7 +143,7 @@
     "origen": "Facebook Ads - Realty ONE Group Itaguazú",
     "url_facebook_post": "https://www.facebook.com/profile.php?id=100093088572861",
     "oficina": {
-      "nombre": "Realty ONE Group Itaguazú",
+      "nombre": "Realty ONE Group Bolivia",
       "direccion": "Entre 2do y 3er Anillo, Santa Cruz de la Sierra",
       "telefono": "+591 60937050",
       "email": "info@realtyonegroup.com.bo",
@@ -167,7 +165,7 @@
       "link_google_maps": "https://maps.google.com/?q=Santa+Cruz+de+la+Sierra+2do+anillo+Bolivia"
     },
     "palabras_clave": [
-      "departamento",
+      "departamento de 4 dormitorios",
       "120000",
       "120.000",
       "119",
@@ -178,9 +176,46 @@
       "segundo anillo",
       "2do anillo",
       "3er anillo",
-      "entre 2do y 3er anillo",
-      "60937050"
+      "entre 2do y 3er anillo"
     ],
     "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20vi%20la%20publicidad%20en%20Facebook%20del%20Departamento%20de%204%20dormitorios%20de%20119%20m2%20(%24120.000)%20y%20deseo%20m%C3%A1s%20informaci%C3%B3n."
+  },
+  {
+    "id": "campana-westgate-tower",
+    "activo": true,
+    "titulo_campana": "Westgate Tower - Departamentos en Preventa (Frente a Fexpocruz)",
+    "origen": "Facebook Ads - Realty ONE Group Bolivia",
+    "url_facebook_post": "https://fb.me/7fDPWEH23",
+    "oficina": {
+      "nombre": "Realty ONE Group Bolivia",
+      "direccion": "Av. Roca y Coronado, frente a Fexpocruz, Santa Cruz",
+      "telefono": "+591 60937050",
+      "email": "info@realtyonegroup.com.bo",
+      "sitio_web": "realtyonegroup.com.bo",
+      "asesor_a_cargo": "Robert Oliva (Realty ONE)"
+    },
+    "datos_inmueble": {
+      "tipo": "Torre Residencial de 16 Pisos en Preventa",
+      "operacion": "Venta",
+      "ubicacion": "Av. Roca y Coronado, frente a Fexpocruz, Santa Cruz",
+      "referencia_acceso": "Directamente frente a Fexpocruz (a pasos de Hipermaxi)",
+      "superficie_total": "Monoambientes, 1 y 2 dormitorios",
+      "precio_usd": "Desde USD 40.800",
+      "amenidades": "2 ascensores de lujo con control facial, Club de amenidades completo en Piso 4, porcelanato gran formato",
+      "servicios_basicos": "Agua, energía eléctrica, gas domiciliario, ascensor y seguridad 24/7",
+      "estado_legal": "Preventa con planes de pago directo",
+      "publico_objetivo": "Inversionistas y profesionales que buscan plusvalía y ubicación estratégica",
+      "link_google_maps": "https://maps.google.com/?q=Av+Roca+y+Coronado+Fexpocruz+Santa+Cruz+Bolivia"
+    },
+    "palabras_clave": [
+      "westgate",
+      "westgate tower",
+      "roca y coronado",
+      "fexpocruz",
+      "40800",
+      "40.800",
+      "monoambientes"
+    ],
+    "link_whatsapp_anuncio": "https://wa.me/59160937050?text=Hola%2C%20vi%20la%20publicidad%20de%20Westgate%20Tower%20y%20deseo%20m%C3%A1s%20informaci%C3%B3n."
   }
 ]

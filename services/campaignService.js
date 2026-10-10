@@ -217,15 +217,6 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   const firstName = getFirstName(session.nombre || pushName);
   const saludoNom = firstName ? ` ${firstName}` : '';
   const dirNom = firstName ? `${firstName}, ` : '';
-
-  // Verificar si el mensaje actual contiene datos de contacto (Email, o formato separado por comas con teléfono)
-  const hasEmail = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(cleanUserMsg);
-  const hasCommaData = cleanUserMsg.split(',').length >= 3 && (/\d{7,}/.test(cleanUserMsg) || hasEmail);
-  if (hasEmail || hasCommaData) {
-    session.datosCapturados = true;
-    campaignUserSessions.set(sessionKey, session);
-  }
-
   // Detectar si el mensaje proviene de un anuncio de Facebook (CTWA o compartido)
   const fullNormMsg = normalizeText(userMessage);
   const isAdEntry = (
@@ -233,6 +224,8 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
     userMessage.includes('OPORTUNIDAD') ||
     userMessage.includes('Quiero más información') ||
     userMessage.includes('quiero mas informacion') ||
+    userMessage.includes('http://') ||
+    userMessage.includes('https://') ||
     fullNormMsg.includes('vi la publicidad') ||
     fullNormMsg.includes('vi el anuncio') ||
     fullNormMsg.includes('deseo mas informacion') ||
@@ -241,6 +234,15 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
     fullNormMsg.includes('sobre el anuncio') ||
     /^(hola|buenas|buen dia|buenos dias|buenas tardes|buenas noches|ola|hi|hello)/i.test(msg)
   );
+
+  // Verificar si el mensaje actual contiene datos de contacto (Email, o formato separado por comas con teléfono)
+  // IMPORTANTE: Un mensaje de entrada de anuncio nunca debe tratarse como envío de datos de contacto
+  const hasEmail = !isAdEntry && /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(cleanUserMsg);
+  const hasCommaData = !isAdEntry && cleanUserMsg.split(',').length >= 3 && (/\d{7,}/.test(cleanUserMsg) || hasEmail);
+  if (hasEmail || hasCommaData) {
+    session.datosCapturados = true;
+    campaignUserSessions.set(sessionKey, session);
+  }
 
   // Si entra desde una nueva publicación, reiniciar estado para solicitar datos obligatoriamente
   if (isAdEntry && !hasEmail && !hasCommaData) {
@@ -284,6 +286,7 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
   if (isDateTimeMessage && !hasEmail && !hasCommaData && !isAdEntry && !isGenericVisitRequest && !msg.includes('precio') && !msg.includes('medida') && !msg.includes('ubicacion')) {
     session.esperandoHorario = false;
     session.visitaConfirmada = true;
+    session.esperandoRecordatorio = true;
 
     let horarioLimpio = cleanUserMsg;
     const timeMatch = cleanUserMsg.match(/\b(?:el\s+)?(?:este\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|mañana|hoy|fin de semana)\b[^\n.?]*/i);
@@ -296,14 +299,14 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
     session.horarioVisita = horarioLimpio;
     campaignUserSessions.set(sessionKey, session);
 
-    const legalNote = (msg.includes('folio real') || msg.includes('papel') || msg.includes('alodial') || msg.includes('legal'))
-      ? `\n\n📑 *Documentación:* La propiedad cuenta con Folio Real individualizado e impuestos al día, lista para transferencia notariada inmediata.`
-      : '';
+    return `¡Muchas gracias por tu agendamiento${saludoNom}! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔`;
+  }
 
-    return `📅 *¡Perfecto${saludoNom}! Cita agendada con éxito.* ✨\n\n` +
-      `Te esperamos el *${horarioLimpio}* en *${campaign.titulo_campana}*.${legalNote}\n\n` +
-      `El asesor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te registrará el ingreso autorizado en portería.\n\n` +
-      `¡Muchas gracias y que tengas un excelente día! 🤝`;
+  // 1c. SI EL USUARIO RESPONDE AL RECORDATORIO TRAS AGENDAR VISITA
+  if (session.esperandoRecordatorio && !isAdEntry && !hasEmail && !hasCommaData) {
+    session.esperandoRecordatorio = false;
+    campaignUserSessions.set(sessionKey, session);
+    return `¡Muchas gracias por tu tiempo${saludoNom}! 🦁✨ Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
   }
 
   // ponytail: 2. ENTRADA DESDE ANUNCIO O PRIMERA CONSULTA: ASESOR INMOBILIARIO REAL Y CONVERSACIONAL
@@ -311,47 +314,33 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
     session.fichaEntregada = true;
     campaignUserSessions.set(sessionKey, session);
 
+    if (campId.includes('westgate') || campTitle.includes('westgate')) {
+      return `¡Hola${saludoNom}! Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+        `¡Sí, tenemos a disposición departamentos y monoambientes en preventa en *WESTGATE TOWER* (Av. Roca y Coronado, frente a Fexpocruz, desde $40.800 USD)! 🏡✨\n\n` +
+        `Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
+    }
+
     if (isDpto) {
-      return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
-        `Vi que consultaste por el *Departamento de 4 Dormitorios* (119 m²) cerca del 2do Anillo. ¡Es una opción fantástica, súper amplia y muy bien ubicada!\n\n` +
-        `Para brindarte la carpeta digital completa (planos de planta, fotos en alta resolución) y coordinar una atención preferencial con nuestro asesor especialista, por favor compártenos:\n\n` +
-        `1. 👤 *Nombre completo:*\n` +
-        `2. 📱 *Número de celular o WhatsApp:*\n` +
-        `3. ✉️ *Correo electrónico:*\n` +
-        `4. 📅 *¿Qué día y hora te gustaría agendar una visita presencial?*\n\n` +
-        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🤝`;
+      return `¡Hola${saludoNom}! Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+        `¡Sí, tenemos a disposición el *Departamento de 4 Dormitorios* (119 m²) cerca del 2do Anillo ($120.000 USD)! 🏡✨\n\n` +
+        `Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
     }
 
     if (isMarAdentro) {
-      return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
-        `Vi tu consulta sobre el terreno en *Condominio Mar Adentro* (Urubó). ¡Vivir o invertir a pasos de la laguna cristalina Crystal Lagoons es un lujo total!\n\n` +
-        `Para gestionarte el pase de visita a la laguna y compartirte la carpeta con planos y ubicaciones disponibles, por favor compártenos:\n\n` +
-        `1. 👤 *Nombre completo:*\n` +
-        `2. 📱 *Número de celular o WhatsApp:*\n` +
-        `3. ✉️ *Correo electrónico:*\n` +
-        `4. 📅 *¿Qué día y hora te gustaría agendar tu visita a Mar Adentro?*\n\n` +
-        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🏖️🤝`;
+      return `¡Hola${saludoNom}! Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+        `¡Sí, tenemos a disposición terrenos en *Condominio Mar Adentro* (Urubó) con laguna Crystal Lagoons! 🏡✨\n\n` +
+        `Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
     }
 
     if (campId.includes('industrial') || campTitle.includes('industrial') || campTitle.includes('g77')) {
-      return `¡Hola${saludoNom}! 👋 Un saludo cordial. Soy asesor de *${ofi.nombre || 'Realty ONE Group Itaguazú'}* 🦁\n\n` +
-        `Vi tu interés en el *Terreno Industrial de 7.000 m²* con salida directa a la Av. G77. Es un predio estratégico con 185 metros de frente y factibilidad trifásica en puerta.\n\n` +
-        `Para prepararte el informe técnico de linderos y coordinar la inspección en el terreno, por favor facilítanos:\n\n` +
-        `1. 👤 *Nombre completo o Razón Social:*\n` +
-        `2. 📱 *Número de celular o WhatsApp:*\n` +
-        `3. ✉️ *Correo electrónico:*\n` +
-        `4. 📅 *¿Qué día y hora te gustaría agendar una inspección técnica en el predio?*\n\n` +
-        `✍️ _Puedes enviarnos tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, mañana 15:00)_ 🤝`;
+      return `¡Hola${saludoNom}! Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+        `¡Sí, tenemos a disposición el *Terreno Industrial de 7.000 m²* en Parque Industrial / Av. G77! 🏡✨\n\n` +
+        `Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
     }
 
-    return `¡Hola${saludoNom}! 👋 Qué tal, un gusto saludarte. Soy asesor de *${ofi.nombre || 'Realty ONE Group Bolivia'}* 🦁\n\n` +
-      `Vi tu consulta sobre *${campaign.titulo_campana}*. ¡Es una excelente oportunidad inmobiliaria en Santa Cruz!\n\n` +
-      `Para enviarte la carpeta digital completa con planos y coordinar tu atención prioritaria, por favor compártenos:\n\n` +
-      `1. 👤 *Nombre completo:*\n` +
-      `2. 📱 *Número de celular o WhatsApp:*\n` +
-      `3. ✉️ *Correo electrónico:*\n` +
-      `4. 📅 *¿Qué día y hora te gustaría agendar una visita presencial?*\n\n` +
-      `✍️ _Puedes responder con tus datos en un solo mensaje (ej: ${firstName || 'Marcos'} Pérez, 60937050, correo@gmail.com, sábado 10:00 am)_ 🤝`;
+    return `¡Hola${saludoNom}! Soy asesor de *Realty ONE Group Bolivia* 🦁\n\n` +
+      `¡Sí, tenemos a disposición *${campaign.titulo_campana}*! 🏡✨\n\n` +
+      `Un agente especializado se pondrá en contacto con usted de acuerdo a su requerimiento. Para coordinarlo, por favor compártame su nombre y apellido, número de teléfono, correo electrónico y ciudad. 📲`;
   }
 
   // 3. SI EL USUARIO ENVÍA DATOS DE CONTACTO (Email / comas)
@@ -370,23 +359,14 @@ function generateCampaignResponse(campaign, userMessage = '', userId = '', pushN
         if (timeMatch) horarioExtraido = timeMatch[0].trim();
       }
       session.horarioVisita = horarioExtraido;
+      session.esperandoRecordatorio = true;
       campaignUserSessions.set(sessionKey, session);
 
-      return `🎉 *¡Excelente${saludoNom}! Cita agendada y datos registrados con éxito.* 🦁✨\n\n` +
-        `📋 *Detalles de tu Solicitud:*\n` +
-        `• 🏡 *Propiedad:* ${campaign.titulo_campana}\n` +
-        `• 📅 *Visita Agendada:* ${horarioExtraido}\n` +
-        `• 👤 *Asesor Asignado:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (Tel: +591 60937050)\n\n` +
-        `Tu asesor te enviará los planos y la ubicación exacta por GPS para registrar tu ingreso autorizado en portería.\n\n` +
-        `¡Muchas gracias y nos vemos en la visita! 🤝`;
+      return `¡Muchas gracias por tu agendamiento${saludoNom}! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔`;
     }
 
     campaignUserSessions.set(sessionKey, session);
-    return `¡Muchas gracias${saludoNom}! 🦁✨ Hemos registrado tus datos con éxito en nuestro sistema de atención.\n\n` +
-      `👤 *Asesor Asignado:* ${ofi.asesor_a_cargo || 'Asesor Realty ONE'} (Tel: +591 60937050)\n` +
-      `🏡 *Propiedad:* ${campaign.titulo_campana}\n\n` +
-      `Tu asesor se comunicará contigo para compartirte los planos y carpeta digital.\n\n` +
-      `👉 *${dirNom}¿qué día y hora te queda más cómodo para agendar tu visita presencial?* (ej: *mañana por la tarde* o *este sábado a las 10:00 am*). 🤝`;
+    return `¡Perfecto${saludoNom}! 🎉 Ya tengo tus datos principales. Si tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
   }
 
   // 3b. CALIFICACIÓN: RESPUESTA A PROPÓSITO (VIVIENDA / INVERSIÓN)

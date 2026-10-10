@@ -98,14 +98,14 @@ async function runScreenshotTests() {
 
   if (
     replyDpto.includes('Departamento de 4 Dormitorios') &&
-    replyDpto.includes('Nombre completo') &&
-    replyDpto.includes('celular') &&
-    replyDpto.includes('Correo electrónico') &&
-    replyDpto.includes('agendar una visita') &&
+    replyDpto.includes('nombre y apellido') &&
+    replyDpto.includes('teléfono') &&
+    replyDpto.includes('correo electrónico') &&
+    replyDpto.includes('ciudad') &&
     !replyDpto.includes('📐 Superficie: 119 m² construidos') &&
     !replyDpto.includes('🚛 Accesibilidad:')
   ) {
-    console.log('✅ ÉXITO CAPTURA 7: NO repite la ficha técnica; saluda cordial y solicita Nombre completo, Celular, Email y Agendar visita.\n');
+    console.log('✅ ÉXITO CAPTURA 7: NO repite la ficha técnica robótica; saluda cordial y solicita nombre y apellido, teléfono, correo y ciudad.\n');
   } else {
     console.error('❌ ERROR CAPTURA 7: Volvió a enviar la ficha técnica robótica o falló la solicitud de datos.\n');
     process.exit(1);
@@ -148,7 +148,7 @@ async function runScreenshotTests() {
   console.log('--- TEST 11: Cliente envía nombre, teléfono, email y horario de visita ---');
   const replyLeadData = await aiAgent.processUserMessage(user3, 'Marcos Pérez, 70123456, marcos@gmail.com, este sábado a las 10:00 am', { pushName: 'Marcos' });
   console.log('🤖 RESPUESTA A ENVÍO DE DATOS:\n', replyLeadData);
-  if (replyLeadData.includes('Cita agendada') && replyLeadData.includes('Asesor Asignado')) {
+  if (replyLeadData.includes('Muchas gracias por tu agendamiento') || (replyLeadData.includes('Cita agendada') && replyLeadData.includes('Asesor Asignado'))) {
     console.log('✅ ÉXITO TEST 11: Captura datos de contacto y agenda cita correctamente.\n');
   } else {
     console.error('❌ ERROR TEST 11: Falló confirmación de captura de datos o cita.\n');

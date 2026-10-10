@@ -552,9 +552,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       session.lastCampaign = activeCampaign;
       userFlowSessions.set(userId, session);
 
-      // Si envía datos de contacto dentro del embudo de la campaña
-      const hasEmail = /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(raw);
-      const hasCommaData = raw.split(',').length >= 3 && (/\d{7,}/.test(raw) || hasEmail);
+      // Si envía datos de contacto dentro del embudo de la campaña (después de la presentación)
+      const isInitialAdMsg = raw.includes('fb.me') || raw.includes('http') || raw.includes('anuncio') || raw.includes('publicidad');
+      const hasEmail = !isInitialAdMsg && /[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/i.test(raw);
+      const hasCommaData = !isInitialAdMsg && raw.split(',').length >= 3 && (/\d{7,}/.test(raw) || hasEmail);
       if (hasEmail || hasCommaData) {
         try {
           leadClassifier.trackAndClassifyLead(userId, raw, `Campaña: ${activeCampaign.titulo_campana}`, {
