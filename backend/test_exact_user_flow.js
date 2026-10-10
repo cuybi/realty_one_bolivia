@@ -16,8 +16,8 @@ async function runTests() {
 
   const r2 = await processUserMessage(u1, 'tienes departamento de 2 dormitorios para alquilar?', { pushName: 'Marcos Antezana' });
   console.log('\n2. Consulta Cliente -> Bot:\n' + r2);
-  if (!r2.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
-    throw new Error('Fallo en respuesta a opciones con saludo cordial');
+  if (!r2.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+    throw new Error('Fallo en respuesta a opciones');
   }
 
   const r3 = await processUserMessage(u1, 'Marcos Antezana, 70123456, marcos@gmail.com, Santa Cruz', { pushName: 'Marcos Antezana' });
@@ -84,10 +84,16 @@ async function runTests() {
   // --- RUTA 4: ENTRADA DIRECTA POR ANUNCIO DE FACEBOOK ---
   console.log('--- CASO 4: Entrada directa por Anuncio de Facebook ---');
   const u4 = 'user_flow_ad';
-  const rAd = await processUserMessage(u4, 'Hola, vi este anuncio en Facebook: https://fb.me/7fDPWEH23\nWESTGATE TOWER\nMonoambientes, departamentos de 1 y 2 dormitorios', { pushName: 'Marcos Antezana' });
-  console.log('Respuesta Bot a anuncio:\n' + rAd);
-  if (!rAd.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
-    throw new Error('Fallo en entrada directa por anuncio con saludo cordial');
+  const rAd1 = await processUserMessage(u4, 'Hola, vi este anuncio en Facebook: https://fb.me/7fDPWEH23\nWESTGATE TOWER\nMonoambientes, departamentos de 1 y 2 dormitorios', { pushName: 'Marcos Antezana' });
+  console.log('1. Saludo Bot a Anuncio:\n' + rAd1);
+  if (!rAd1.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?')) {
+    throw new Error('Fallo en saludo cordial inicial tras anuncio');
+  }
+
+  const rAd2 = await processUserMessage(u4, 'Quiero saber qué departamentos tienen disponibles en este proyecto', { pushName: 'Marcos Antezana' });
+  console.log('\n2. Consulta Cliente -> Opciones Bot:\n' + rAd2);
+  if (!rAd2.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+    throw new Error('Fallo en opciones tras saludo de anuncio');
   }
   console.log('✅ CASO 4 APROBADO 100%\n');
 
