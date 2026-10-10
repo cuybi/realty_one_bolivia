@@ -226,16 +226,21 @@ async function startWhatsAppClient() {
     const localAuthFolder = path.join(__dirname, 'baileys_auth');
     const mongoUri = process.env.MONGODB_URI;
     if (mongoUri) {
-      if (!mongoClientSingleton) {
-        mongoClientSingleton = new MongoClient(mongoUri, {
-          tls: true,
-          tlsAllowInvalidCertificates: true
-        });
-        await mongoClientSingleton.connect();
-        console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
+      try {
+        if (!mongoClientSingleton) {
+          mongoClientSingleton = new MongoClient(mongoUri, {
+            tls: true,
+            tlsAllowInvalidCertificates: true
+          });
+          await mongoClientSingleton.connect();
+          console.log('✅ Auth state: MongoDB conectado (singleton persistente)');
+        }
+        const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+        ({ state, saveCreds } = await useMongoAuthState(col));
+      } catch (mongoErr) {
+        console.warn(`⚠️ Falló conexión MongoDB Atlas (${mongoErr.message}). Usando auth local en disco como fallback.`);
+        ({ state, saveCreds } = await useMultiFileAuthState(localAuthFolder));
       }
-      const col = mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-      ({ state, saveCreds } = await useMongoAuthState(col));
     } else {
       // ponytail: fallback local para desarrollo sin MongoDB
       ({ state, saveCreds } = await useMultiFileAuthState(localAuthFolder));
