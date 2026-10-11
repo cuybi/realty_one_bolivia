@@ -346,23 +346,37 @@ function extractEmail(text = '') {
   return match ? match[1].toLowerCase() : null;
 }
 
+function formatTitleCase(str = '') {
+  return str.split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 /**
  * Extrae posibles nombres de clientes del texto
  */
 function extractName(text = '') {
   const patterns = [
-    /(?:mi\s+nombre\s+es|me\s+llamo|soy|habla|atte:?|atentamente:?)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){1,3})/i,
-    /(?:nombre:?)\s*([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){1,3})/i,
-    /^([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){1,2})(?:,|\s+al|\s+y|\s+cel|\s+correo|\s+tel|\s*-\s*|\s*@)/i
+    /(?:mi\s+nombre\s+es|me\s+llamo|soy|habla|atte:?|atentamente:?)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,3})/i,
+    /(?:nombre:?)\s*([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,3})/i,
+    /^([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){1,2})(?:,|\s+al|\s+y|\s+cel|\s+correo|\s+tel|\s*-\s*|\s*@|\s+\+?\d)/i
   ];
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match && match[1]) {
-      const candidate = match[1].trim();
-      const notNames = ['interesado', 'cliente', 'amigo', 'alguien', 'persona', 'comprador', 'hola', 'buenas', 'buen', 'buenos', 'realty', 'one', 'informacion'];
+      let candidate = match[1].trim();
+      candidate = candidate.replace(/\s+(?:y(?:\s+mi)?|mi|con|del?|en|por|para|cel(?:ular)?|tel(?:efono)?|correo|email|whatsapp)\b.*$/i, '').trim();
+
+      const notNames = [
+        'interesado', 'interesada', 'cliente', 'amigo', 'amiga', 'alguien', 'persona',
+        'comprador', 'compradora', 'hola', 'buenas', 'buen', 'buenos', 'realty', 'one',
+        'informacion', 'un', 'una', 'el', 'la', 'los', 'las', 'asesor', 'agente', 'nuevo', 'nueva',
+        'propietario', 'propietaria', 'inquilino', 'inversionista'
+      ];
       if (!notNames.includes(candidate.toLowerCase()) && candidate.length > 2) {
-        return candidate.replace(/\b\w/g, l => l.toUpperCase());
+        candidate = candidate.replace(/\s+(?:y|e|o|de|del|en|a)$/i, '').trim();
+        if (candidate.length > 2 && !notNames.includes(candidate.toLowerCase())) {
+          return formatTitleCase(candidate);
+        }
       }
     }
   }
@@ -370,9 +384,10 @@ function extractName(text = '') {
   // Detección cuando el usuario envía una línea tipo "Marcos Antezana, 77012345, marcos@gmail.com"
   const commaParts = text.split(',');
   if (commaParts.length >= 2) {
-    const firstPart = commaParts[0].trim();
+    let firstPart = commaParts[0].trim();
+    firstPart = firstPart.replace(/^(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+/i, '').trim();
     if (firstPart.length > 2 && firstPart.split(' ').length <= 4 && !firstPart.includes('@') && !/\d/.test(firstPart)) {
-      return firstPart.replace(/\b\w/g, l => l.toUpperCase());
+      return formatTitleCase(firstPart);
     }
   }
 
@@ -651,9 +666,9 @@ function extractFormData(text = '') {
         } else if (clean.length === 8) {
           phone = normalizePhoneNumber(clean);
         } else if (CITIES_LIST.some(c => lower === c || lower.includes(c))) {
-          city = part.replace(/\b\w/g, l => l.toUpperCase());
+          city = formatTitleCase(part);
         } else if (!name && part.length >= 2 && !/\d/.test(part) && part.split(' ').length <= 4) {
-          name = part.replace(/\b\w/g, l => l.toUpperCase());
+          name = formatTitleCase(part);
         }
       }
     }

@@ -142,7 +142,8 @@ function extractFullName(text) {
   // 1. Patrón explícito "mi nombre es X", "me llamo X", "soy X" (evitando "soy de [ciudad]")
   const m = text.match(/(?:mi nombre es|me llamo|soy\s+(?!de\b|del\b))\s*([A-Za-zÁÉÍÓÚÑñáéíóú\s]{3,35})/i);
   if (m) {
-    const cand = m[1].trim();
+    let cand = m[1].trim();
+    cand = cand.replace(/\s+(?:y(?:\s+mi)?|mi|con|del?|en|por|para|cel(?:ular)?|tel(?:efono)?|correo|email|whatsapp)\b.*$/i, '').trim();
     const candLo = cand.toLowerCase();
     const isCity = cities.some(c => candLo.includes(c));
     if (!isCity && !extractEmail(cand) && !extractPhone(cand)) {
@@ -230,9 +231,9 @@ function getTimeGreeting() {
 
 function getTimeFarewell() {
   const h = getBoliviaHour();
-  if (h >= 5 && h < 12) return '¡Que tengas muy buenos días!';
-  if (h >= 12 && h < 19) return '¡Que tengas muy buenas tardes!';
-  return '¡Que tengas muy buenas noches!';
+  if (h >= 5 && h < 12) return '¡Que tengas un excelente día!';
+  if (h >= 12 && h < 19) return '¡Que tengas una excelente tarde!';
+  return '¡Que tengas una excelente noche!';
 }
 
 function isNegative(text) {
@@ -544,24 +545,53 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   );
 
   const isRealAd = Boolean(
-    (referralData && (referralData.headline || referralData.body || referralData.source === 'Facebook Ads (CTWA)')) ||
+    (referralData && (referralData.headline || referralData.body || referralData.sourceUrl || referralData.source === 'Facebook Ads (CTWA)')) ||
     lo.includes('fb.me') ||
     lo.includes('facebook.com')
   );
 
-  // Comando de reinicio explícito
+  // 1. Comando de reinicio explícito
   if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
+    sessions.delete(userId);
+    userFlowSessions.delete(userId);
+    conversationSessions.delete(userId);
+    const sFresh = getSession(userId, pushName);
+    sFresh.state = 'ESTADO_2_INTEREST';
+    const nom = sFresh.clientName || '';
+    const timeGreeting = getTimeGreeting();
+    const saludoHora = nom ? `${timeGreeting.slice(0, -1)} ${nom}!` : `${timeGreeting}`;
+    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+  }
+
+  // 2. REGLA DE ORO DE ANUNCIOS DE FACEBOOK:
+  // Si el cliente hace clic en un anuncio de Facebook (CTWA, externalAdReply, fb.me, facebook.com),
+  // siempre es una NUEVA interacción publicitaria: se reinicia la sesión para evitar quedar atrapado en estados previos.
+  if (isRealAd) {
     sessions.delete(userId);
     userFlowSessions.delete(userId);
     conversationSessions.delete(userId);
   }
 
+  // 3. RECUPERACIÓN DE ESTADOS PREVIOS NO CONCLUIDOS:
+  // Si la sesión anterior quedó esperando datos (ESTADO_3) o agendamiento (ESTADO_4),
+  // pero el mensaje entrante es claramente un nuevo saludo ("Hola", "Buenas") o pasaron más de 30 minutos de inactividad:
+  const prevSession = sessions.get(userId);
+  if (prevSession && (prevSession.state === 'ESTADO_4_SCHEDULE' || prevSession.state === 'ESTADO_3_DATA')) {
+    const isNewGreeting = lo.startsWith('hola') || lo.startsWith('¡hola') || lo.startsWith('buenas') || lo.startsWith('buen dia') || lo.startsWith('buenos dias');
+    const isStale = (Date.now() - (prevSession.lastActivity || 0)) > 30 * 60 * 1000;
+    if (isRealAd || isNewGreeting || isStale) {
+      sessions.delete(userId);
+      userFlowSessions.delete(userId);
+      conversationSessions.delete(userId);
+    }
+  }
+
   let s = getSession(userId, pushName);
 
-  // Si la conversación previa ya había concluido (despedida / cerrada):
+  // 4. Si la conversación previa ya había concluido (despedida / cerrada):
   if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
-    // Si el cliente hace clic en un NUEVO anuncio o hace una NUEVA consulta de propiedad, reabrimos
-    if (isRealAd || isInquiry) {
+    // Si el cliente hace clic en un NUEVO anuncio publicitario de Facebook, reabrimos
+    if (isRealAd) {
       sessions.delete(userId);
       userFlowSessions.delete(userId);
       conversationSessions.delete(userId);
@@ -594,13 +624,13 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       s.interestMsg = raw;
       s.state = 'ESTADO_3_DATA';
       if (isSelling) {
-        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
       }
-      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
     }
 
     s.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora}, ¿En qué puedo ayudarte?`;
+    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
   }
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
@@ -609,11 +639,11 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.state = 'ESTADO_3_DATA';
 
     if (isSelling) {
-      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
     }
 
     // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o más información
-    return `¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    return `¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
   }
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
@@ -658,7 +688,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
           horarioVisita: raw
         }).catch(() => {});
       } catch (_) {}
-      return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales y tu visita ha quedado coordinada para el ${raw}. ¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Nuestro agente especializado te contactará para coordinar todos los detalles. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+      return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales y tu visita ha quedado coordinada para el ${raw}. ¡Muchas gracias por habernos elegido y por comunicarte con nosotros! 😊 Nuestro agente especializado te contactará para coordinar todos los detalles. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
     }
 
     // Datos principales recopilados -> Pasa a agendamiento

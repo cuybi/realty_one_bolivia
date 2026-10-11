@@ -426,10 +426,12 @@ async function startWhatsAppClient() {
         console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}"`);
 
         const referral = externalAdReply;
-        const referralData = (referral?.title || referral?.body) ? {
+        const referralData = (referral?.title || referral?.body || referral?.sourceUrl || referral?.description) ? {
           source: 'Facebook Ads (CTWA)',
           headline: referral?.title || '',
           body: referral?.body || '',
+          sourceUrl: referral?.sourceUrl || '',
+          description: referral?.description || '',
           mediaUrl: referral?.mediaUrl || '',
           pushName: pushName
         } : (pushName ? { pushName } : null);

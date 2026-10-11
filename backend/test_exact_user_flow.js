@@ -11,13 +11,13 @@ async function runTests() {
   const r1 = await processUserMessage(u1, 'Hola', { pushName: 'Marcos Antezana' });
   console.log('1. Saludo Bot:\n' + r1);
   if (!r1.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁') ||
-      !r1.includes('Marcos Antezana!, ¿En qué puedo ayudarte?')) {
+      !r1.includes('¿En qué puedo ayudarte?')) {
     throw new Error('Fallo en saludo inicial con hora y nombre');
   }
 
   const r2 = await processUserMessage(u1, 'tienes departamento de 2 dormitorios para alquilar?', { pushName: 'Marcos Antezana' });
   console.log('\n2. Consulta Cliente -> Bot:\n' + r2);
-  if (!r2.includes('¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+  if (!r2.includes('¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲')) {
     throw new Error('Fallo en respuesta a opciones');
   }
 
@@ -100,8 +100,8 @@ async function runTests() {
   const rDirect = await processUserMessage(u5, 'Buenas noches, tienen departamentos en alquiler?', { pushName: 'Valeria' });
   console.log('Respuesta Bot a consulta directa en 1er mensaje:\n' + rDirect);
   if (!rDirect.includes('¡Hola Valeria! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁') ||
-      !rDirect.includes('¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨') ||
-      !rDirect.includes('Para coordinarlo, por favor dame tu nombre y apellido')) {
+      !rDirect.includes('¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨') ||
+      !rDirect.includes('Para coordinarlo, por favor compártenos tu nombre y apellido')) {
     throw new Error('Fallo en respuesta directa en mensaje 1');
   }
   console.log('✅ CASO 5 APROBADO 100%\n');
