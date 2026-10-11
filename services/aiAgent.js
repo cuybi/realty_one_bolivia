@@ -522,30 +522,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   const lo  = raw.toLowerCase();
   const history = getSessionHistory(userId);
 
-  // Comando de reinicio explícito
-  if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
-    sessions.delete(userId);
-    userFlowSessions.delete(userId);
-    conversationSessions.delete(userId);
-  }
-
-  const s = getSession(userId, pushName);
-
-  // REGLA: MUTE absoluto tras despedida (no contesta si escribe, manda audio o algo parecido)
-  if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
-    return null;
-  }
-
-  // Actualizar nombre si viene en pushName y no lo teníamos
-  if (pushName && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
-    s.clientName = pushName.trim();
-  }
-  let name = s.clientName ? ` ${s.clientName}` : '';
-  let nom  = s.clientName || '';
-
-  const timeGreeting = getTimeGreeting();
-  const timeFarewell = getTimeFarewell();
-
   const isSelling = (
     lo.includes('vender') || lo.includes('consignar') ||
     lo.includes('captacion') || lo.includes('captación') ||
@@ -563,8 +539,48 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     lo.includes('anticrético') || lo.includes('venta') || lo.includes('comprar') ||
     lo.includes('informacion') || lo.includes('información') || lo.includes('opciones') ||
     lo.includes('propiedad') || lo.includes('mas info') || lo.includes('más info') ||
-    lo.includes('visita') || lo.includes('agendar') || lo.includes('asesor')
+    lo.includes('visita') || lo.includes('agendar') || lo.includes('asesor') ||
+    lo.includes('hectárea') || lo.includes('hectarea') || lo.includes('hectáreas')
   );
+
+  const isRealAd = Boolean(
+    (referralData && (referralData.headline || referralData.body || referralData.source === 'Facebook Ads (CTWA)')) ||
+    lo.includes('fb.me') ||
+    lo.includes('facebook.com')
+  );
+
+  // Comando de reinicio explícito
+  if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
+    sessions.delete(userId);
+    userFlowSessions.delete(userId);
+    conversationSessions.delete(userId);
+  }
+
+  let s = getSession(userId, pushName);
+
+  // Si la conversación previa ya había concluido (despedida / cerrada):
+  if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
+    // Si el cliente hace clic en un NUEVO anuncio o hace una NUEVA consulta de propiedad, reabrimos
+    if (isRealAd || isInquiry) {
+      sessions.delete(userId);
+      userFlowSessions.delete(userId);
+      conversationSessions.delete(userId);
+      s = getSession(userId, pushName);
+    } else {
+      // REGLA: MUTE absoluto tras despedida (no contesta si escribe, manda audio o algo parecido)
+      return null;
+    }
+  }
+
+  // Actualizar nombre si viene en pushName y no lo teníamos
+  if (pushName && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
+    s.clientName = pushName.trim();
+  }
+  let name = s.clientName ? ` ${s.clientName}` : '';
+  let nom  = s.clientName || '';
+
+  const timeGreeting = getTimeGreeting();
+  const timeFarewell = getTimeFarewell();
 
   // Saludo según la hora formateado con o sin nombre
   const saludoHora = nom

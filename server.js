@@ -398,20 +398,34 @@ async function startWhatsAppClient() {
         const senderPhone = senderJid.replace('@s.whatsapp.net', '');
         const pushName = msg.pushName || 'Cliente';
 
-        let messageText = '';
-        if (msg.message.conversation) {
-          messageText = msg.message.conversation;
-        } else if (msg.message.extendedTextMessage?.text) {
-          messageText = msg.message.extendedTextMessage.text;
-        } else if (msg.message.imageMessage?.caption) {
-          messageText = msg.message.imageMessage.caption;
-        }
+        let rawMsg = msg.message;
+        if (rawMsg?.ephemeralMessage?.message) rawMsg = rawMsg.ephemeralMessage.message;
+        if (rawMsg?.viewOnceMessage?.message) rawMsg = rawMsg.viewOnceMessage.message;
+        if (rawMsg?.viewOnceMessageV2?.message) rawMsg = rawMsg.viewOnceMessageV2.message;
+        if (rawMsg?.documentWithCaptionMessage?.message) rawMsg = rawMsg.documentWithCaptionMessage.message;
 
-        if (!messageText.trim()) continue;
+        const ext = rawMsg?.extendedTextMessage;
+        const contextInfo = ext?.contextInfo || rawMsg?.contextInfo;
+        const externalAdReply = contextInfo?.externalAdReply;
+
+        const messageText = (
+          rawMsg?.conversation ||
+          ext?.text ||
+          rawMsg?.imageMessage?.caption ||
+          rawMsg?.videoMessage?.caption ||
+          rawMsg?.documentMessage?.caption ||
+          rawMsg?.buttonsResponseMessage?.selectedDisplayText ||
+          rawMsg?.templateButtonReplyMessage?.selectedDisplayText ||
+          rawMsg?.listResponseMessage?.title ||
+          externalAdReply?.title ||
+          ''
+        ).trim();
+
+        if (!messageText) continue;
 
         console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}"`);
 
-        const referral = msg.message.extendedTextMessage?.contextInfo?.externalAdReply;
+        const referral = externalAdReply;
         const referralData = (referral?.title || referral?.body) ? {
           source: 'Facebook Ads (CTWA)',
           headline: referral?.title || '',
