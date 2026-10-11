@@ -20,13 +20,14 @@ async function testChatbot() {
     { title: '8. Agendar Visita', query: 'Quiero agendar una visita con un asesor para este sábado a las 4pm' }
   ];
 
-  for (const tc of testCases) {
+  for (let i = 0; i < testCases.length; i++) {
+    const tc = testCases[i];
     console.log(`\n-----------------------------------------------------------`);
     console.log(`🔍 [CASO] ${tc.title}`);
     console.log(`💬 [CLIENTE]: "${tc.query}"`);
     console.log(`-----------------------------------------------------------`);
 
-    const reply = await aiAgent.processUserMessage('test-user-001', tc.query);
+    const reply = await aiAgent.processUserMessage(`test-user-00${i + 1}`, tc.query);
     console.log(`🤖 [ONEBOT]:\n${reply}\n`);
   }
 

@@ -139,15 +139,32 @@ function extractFullName(text) {
     'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
     'yacuiba', 'riberalta'
   ];
-  // 1. Patrón explícito "mi nombre es X", "me llamo X", "soy X"
-  const m = text.match(/(?:mi nombre es|me llamo|soy)\s+([A-Za-zÁÉÍÓÚÑñáéíóú\s]{3,35})/i);
+  // 1. Patrón explícito "mi nombre es X", "me llamo X", "soy X" (evitando "soy de [ciudad]")
+  const m = text.match(/(?:mi nombre es|me llamo|soy\s+(?!de\b|del\b))\s*([A-Za-zÁÉÍÓÚÑñáéíóú\s]{3,35})/i);
   if (m) {
     const cand = m[1].trim();
-    if (!extractEmail(cand) && !extractPhone(cand)) {
-      return cand.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    const candLo = cand.toLowerCase();
+    const isCity = cities.some(c => candLo.includes(c));
+    if (!isCity && !extractEmail(cand) && !extractPhone(cand)) {
+      const words = cand.split(/\s+/).filter(w => w.length >= 2);
+      if (words.length >= 1 && !words.some(w => ['de', 'del', 'en', 'el', 'la'].includes(w.toLowerCase()))) {
+        return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
     }
   }
   // 2. Campo separado por coma / punto y coma / salto de línea
+  const nonNameWords = new Set([
+    'sobre', 'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
+    'de', 'del', 'en', 'para', 'por', 'con', 'sin', 'al', 'a', 'es',
+    'terreno', 'lote', 'casa', 'departamento', 'dpto', 'vivienda', 'propia',
+    'familia', 'familiar', 'informacion', 'información', 'info', 'inversion',
+    'inversión', 'alquiler', 'alquilar', 'anticretico', 'anticrético', 'venta',
+    'vender', 'comprar', 'compra', 'precio', 'cuanto', 'cuánto', 'fotos',
+    'foto', 'plano', 'planos', 'ubicacion', 'ubicación', 'visita', 'visitar',
+    'hola', 'buenas', 'tardes', 'dias', 'días', 'noches', 'muchas', 'gracias',
+    'favor', 'quiero', 'tengo', 'busco', 'necesito', 'deseo', 'mas', 'más'
+  ]);
+
   const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
   for (const p of parts) {
     if (extractEmail(p) || extractPhone(p)) continue;
@@ -157,7 +174,11 @@ function extractFullName(text) {
     if (/^[A-Za-zÁÉÍÓÚÑñáéíóú\s.'-]+$/.test(p) && p.length >= 4 && p.length <= 40) {
       const words = p.split(/\s+/).filter(w => w.length >= 2);
       if (words.length >= 2) {
-        return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        // Verificar que ninguna palabra sea un término inmobiliario o preposición común
+        const hasStopWord = words.some(w => nonNameWords.has(w.toLowerCase()));
+        if (!hasStopWord) {
+          return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        }
       }
     }
   }
@@ -195,11 +216,30 @@ function extractCity(text) {
   return null;
 }
 
+function getBoliviaHour() {
+  const options = { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false };
+  return parseInt(new Intl.DateTimeFormat('en-US', options).format(new Date()), 10);
+}
+
+function getTimeGreeting() {
+  const h = getBoliviaHour();
+  if (h >= 5 && h < 12) return '¡Muy buenos días!';
+  if (h >= 12 && h < 19) return '¡Muy buenas tardes!';
+  return '¡Muy buenas noches!';
+}
+
+function getTimeFarewell() {
+  const h = getBoliviaHour();
+  if (h >= 5 && h < 12) return '¡Que tengas muy buenos días!';
+  if (h >= 12 && h < 19) return '¡Que tengas muy buenas tardes!';
+  return '¡Que tengas muy buenas noches!';
+}
+
 function isNegative(text) {
   const lo = text.toLowerCase().trim();
   if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
   if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
-  return /\b(no|no gracias|todav[ií]a no|a[uú]n no|por ahora no|por el momento no|paso|m[aá]s adelante|despu[eé]s|ninguna|prefiero no|no quiero|no deseo)\b/i.test(lo);
+  return /\b(no|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión)\b/i.test(lo);
 }
 
 function hasValidDate(text) {
@@ -482,8 +522,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   const lo  = raw.toLowerCase();
   const history = getSessionHistory(userId);
 
-  // Comando de reinicio
-  if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
+  const isAd = Boolean(referralData || lo.includes('fb.me') || lo.includes('facebook.com'));
+
+  // Comando de reinicio o entrada desde anuncio nuevo de Facebook
+  if (isAd || ['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
     sessions.delete(userId);
     userFlowSessions.delete(userId);
     conversationSessions.delete(userId);
@@ -491,8 +533,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   const s = getSession(userId, pushName);
 
-  // REGLA: "Una ves te despediste no responde a nada de lo que te escriba."
-  if (s.state === 'ESTADO_6_FAREWELL') {
+  // REGLA: MUTE absoluto tras despedida (no contesta si escribe, manda audio o algo parecido)
+  if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
     return null;
   }
 
@@ -503,17 +545,48 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   let name = s.clientName ? ` ${s.clientName}` : '';
   let nom  = s.clientName || '';
 
-  // Detección de saludo general
-  const isGreeting = (
-    lo === 'hola' || lo === '¡hola!' || lo === 'hola!' || lo === 'buenas' ||
-    lo === 'buenas tardes' || lo === 'buenos dias' || lo === 'buenos días' ||
-    lo === 'buenas noches' || lo === 'ola' || lo === 'hi' || lo === 'hello'
+  const timeGreeting = getTimeGreeting();
+  const timeFarewell = getTimeFarewell();
+
+  const isSelling = (
+    lo.includes('vender') || lo.includes('consignar') ||
+    lo.includes('captacion') || lo.includes('captación') ||
+    lo.includes('poner en venta') || lo.includes('vender mi') ||
+    lo.includes('quiero vender') || lo.includes('tengo una casa') ||
+    lo.includes('tengo un dpto') || lo.includes('tengo un departamento') ||
+    lo.includes('tengo un terreno') || lo.includes('tengo un lote') ||
+    lo.includes('tengo un monoambiente')
   );
+
+  const isInquiry = isSelling || (
+    lo.includes('departamento') || lo.includes('dpto') || lo.includes('casa') ||
+    lo.includes('terreno') || lo.includes('lote') || lo.includes('monoambiente') ||
+    lo.includes('alquiler') || lo.includes('alquilar') || lo.includes('anticretico') ||
+    lo.includes('anticrético') || lo.includes('venta') || lo.includes('comprar') ||
+    lo.includes('informacion') || lo.includes('información') || lo.includes('opciones') ||
+    lo.includes('propiedad') || lo.includes('mas info') || lo.includes('más info') ||
+    lo.includes('visita') || lo.includes('agendar') || lo.includes('asesor')
+  );
+
+  // Saludo según la hora formateado con o sin nombre
+  const saludoHora = nom
+    ? `${timeGreeting.slice(0, -1)} ${nom}!`
+    : `${timeGreeting}`;
 
   // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
+    // Si en el primer mensaje el usuario ya preguntó por inmuebles o venta:
+    if (isInquiry) {
+      s.interestMsg = raw;
+      s.state = 'ESTADO_3_DATA';
+      if (isSelling) {
+        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      }
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    }
+
     s.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
+    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora}, ¿En qué puedo ayudarte?`;
   }
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
@@ -521,35 +594,21 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.interestMsg = raw;
     s.state = 'ESTADO_3_DATA';
 
-    const isSelling = (
-      lo.includes('vender') || lo.includes('consignar') ||
-      lo.includes('captacion') || lo.includes('captación') ||
-      lo.includes('poner en venta') || lo.includes('vender mi') ||
-      lo.includes('quiero vender') || lo.includes('tengo una casa') ||
-      lo.includes('tengo un dpto') || lo.includes('tengo un departamento') ||
-      lo.includes('tengo un terreno') || lo.includes('tengo un lote') ||
-      lo.includes('tengo un monoambiente')
-    );
-
     if (isSelling) {
-      return `¡Con mucho gusto te ayudamos con la venta de tu propiedad! 🏡✨ Para tener una idea más clara, ¿en qué zona y en qué departamento se encuentra? Y si es casa, lote o terreno, por favor describe cómo es (dimensiones y ambientes). Además, para que un agente especializado te contacte, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
     }
 
-    // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o anuncio
-    return `¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o más información
+    return `¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
   }
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
   if (s.state === 'ESTADO_3_DATA') {
-    // Si se niega a dar datos
-    if (isRefusal(raw)) {
-      if (s.refusalCount === 0) {
-        s.refusalCount = 1;
-        return `Son indispensables para que un agente especializado pueda contactarte y atender tu solicitud. 🤝 Por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
-      } else {
-        s.state = 'ESTADO_6_FAREWELL';
-        return `Puedes comunicarte directamente por teléfono cuando gustes. ¡Hasta luego${name}! Cualquier duda o inquietud no dude en llamar. 📞🤝`;
-      }
+    // Si se niega a dar datos o dice no gracias / en otra oportunidad
+    if (isRefusal(raw) || isNegative(raw)) {
+      s.state = 'ESTADO_FAREWELL';
+      s.isClosed = true;
+      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
     }
 
     // Extraer datos
@@ -566,10 +625,13 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       nom = s.clientName;
     }
 
+    const displayName = s.clientName || 'estimado cliente';
+
     // Si también envió el agendamiento completo de visita en el mismo mensaje
     if (hasValidDate(raw)) {
       s.scheduledVisit = raw;
-      s.state = 'ESTADO_5_REMINDER';
+      s.state = 'ESTADO_FAREWELL';
+      s.isClosed = true;
       try {
         leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
           campana: s.interestMsg || 'Atención al Cliente',
@@ -582,7 +644,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
           horarioVisita: raw
         }).catch(() => {});
       } catch (_) {}
-      return `¡Muchas gracias por tu agendamiento${name}! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔`;
+      return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales y tu visita ha quedado coordinada para el ${raw}. ¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Nuestro agente especializado te contactará para coordinar todos los detalles. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
     }
 
     // Datos principales recopilados -> Pasa a agendamiento
@@ -599,25 +661,46 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       }).catch(() => {});
     } catch (_) {}
 
-    return `¡Perfecto${name}! 🎉 Ya tengo tus datos principales. Si ya tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
+    return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales. Si ya tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
   }
 
   // ── ESTADO 4: Agendamiento de visita ──────────────────────────────────────
   if (s.state === 'ESTADO_4_SCHEDULE') {
-    // Si no quiere visita / responde negativamente
+    const displayName = s.clientName || 'estimado cliente';
+
+    // Si no quiere visita / responde negativamente (por ahora no, despues, en otra ocasion, etc.)
     if (isNegative(raw)) {
-      s.state = 'ESTADO_6_FAREWELL';
-      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
+      s.state = 'ESTADO_FAREWELL';
+      s.isClosed = true;
+      try {
+        leadClassifier.trackAndClassifyLead(userId, raw, 'Visita declinada', {
+          campana: s.interestMsg || 'Atención al Cliente',
+          canal: 'WhatsApp (+591 60937050)',
+          pushName: s.clientName,
+          status: 'Interesado - Sin Visita'
+        }).catch(() => {});
+      } catch (_) {}
+      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
     }
 
     // Si responde pero no da día, fecha y hora exacta
     if (!hasValidDate(raw)) {
-      return `Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️`;
+      // Si el usuario hace una nueva consulta, saluda o pide más información:
+      if (isInquiry || lo.startsWith('hola') || lo.startsWith('¡hola') || lo.includes('info') || isAd) {
+        s.interestMsg = raw;
+        s.state = 'ESTADO_3_DATA';
+        if (isSelling) {
+          return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+        }
+        return `¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      }
+      return `Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝`;
     }
 
     // Agendamiento con fecha y hora completa
     s.scheduledVisit = raw;
-    s.state = 'ESTADO_5_REMINDER';
+    s.state = 'ESTADO_FAREWELL';
+    s.isClosed = true;
     try {
       leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
         campana: s.interestMsg || 'Visita Agendada',
@@ -628,14 +711,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       }).catch(() => {});
     } catch (_) {}
 
-    return `¡Muchas gracias por tu agendamiento${name}! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔`;
-  }
-
-  // ── ESTADO 5: Recordatorio ────────────────────────────────────────────────
-  if (s.state === 'ESTADO_5_REMINDER') {
-    s.reminderChoice = raw;
-    s.state = 'ESTADO_6_FAREWELL';
-    return `¡Muchas gracias por tu tiempo${name}! 🦁✨ Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝`;
+    return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
   }
 
   return null;

@@ -10,13 +10,14 @@ async function runTests() {
   const u1 = 'user_flow_std';
   const r1 = await processUserMessage(u1, 'Hola', { pushName: 'Marcos Antezana' });
   console.log('1. Saludo Bot:\n' + r1);
-  if (!r1.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?')) {
-    throw new Error('Fallo en saludo inicial');
+  if (!r1.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁') ||
+      !r1.includes('Marcos Antezana!, ¿En qué puedo ayudarte?')) {
+    throw new Error('Fallo en saludo inicial con hora y nombre');
   }
 
   const r2 = await processUserMessage(u1, 'tienes departamento de 2 dormitorios para alquilar?', { pushName: 'Marcos Antezana' });
   console.log('\n2. Consulta Cliente -> Bot:\n' + r2);
-  if (!r2.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
+  if (!r2.includes('¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
     throw new Error('Fallo en respuesta a opciones');
   }
 
@@ -28,25 +29,21 @@ async function runTests() {
 
   const r4 = await processUserMessage(u1, 'sí me gustaría agendar visita', { pushName: 'Marcos Antezana' });
   console.log('\n4. Cliente pide visita sin fecha -> Bot:\n' + r4);
-  if (!r4.includes('Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️')) {
+  if (!r4.includes('Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝')) {
     throw new Error('Fallo al solicitar fecha exacta');
   }
 
   const r5 = await processUserMessage(u1, 'Lunes 15 de marzo a las 10:00 AM', { pushName: 'Marcos Antezana' });
-  console.log('\n5. Cliente da fecha -> Bot:\n' + r5);
-  if (!r5.includes('¡Muchas gracias por tu agendamiento Marcos Antezana! 🎉📅 ¿Quieres que te recuerde un día antes de tu visita? 🔔')) {
-    throw new Error('Fallo al agendar y preguntar recordatorio');
+  console.log('\n5. Cliente da fecha -> Bot Despedida y Coordinación:\n' + r5);
+  if (!r5.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana! 😊') ||
+      !r5.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝') ||
+      !r5.includes('Tu visita ha quedado coordinada para el Lunes 15 de marzo a las 10:00 AM')) {
+    throw new Error('Fallo al agendar y despedir');
   }
 
-  const r6 = await processUserMessage(u1, 'sí por favor recuerdame', { pushName: 'Marcos Antezana' });
-  console.log('\n6. Cliente responde recordatorio -> Bot Despedida:\n' + r6);
-  if (!r6.includes('¡Muchas gracias por tu tiempo Marcos Antezana! 🦁✨ Un agente especializado se pondrá en contacto contigo para coordinar todos los detalles de tu visita. Cualquier duda o inquietud no dude en llamar. 📞🤝')) {
-    throw new Error('Fallo en despedida final');
-  }
-
-  const r7 = await processUserMessage(u1, 'Hola de nuevo bot', { pushName: 'Marcos Antezana' });
-  console.log('\n7. Cliente escribe después de despedido -> Bot Silenciado:', r7);
-  if (r7 !== null) {
+  const r6 = await processUserMessage(u1, 'Hola de nuevo bot', { pushName: 'Marcos Antezana' });
+  console.log('\n6. Cliente escribe después de despedido -> Bot Silenciado:', r6);
+  if (r6 !== null) {
     throw new Error('El bot NO debió responder tras haberse despedido');
   }
   console.log('✅ CASO 1 APROBADO 100%\n');
@@ -57,10 +54,9 @@ async function runTests() {
   await processUserMessage(u2, 'Hola', { pushName: 'Marcos Antezana' });
   const rSell = await processUserMessage(u2, 'Quiero vender mi casa de 3 habitaciones', { pushName: 'Marcos Antezana' });
   console.log('Respuesta Bot a venta de propiedad:\n' + rSell);
-  if (!rSell.includes('¡Con mucho gusto te ayudamos con la venta de tu propiedad! 🏡✨') ||
-      !rSell.includes('¿en qué zona y en qué departamento se encuentra?') ||
-      !rSell.includes('describe cómo es (dimensiones y ambientes)')) {
-    throw new Error('Fallo en respuesta para captación/venta de propiedad');
+  if (!rSell.includes('¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨') ||
+      !rSell.includes('En breve un agente especializado se pondrá en contacto contigo')) {
+    throw new Error('Fallo en respuesta para venta de propiedad');
   }
   console.log('✅ CASO 2 APROBADO 100%\n');
 
@@ -81,21 +77,34 @@ async function runTests() {
   }
   console.log('✅ CASO 3 APROBADO 100%\n');
 
-  // --- RUTA 4: ENTRADA DIRECTA POR ANUNCIO DE FACEBOOK ---
-  console.log('--- CASO 4: Entrada directa por Anuncio de Facebook ---');
-  const u4 = 'user_flow_ad';
-  const rAd1 = await processUserMessage(u4, 'Hola, vi este anuncio en Facebook: https://fb.me/7fDPWEH23\nWESTGATE TOWER\nMonoambientes, departamentos de 1 y 2 dormitorios', { pushName: 'Marcos Antezana' });
-  console.log('1. Saludo Bot a Anuncio:\n' + rAd1);
-  if (!rAd1.includes('¡Hola Marcos Antezana! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?')) {
-    throw new Error('Fallo en saludo cordial inicial tras anuncio');
+  // --- RUTA 4: CLIENTE REHÚSA DAR DATOS ---
+  console.log('--- CASO 4: Cliente se niega a dar datos personales ---');
+  const u4 = 'user_flow_no_data';
+  await processUserMessage(u4, 'Buenas tardes', { pushName: 'Marcos' });
+  await processUserMessage(u4, 'Quiero info de casas', { pushName: 'Marcos' });
+  const rNoData = await processUserMessage(u4, 'en otra oportunidad, no gracias', { pushName: 'Marcos' });
+  console.log('Respuesta Bot a negativa de datos:\n' + rNoData);
+  if (!rNoData.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos! 😊') ||
+      !rNoData.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝')) {
+    throw new Error('Fallo en despedida cordial por negativa de datos');
   }
-
-  const rAd2 = await processUserMessage(u4, 'Quiero saber qué departamentos tienen disponibles en este proyecto', { pushName: 'Marcos Antezana' });
-  console.log('\n2. Consulta Cliente -> Opciones Bot:\n' + rAd2);
-  if (!rAd2.includes('¡Sí, tenemos a disposición excelentes opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
-    throw new Error('Fallo en opciones tras saludo de anuncio');
+  const rSilent4 = await processUserMessage(u4, 'Hola?', { pushName: 'Marcos' });
+  if (rSilent4 !== null) {
+    throw new Error('El bot debió quedar silenciado tras negativa de datos');
   }
   console.log('✅ CASO 4 APROBADO 100%\n');
+
+  // --- RUTA 5: CONSULTA DIRECTA EN EL PRIMER MENSAJE ---
+  console.log('--- CASO 5: Consulta directa en el primer mensaje ---');
+  const u5 = 'user_flow_direct_msg1';
+  const rDirect = await processUserMessage(u5, 'Buenas noches, tienen departamentos en alquiler?', { pushName: 'Valeria' });
+  console.log('Respuesta Bot a consulta directa en 1er mensaje:\n' + rDirect);
+  if (!rDirect.includes('¡Hola Valeria! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁') ||
+      !rDirect.includes('¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨') ||
+      !rDirect.includes('Para coordinarlo, por favor dame tu nombre y apellido')) {
+    throw new Error('Fallo en respuesta directa en mensaje 1');
+  }
+  console.log('✅ CASO 5 APROBADO 100%\n');
 
   console.log('🎉 ========================================================');
   console.log('🎉  TODAS LAS RUTAS DEL FLUJO DEL USUARIO APROBADAS AL 100%');

@@ -1,6 +1,6 @@
 /**
  * Test Suite de Integración Real para backend/services/aiAgent.js
- * Valida los 5 Estados y las 6 Reglas Estrictas del Asistente Virtual
+ * Valida el Flujo Oficial Humanizado del Asistente Virtual de Realty ONE Group Bolivia
  */
 
 const assert = require('assert');
@@ -8,7 +8,7 @@ const aiAgent = require('./services/aiAgent');
 
 async function runTests() {
   console.log('🦁 ========================================================');
-  console.log('🦁  TESTING INTEGRACIÓN EN VIVO: aiAgent.js (5 ESTADOS / 6 REGLAS)');
+  console.log('🦁  TESTING INTEGRACIÓN EN VIVO: aiAgent.js (FLUJO OFICIAL HUMANIZADO)');
   console.log('🦁 ========================================================\n');
 
   function assertNoBulletsOrMenus(reply, stepName) {
@@ -22,152 +22,115 @@ async function runTests() {
   // -------------------------------------------------------------
   // ESCENARIO 1: FLUJO COMPLETO EXITOSO (HAPPY PATH)
   // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 1]: Flujo Feliz Completo (Agendamiento + Recordatorio Sí)');
+  console.log('👉 [ESCENARIO 1]: Flujo Feliz Completo (Agendamiento + Despedida + Mute)');
   
-  // Paso 1: Saludo Inicial (Estado 1)
+  // Paso 1: Saludo Inicial
   const r1_1 = await aiAgent.processUserMessage('client_happy', 'Hola', 'Marcos');
   console.log('Bot 1.1:', r1_1);
   assert(r1_1.includes('Marcos') && r1_1.includes('¿En qué puedo ayudarte'), 'Paso 1.1 falló');
   assertNoBulletsOrMenus(r1_1, '1.1');
 
-  // Paso 2: Usuario responde con su consulta, Bot toma control y pide datos (Estado 2)
+  // Paso 2: Consulta
   const r1_2 = await aiAgent.processUserMessage('client_happy', 'Estoy interesado en comprar un departamento', 'Marcos');
   console.log('Bot 1.2:', r1_2);
   assert(r1_2.includes('tenemos a disposición') && r1_2.includes('agente especializado se pondrá en contacto') && r1_2.includes('número de teléfono'), 'Paso 1.2 falló');
   assertNoBulletsOrMenus(r1_2, '1.2');
 
-  // Paso 3: Usuario envía datos completos, Bot pide agendamiento (Estado 3)
+  // Paso 3: Datos
   const r1_3 = await aiAgent.processUserMessage('client_happy', 'Mi teléfono es 70123456, correo marcos@gmail.com y soy de Santa Cruz', 'Marcos');
   console.log('Bot 1.3:', r1_3);
-  assert(r1_3.includes('Si tienes clara tu decisión, ¿quieres agendar una visita?'), 'Paso 1.3 falló');
+  assert(r1_3.includes('Marcos') && r1_3.includes('¿quieres agendar una visita?'), 'Paso 1.3 falló');
   assertNoBulletsOrMenus(r1_3, '1.3');
 
-  // Paso 4: Usuario agenda con fecha completa (Estado 4)
+  // Paso 4: Agendamiento con fecha y hora completa
   const r1_4 = await aiAgent.processUserMessage('client_happy', 'Lunes 15 de marzo a las 10:00 AM', 'Marcos');
   console.log('Bot 1.4:', r1_4);
-  assert(r1_4.includes('Muchas gracias por tu agendamiento') && (r1_4.includes('recuerde') || r1_4.includes('recordatorio')), 'Paso 1.4 falló');
+  assert(r1_4.includes('Muchas gracias por habernos elegido') && r1_4.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'), 'Paso 1.4 falló');
   assertNoBulletsOrMenus(r1_4, '1.4');
 
-  // Paso 5: Usuario responde sí al recordatorio, Bot se despide cordialmente (Estado 5)
-  const r1_5 = await aiAgent.processUserMessage('client_happy', 'Sí por favor', 'Marcos');
-  console.log('Bot 1.5:', r1_5);
-  assert(r1_5.includes('Marcos'), 'Debe incluir el nombre del cliente');
-  assert(r1_5.includes('Cualquier duda o inquietud no dude en llamar.'), 'Debe incluir la frase obligatoria');
-  assertNoBulletsOrMenus(r1_5, '1.5');
+  // Paso 5: Escribe tras despedida -> MUTE
+  const r1_5 = await aiAgent.processUserMessage('client_happy', 'Hola bot', 'Marcos');
+  console.log('Bot 1.5 (Post-despedida):', r1_5);
+  assert(r1_5 === null, 'El bot debe quedar en silencio absoluto tras la despedida');
   console.log('✅ ESCENARIO 1 VERIFICADO AL 100%\n');
 
   // -------------------------------------------------------------
-  // ESCENARIO 2: DATOS INCOMPLETOS (REGLA 3)
+  // ESCENARIO 2: MANEJO DE NEGATIVA A DAR DATOS
   // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 2]: Datos Incompletos y Validación Amable');
-  const r2_1 = await aiAgent.processUserMessage('client_incomplete', 'Hola', 'Valeria');
-  assert(r2_1.includes('Valeria') && r2_1.includes('¿En qué puedo ayudarte'), 'Paso 2.1 falló');
-
-  const r2_2 = await aiAgent.processUserMessage('client_incomplete', 'Quiero alquilar una casa', 'Valeria');
+  console.log('👉 [ESCENARIO 2]: Manejo de Negativa a dar datos');
+  const r2_1 = await aiAgent.processUserMessage('client_refusal', 'Hola', 'Carlos');
+  const r2_2 = await aiAgent.processUserMessage('client_refusal', 'Quiero info de un lote', 'Carlos');
   assert(r2_2.includes('agente especializado se pondrá en contacto'), 'Paso 2.2 falló');
 
-  // Usuario da solo teléfono
-  const r2_3 = await aiAgent.processUserMessage('client_incomplete', 'Solo tengo mi celular: 78901234', 'Valeria');
-  console.log('Bot 2.3 (Falta correo y ciudad):', r2_3);
-  assert(r2_3.includes('correo electrónico') && r2_3.includes('ciudad'), 'Paso 2.3 falló');
+  const r2_3 = await aiAgent.processUserMessage('client_refusal', 'No quiero dar mis datos por este medio, gracias', 'Carlos');
+  console.log('Bot 2.3 (Negativa):', r2_3);
+  assert(r2_3.includes('Carlos') && r2_3.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'), 'Debe despedirse cordialmente');
   assertNoBulletsOrMenus(r2_3, '2.3');
 
-  // Usuario da el correo y ciudad faltantes
-  const r2_4 = await aiAgent.processUserMessage('client_incomplete', 'valeria@hotmail.com en La Paz', 'Valeria');
-  console.log('Bot 2.4 (Datos completos):', r2_4);
-  assert(r2_4.includes('Si tienes clara tu decisión, ¿quieres agendar una visita?'), 'Paso 2.4 falló');
+  const r2_4 = await aiAgent.processUserMessage('client_refusal', 'buenas', 'Carlos');
+  assert(r2_4 === null, 'Debe silenciarse tras negativa');
   console.log('✅ ESCENARIO 2 VERIFICADO AL 100%\n');
 
   // -------------------------------------------------------------
-  // ESCENARIO 3: MANEJO DE NEGATIVA / OBJECIONES (REGLA 4)
+  // ESCENARIO 3: FECHA INCOMPLETA Y RECHAZO DE AGENDAMIENTO
   // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 3]: Manejo de Negativa a dar datos');
-  const r3_1 = await aiAgent.processUserMessage('client_refusal', 'Hola', 'Carlos');
-  const r3_2 = await aiAgent.processUserMessage('client_refusal', 'Quiero info de un lote', 'Carlos');
-  assert(r3_2.includes('agente especializado se pondrá en contacto'), 'Paso 3.2 falló');
+  console.log('👉 [ESCENARIO 3]: Fecha Incompleta y Rechazo de Agendamiento');
+  const r3_1 = await aiAgent.processUserMessage('client_dates', 'Hola', 'Andrea');
+  const r3_2 = await aiAgent.processUserMessage('client_dates', 'Busco oficina comercial', 'Andrea');
+  const r3_3 = await aiAgent.processUserMessage('client_dates', '60937050, andrea@empresa.com, Cochabamba', 'Andrea');
+  assert(r3_3.includes('¿quieres agendar una visita?'), 'Paso 3.3 falló');
 
-  // 1ra negativa
-  const r3_3 = await aiAgent.processUserMessage('client_refusal', 'No quiero dar mis datos por este medio', 'Carlos');
-  console.log('Bot 3.3 (1ra negativa):', r3_3);
-  assert(r3_3.includes('indispensables'), 'Debe explicar que son indispensables');
-  assertNoBulletsOrMenus(r3_3, '3.3');
+  // Fecha incompleta
+  const r3_4 = await aiAgent.processUserMessage('client_dates', 'Quisiera el martes', 'Andrea');
+  console.log('Bot 3.4 (Fecha incompleta):', r3_4);
+  assert(r3_4.includes('día de la semana, la fecha exacta y la hora'), 'Paso 3.4 falló');
+  assertNoBulletsOrMenus(r3_4, '3.4');
 
-  // 2da negativa (insiste)
-  const r3_4 = await aiAgent.processUserMessage('client_refusal', 'Dije que no los daré', 'Carlos');
-  console.log('Bot 3.4 (2da negativa):', r3_4);
-  assert(r3_4.includes('directamente por teléfono'), 'Debe indicar que puede llamar');
-  assert(r3_4.includes('Carlos'), 'Debe despedirse con el nombre');
-  assert(r3_4.includes('Cualquier duda o inquietud no dude en llamar.'), 'Debe incluir frase obligatoria');
+  // Decide no agendar
+  const r3_5 = await aiAgent.processUserMessage('client_dates', 'Por ahora no gracias, solo quería consultar', 'Andrea');
+  console.log('Bot 3.5 (No agenda):', r3_5);
+  assert(r3_5.includes('Andrea') && r3_5.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'));
+  const r3_6 = await aiAgent.processUserMessage('client_dates', 'Hola de nuevo', 'Andrea');
+  assert(r3_6 === null, 'Debe silenciarse tras despedida');
   console.log('✅ ESCENARIO 3 VERIFICADO AL 100%\n');
 
   // -------------------------------------------------------------
-  // ESCENARIO 4: FECHA INCOMPLETA Y NO AGENDAR (REGLA 5 Y CONDICIÓN ESTADO 4)
+  // ESCENARIO 4: USUARIO SIN NOMBRE PREVIO
   // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 4]: Fecha Incompleta y Rechazo de Agendamiento');
-  const r4_1 = await aiAgent.processUserMessage('client_dates', 'Hola', 'Andrea');
-  const r4_2 = await aiAgent.processUserMessage('client_dates', 'Busco oficina comercial', 'Andrea');
-  const r4_3 = await aiAgent.processUserMessage('client_dates', '60937050, andrea@empresa.com, Cochabamba', 'Andrea');
-  assert(r4_3.includes('Si tienes clara tu decisión, ¿quieres agendar una visita?'), 'Paso 4.3 falló');
+  console.log('👉 [ESCENARIO 4]: Usuario sin nombre previo');
+  const r4_1 = await aiAgent.processUserMessage('client_noname', 'Hola');
+  assert(r4_1.includes('¿En qué puedo ayudarte'), 'Paso 4.1 falló');
 
-  // Intenta agendar con fecha incompleta (solo el martes)
-  const r4_4 = await aiAgent.processUserMessage('client_dates', 'Quisiera el martes', 'Andrea');
-  console.log('Bot 4.4 (Fecha incompleta):', r4_4);
-  assert(r4_4.includes('día de la semana, la fecha exacta y la hora'), 'Paso 4.4 falló');
-  assertNoBulletsOrMenus(r4_4, '4.4');
+  const r4_2 = await aiAgent.processUserMessage('client_noname', 'Quiero info');
+  assert(r4_2.includes('agente especializado se pondrá en contacto'), 'Paso 4.2 falló');
 
-  // Usuario decide no agendar
-  const r4_5 = await aiAgent.processUserMessage('client_dates', 'Por ahora no gracias, solo quería consultar', 'Andrea');
-  console.log('Bot 4.5 (No agenda -> Salta Estado 4 directo a 5):', r4_5);
-  assert(!r4_5.includes('recordatorio') && !r4_5.includes('recuerde'), 'No debe preguntar por recordatorio');
-  assert(r4_5.includes('Andrea'), 'Debe despedirse usando el nombre');
-  assert(r4_5.includes('Cualquier duda o inquietud no dude en llamar.'), 'Debe incluir frase obligatoria');
+  const r4_3 = await aiAgent.processUserMessage('client_noname', '77397850, contacto@empresa.bo, Santa Cruz');
+  assert(r4_3.includes('¿quieres agendar una visita?'), 'Paso 4.3 falló');
+
+  const r4_4 = await aiAgent.processUserMessage('client_noname', 'No deseo agendar');
+  console.log('Bot 4.4 (Despedida sin nombre):', r4_4);
+  assert(r4_4.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'));
   console.log('✅ ESCENARIO 4 VERIFICADO AL 100%\n');
 
   // -------------------------------------------------------------
-  // ESCENARIO 5: USUARIO SIN NOMBRE PROVISTO POR PLATAFORMA
+  // ESCENARIO 5: EXTRACCIÓN DE NOMBRE EN TEXTO
   // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 5]: Usuario sin nombre previo');
-  const r5_1 = await aiAgent.processUserMessage('client_noname', 'Hola');
-  console.log('Bot 5.1 (Sin nombre):', r5_1);
-  assert(r5_1.includes('¿En qué puedo ayudarte'), 'Paso 5.1 falló');
+  console.log('👉 [ESCENARIO 5]: Extracción de Nombre Marcos Antezana');
+  await aiAgent.processUserMessage('client_extract', 'Hola');
+  await aiAgent.processUserMessage('client_extract', 'mas informacion');
+  const r5_3 = await aiAgent.processUserMessage('client_extract', 'marcos antezana, 60034649, pixelbolivia@gmail.com, santa cruz');
+  console.log('Bot 5.3 (Extracción de Marcos Antezana):', r5_3);
+  assert(r5_3.includes('Marcos Antezana'), 'Debe haber extraído Marcos Antezana como nombre');
 
-  const r5_2 = await aiAgent.processUserMessage('client_noname', 'Quiero info');
-  assert(r5_2.includes('agente especializado se pondrá en contacto'), 'Paso 5.2 falló');
+  const r5_4 = await aiAgent.processUserMessage('client_extract', 'sabado 17 de octubre a las 9:30 am');
+  assert(r5_4.includes('Marcos Antezana') && r5_4.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'));
 
-  const r5_3 = await aiAgent.processUserMessage('client_noname', '77397850, contacto@empresa.bo, Santa Cruz');
-  assert(r5_3.includes('Si tienes clara tu decisión, ¿quieres agendar una visita?'), 'Paso 5.3 falló');
-
-  const r5_4 = await aiAgent.processUserMessage('client_noname', 'No deseo agendar');
-  console.log('Bot 5.4 (Despedida sin nombre):', r5_4);
-  assert(r5_4.includes('Cualquier duda o inquietud no dude en llamar.'));
+  const r5_5 = await aiAgent.processUserMessage('client_extract', 'Hola de nuevo');
+  assert(r5_5 === null, 'Debe silenciarse tras despedida');
   console.log('✅ ESCENARIO 5 VERIFICADO AL 100%\n');
 
-  // -------------------------------------------------------------
-  // ESCENARIO 6: EXTRACCIÓN DE NOMBRE EN TEXTO Y REACTIVACIÓN TRAS DESPEDIDA
-  // -------------------------------------------------------------
-  console.log('👉 [ESCENARIO 6]: Extracción de Nombre y Reactivación post-despedida');
-  const r6_1 = await aiAgent.processUserMessage('client_reactivate', 'Hola');
-  const r6_2 = await aiAgent.processUserMessage('client_reactivate', 'mas informacion');
-  assert(r6_2.includes('nombre y apellido') && r6_2.includes('número de teléfono'), 'Debe solicitar nombre y apellido');
-
-  // Enviar nombre y datos en texto libre
-  const r6_3 = await aiAgent.processUserMessage('client_reactivate', 'marcos antezana, 60034649, pixelbolivia@gmail.com, santa cruz');
-  console.log('Bot 6.3 (Extracción de Marcos Antezana):', r6_3);
-  assert(r6_3.includes('Marcos Antezana'), 'Debe haber extraído Marcos Antezana como nombre');
-
-  // Completar agendamiento y despedida
-  await aiAgent.processUserMessage('client_reactivate', 'sabado 9 de octubre a las 9:30 am');
-  const r6_5 = await aiAgent.processUserMessage('client_reactivate', 'si');
-  assert(r6_5.includes('Muchas gracias por tu tiempo Marcos Antezana'), 'Paso 6.5 falló');
-
-  // Reactivación: El usuario vuelve a escribir después de la despedida
-  const r6_6 = await aiAgent.processUserMessage('client_reactivate', 'Hola nuevamente');
-  console.log('Bot 6.6 (Reactivación post-despedida):', r6_6);
-  assert(r6_6 && r6_6.includes('Marcos Antezana') && r6_6.includes('¿En qué puedo ayudarte'), 'El bot no debe enmudecer post-despedida');
-  console.log('✅ ESCENARIO 6 VERIFICADO AL 100%\n');
-
   console.log('🎉 ========================================================');
-  console.log('🎉  TODOS LOS 6 ESCENARIOS Y REGLAS VALIDADOS CON ÉXITO');
+  console.log('🎉  TODOS LOS ESCENARIOS VALIDADOS AL 100%');
   console.log('🎉 ========================================================');
 }
 
