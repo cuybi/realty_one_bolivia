@@ -60,6 +60,7 @@ const cleanupTimer = setInterval(() => {
 if (cleanupTimer.unref) cleanupTimer.unref();
 
 function getSession(userId, pushName = '') {
+  const userPhone = extractPhone(userId);
   if (!sessions.has(userId)) {
     if (sessions.size >= MAX_SESSIONS) {
       sessions.delete(sessions.keys().next().value);
@@ -70,7 +71,7 @@ function getSession(userId, pushName = '') {
       state: 'ESTADO_1_GREETING',
       clientName: name,
       interestMsg: '',
-      phone: null,
+      phone: userPhone || null,
       email: null,
       city: null,
       dataRequested: false,
@@ -82,6 +83,9 @@ function getSession(userId, pushName = '') {
   const s = sessions.get(userId);
   if (pushName && pushName !== 'Cliente' && !s.clientName) {
     s.clientName = pushName.trim();
+  }
+  if (!s.phone && userPhone) {
+    s.phone = userPhone;
   }
   s.lastActivity = Date.now();
   return s;
@@ -217,11 +221,12 @@ function extractCity(text) {
     'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
     'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
     'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
-    'yacuiba', 'riberalta'
+    'yacuiba', 'riberalta',
+    'madrid', 'barcelona', 'buenos aires', 'miami', 'sao paulo', 'santiago', 'iquique'
   ];
   const lower = text.toLowerCase();
   for (const c of cities) {
-    if (new RegExp(`\\b${c}\\b`, 'i').test(lower)) {
+    if (new RegExp('(^|\\P{L})' + c + '(\\P{L}|$)', 'iu').test(lower)) {
       return c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
   }
@@ -229,6 +234,17 @@ function extractCity(text) {
   const vm = text.match(/(?:vivo en|ciudad de|desde la ciudad de|de la ciudad de)\s+([A-Za-zÁÉÍÓÚñáéíóú\s]{3,20})/i);
   if (vm && !/(?:lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo|gmail|hotmail)/i.test(vm[1])) {
     return vm[1].trim();
+  }
+  // Si viene en lista estructurada (con coma/salto de línea) Y el mensaje contiene email o teléfono:
+  if (extractEmail(text) || extractPhone(text)) {
+    const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
+    for (const p of parts) {
+      if (!extractEmail(p) && !extractPhone(p) && p.length >= 3 && p.length <= 25 && /^[A-Za-zÁÉÍÓÚñáéíóú\s]+$/.test(p)) {
+        const fn = extractFullName(text);
+        if (fn && fn.toLowerCase() === p.toLowerCase()) continue;
+        return p.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+      }
+    }
   }
   return null;
 }
@@ -256,8 +272,10 @@ function isNegative(text) {
   const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
   if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
   if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
+  const words = lo.split(/\s+/).filter(Boolean);
   if (['no', 'noi', 'nop', 'nope', 'noo', 'nooo', 'nel', 'non', 'noup'].includes(lo)) return true;
-  return /\b(no|noi|nop|nope|noo|nel|non|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión)\b/i.test(lo);
+  if (words.length <= 4 && /^(?:no|noi|nop|nope)\b/i.test(lo)) return true;
+  return /\b(no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión|no me interesa|no insistas)\b/i.test(lo);
 }
 
 function hasValidDate(text) {
@@ -704,12 +722,26 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       nom = s.clientName;
     }
 
-    // Si no envió teléfono ni email (los datos mínimos de contacto indispensables)
-    if (!s.phone && !s.email) {
-      return `Para que un agente especializado pueda brindarte la mejor atención y enviarte las opciones disponibles, por favor compártenos tu número de teléfono o WhatsApp y tu correo electrónico. 📲🤝`;
-    }
-
     const displayName = s.clientName || 'estimado cliente';
+
+    // Determinar qué datos faltan todavía para tener la ficha de contacto completa
+    const missing = [];
+    if (!s.phone) missing.push('tu número de teléfono o WhatsApp');
+    if (!s.email) missing.push('tu correo electrónico');
+    if (!s.city)  missing.push('tu ciudad');
+
+    // Si todavía falta información esencial (por ejemplo correo y ciudad) y el usuario no los completó todos
+    if (missing.length > 0) {
+      let missingText = '';
+      if (missing.length === 1) {
+        missingText = missing[0];
+      } else if (missing.length === 2) {
+        missingText = `${missing[0]} y ${missing[1]}`;
+      } else {
+        missingText = `${missing.slice(0, -1).join(', ')} y ${missing[missing.length - 1]}`;
+      }
+      return `¡Entendido ${displayName}! En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo y enviarte las mejores opciones disponibles, por favor compártenos ${missingText}. 📲🏡`;
+    }
 
     // Si también envió el agendamiento completo de visita en el mismo mensaje
     if (hasValidDate(raw)) {

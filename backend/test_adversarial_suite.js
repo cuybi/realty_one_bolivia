@@ -144,19 +144,23 @@ async function runAdversarialSuite() {
   console.log('   ✅ "noi" reconocido como negativa y cerrado con MUTE.\n');
 
   // CASO A10: Envío tardío de datos de contacto tras despedida previa (reactivación inteligente)
-  console.log('✔ [10/11] Adversarial: Envío de datos tras haber dicho gracias (reactivación inteligente)...');
+  console.log('✔ [10/12] Adversarial: Envío de datos tras haber dicho gracias (reactivación inteligente)...');
   const u10 = 'adv_user_late_data';
   await processUserMessage(u10, '¡Hola! Quiero más información', { pushName: 'Marcos Antezana' });
   const resFarewell10 = await processUserMessage(u10, 'gracias', { pushName: 'Marcos Antezana' });
   assert(resFarewell10.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana!'), 'Debe despedirse tras gracias');
-  // Ahora el cliente cambia de parecer y manda sus datos tardíamente:
+  // Ahora el cliente cambia de parecer y manda su celular:
   const resLateData = await processUserMessage(u10, 'marcos antezana, 60034649', { pushName: 'Marcos Antezana' });
-  assert(resLateData.includes('¡Perfecto Marcos Antezana!'), 'Debe reactivar y reconocer los datos');
-  assert(resLateData.includes('¿quieres agendar una visita?'), 'Debe ofrecer agendamiento tras recibir datos');
+  assert(resLateData.includes('¡Entendido Marcos Antezana! En breve un agente especializado se pondrá en contacto contigo.'), 'Debe reactivar y confirmar contacto');
+  assert(resLateData.includes('tu correo electrónico y tu ciudad'), 'Debe pedir los datos faltantes restantes');
+  // Y luego completa con su correo y ciudad:
+  const resCompleteData = await processUserMessage(u10, 'marcos@gmail.com, Santa Cruz', { pushName: 'Marcos Antezana' });
+  assert(resCompleteData.includes('¡Perfecto Marcos Antezana!'), 'Debe reconocer datos completos');
+  assert(resCompleteData.includes('¿quieres agendar una visita?'), 'Debe ofrecer agendamiento tras completar datos');
   console.log('   ✅ Reactivación ante envío tardío de datos validada al 100%.\n');
 
   // CASO A11: Números internacionales globales (España, EE.UU., Argentina, Chile)
-  console.log('✔ [11/11] Adversarial: Extracción de números internacionales de cualquier país...');
+  console.log('✔ [11/12] Adversarial: Extracción de números internacionales de cualquier país...');
   const u11 = 'adv_user_intl';
   await processUserMessage(u11, 'Hola busco casa', { pushName: 'Javier Rodriguez' });
   const resIntl = await processUserMessage(u11, 'Javier Rodriguez, +34 612 34 56 78, javier@gmail.com, Madrid', { pushName: 'Javier Rodriguez' });
@@ -164,8 +168,22 @@ async function runAdversarialSuite() {
   assert(resIntl.includes('¿quieres agendar una visita?'), 'Debe avanzar a visita con número internacional');
   console.log('   ✅ Números internacionales globales validados al 100%.\n');
 
+  // CASO A12: Detección inteligente de datos faltantes (caso Yohan Oliva: "solo falta correo y ciudad")
+  console.log('✔ [12/12] Adversarial: Detección de datos faltantes y confirmación de contacto de agente...');
+  const u12 = '59178899112';
+  await processUserMessage(u12, 'Hola', { pushName: 'Yohan Oliva' });
+  await processUserMessage(u12, 'Quisiera comprar una casa', { pushName: 'Yohan Oliva' });
+  const resYohan = await processUserMessage(u12, 'Ya tienes esa información, la unica información que no tendrias es el correo y la ciudad', { pushName: 'Yohan Oliva' });
+  assert(resYohan.includes('¡Entendido Yohan Oliva! En breve un agente especializado se pondrá en contacto contigo.'), 'Debe confirmar que un agente lo contactará');
+  assert(resYohan.includes('tu correo electrónico y tu ciudad'), 'Debe pedir específicamente los datos faltantes');
+  assert(!resYohan.includes('Estaremos atentos para cuando lo decidas'), 'NO debe despedirse ni cerrar la conversación');
+  const resYohanData = await processUserMessage(u12, 'yohan@gmail.com, Santa Cruz', { pushName: 'Yohan Oliva' });
+  assert(resYohanData.includes('¡Perfecto Yohan Oliva!'), 'Debe confirmar datos tras recibir correo y ciudad');
+  assert(resYohanData.includes('¿quieres agendar una visita?'), 'Debe pasar a agendamiento tras completar datos');
+  console.log('   ✅ Flujo de datos faltantes y confirmación de contacto validado al 100%.\n');
+
   console.log('🏆 ==============================================================');
-  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (11/11) SUPERADAS CON ÉXITO');
+  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (12/12) SUPERADAS CON ÉXITO');
   console.log('🏆 ==============================================================');
 }
 
