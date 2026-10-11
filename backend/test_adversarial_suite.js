@@ -144,7 +144,7 @@ async function runAdversarialSuite() {
   console.log('   ✅ "noi" reconocido como negativa y cerrado con MUTE.\n');
 
   // CASO A10: Envío tardío de datos de contacto tras despedida previa (reactivación inteligente)
-  console.log('✔ [10/10] Adversarial: Envío de datos tras haber dicho gracias (reactivación inteligente)...');
+  console.log('✔ [10/11] Adversarial: Envío de datos tras haber dicho gracias (reactivación inteligente)...');
   const u10 = 'adv_user_late_data';
   await processUserMessage(u10, '¡Hola! Quiero más información', { pushName: 'Marcos Antezana' });
   const resFarewell10 = await processUserMessage(u10, 'gracias', { pushName: 'Marcos Antezana' });
@@ -155,8 +155,17 @@ async function runAdversarialSuite() {
   assert(resLateData.includes('¿quieres agendar una visita?'), 'Debe ofrecer agendamiento tras recibir datos');
   console.log('   ✅ Reactivación ante envío tardío de datos validada al 100%.\n');
 
+  // CASO A11: Números internacionales globales (España, EE.UU., Argentina, Chile)
+  console.log('✔ [11/11] Adversarial: Extracción de números internacionales de cualquier país...');
+  const u11 = 'adv_user_intl';
+  await processUserMessage(u11, 'Hola busco casa', { pushName: 'Javier Rodriguez' });
+  const resIntl = await processUserMessage(u11, 'Javier Rodriguez, +34 612 34 56 78, javier@gmail.com, Madrid', { pushName: 'Javier Rodriguez' });
+  assert(resIntl.includes('¡Perfecto Javier Rodriguez!'), 'Debe aceptar número internacional con + y espacios');
+  assert(resIntl.includes('¿quieres agendar una visita?'), 'Debe avanzar a visita con número internacional');
+  console.log('   ✅ Números internacionales globales validados al 100%.\n');
+
   console.log('🏆 ==============================================================');
-  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (10/10) SUPERADAS CON ÉXITO');
+  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (11/11) SUPERADAS CON ÉXITO');
   console.log('🏆 ==============================================================');
 }
 

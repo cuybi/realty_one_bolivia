@@ -103,10 +103,25 @@ function getSessionHistory(userId) {
   return newS.history;
 }
 
-// ── Extractores y Validadores ───────────────────────────────────────────────
 function extractPhone(text) {
-  const m = text.match(/(?:\+?591\s*)?[67]\d{7}\b|\b\d{7,15}\b/);
-  return m ? m[0].replace(/\s+/g, '') : null;
+  if (!text) return null;
+  // 1. Número con formato internacional explícito (+ o 00 seguido de código de país y dígitos)
+  const intl = text.match(/(?:\+|\b00)\s*\d{1,4}[-.\s]?(?:\(?\d{1,4}\)?[-.\s]?)?\d{2,4}[-.\s]?\d{2,4}(?:[-.\s]?\d{2,4})?/);
+  if (intl) {
+    const cleaned = intl[0].replace(/[\s().-]/g, '');
+    const digits = cleaned.replace(/\D/g, '');
+    if (digits.length >= 7 && digits.length <= 15) return cleaned;
+  }
+  // 2. Número boliviano estándar (8 dígitos empezando en 6 o 7, con o sin +591)
+  const bo = text.match(/(?:\+?591[\s.-]*)?[67]\d{7}\b/);
+  if (bo) return bo[0].replace(/[\s().-]/g, '');
+  // 3. Cadena numérica con espacios o guiones que sume entre 7 y 15 dígitos (estándar global E.164)
+  const chunks = text.match(/\b\d{3,4}[-.\s]\d{3,4}(?:[-.\s]\d{2,4})?\b|\b\d{7,15}\b/);
+  if (chunks) {
+    const cleaned = chunks[0].replace(/[\s.-]/g, '');
+    if (cleaned.length >= 7 && cleaned.length <= 15) return cleaned;
+  }
+  return null;
 }
 
 function extractEmail(text) {
