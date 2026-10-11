@@ -115,7 +115,7 @@ function extractEmail(text) {
 }
 
 function isRefusal(text) {
-  const lo = text.toLowerCase().trim();
+  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
   const patterns = [
     /\bno\s+(?:los\s+|mis\s+)?(?:quiero|voy|dar[eé]|dar|te\s+doy|deseo|pienso)\b/,
     /\bprefiero\s+no\b/,
@@ -128,7 +128,7 @@ function isRefusal(text) {
     /\bno\s+quiero\s+dar\s+mis\s+datos\b/
   ];
   if (patterns.some(p => p.test(lo))) return true;
-  return ['no', 'no quiero', 'no gracias', 'no los daré', 'no los dare'].includes(lo);
+  return ['no', 'noi', 'nop', 'nope', 'noo', 'nel', 'non', 'no quiero', 'no gracias', 'no los daré', 'no los dare'].includes(lo);
 }
 
 function isCourtesyExit(text) {
@@ -136,7 +136,7 @@ function isCourtesyExit(text) {
   const exitPhrases = [
     'gracias', 'muchas gracias', 'ok gracias', 'listo gracias', 'vale gracias',
     'ya gracias', 'bueno gracias', 'gracias amigo', 'gracias estimado',
-    'ok', 'listo', 'vale', 'dale', 'bueno', 'perfecto', 'chau', 'adios', 'adiós', 'hasta luego'
+    'chau', 'adios', 'adiós', 'hasta luego'
   ];
   return exitPhrases.includes(lo) || /^gracias\b/.test(lo) || /^muchas gracias\b/.test(lo);
 }
@@ -238,10 +238,11 @@ function getTimeFarewell() {
 }
 
 function isNegative(text) {
-  const lo = text.toLowerCase().trim();
+  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
   if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
   if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
-  return /\b(no|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión)\b/i.test(lo);
+  if (['no', 'noi', 'nop', 'nope', 'noo', 'nooo', 'nel', 'non', 'noup'].includes(lo)) return true;
+  return /\b(no|noi|nop|nope|noo|nel|non|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión)\b/i.test(lo);
 }
 
 function hasValidDate(text) {
@@ -672,8 +673,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       nom = s.clientName;
     }
 
-    // Si no envió ningún dato de contacto ni los teníamos previamente
-    if (!hasData && !s.phone && !s.email) {
+    // Si no envió teléfono ni email (los datos mínimos de contacto indispensables)
+    if (!s.phone && !s.email) {
       return `Para que un agente especializado pueda brindarte la mejor atención y enviarte las opciones disponibles, por favor compártenos tu número de teléfono o WhatsApp y tu correo electrónico. 📲🤝`;
     }
 
@@ -720,8 +721,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   if (s.state === 'ESTADO_4_SCHEDULE') {
     const displayName = s.clientName || 'estimado cliente';
 
-    // Si no quiere visita / responde negativamente (por ahora no, despues, en otra ocasion, etc.)
-    if (isNegative(raw)) {
+    // Si no quiere visita / responde negativamente (por ahora no, despues, noi, no, etc.) o despedida
+    if (isNegative(raw) || isRefusal(raw) || isCourtesyExit(raw)) {
       s.state = 'ESTADO_FAREWELL';
       s.isClosed = true;
       try {

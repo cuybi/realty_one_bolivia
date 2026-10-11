@@ -119,7 +119,7 @@ async function runAdversarialSuite() {
   console.log('   ✅ Comandos de reseteo validados al 100%.\n');
 
   // CASO A8: Cortesía/Cierre con "gracias\" sin datos en ESTADO_3_DATA
-  console.log('✔ [8/8] Adversarial: Cortesía/Cierre con "gracias\\" sin datos en ESTADO_3_DATA...');
+  console.log('✔ [8/9] Adversarial: Cortesía/Cierre con "gracias\\" sin datos en ESTADO_3_DATA...');
   const u8 = 'adv_user_gracias';
   await processUserMessage(u8, '¡Hola! Quiero más información', { pushName: 'Marcos Antezana' });
   const resGracias = await processUserMessage(u8, 'gracias\\', { pushName: 'Marcos Antezana' });
@@ -130,8 +130,21 @@ async function runAdversarialSuite() {
   assert(resPostGracias === null, 'Debe quedar en silencio/mute post-despedida');
   console.log('   ✅ Cortesía "gracias\\" y MUTE post-despedida validados al 100%.\n');
 
+  // CASO A9: Error tipográfico "noi" (teclado móvil o/i) al declinar visita
+  console.log('✔ [9/9] Adversarial: Error tipográfico "noi" al declinar visita en ESTADO_4_SCHEDULE...');
+  const u9 = 'adv_user_noi';
+  await processUserMessage(u9, 'Hola busco departamento', { pushName: 'Marcos Antezana' });
+  await processUserMessage(u9, 'Marcos Antezana, 70012345, marcos@gmail.com, Santa Cruz', { pushName: 'Marcos Antezana' });
+  const resNoi = await processUserMessage(u9, 'noi', { pushName: 'Marcos Antezana' });
+  assert(resNoi.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana!'), 'Debe despedirse al recibir noi');
+  assert(resNoi.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'), 'Debe incluir frase corporativa');
+  assert(!resNoi.includes('Por favor indícame el día de la semana'), 'NO debe pedir fecha cuando el cliente dijo noi');
+  const resPostNoi = await processUserMessage(u9, 'hola?', { pushName: 'Marcos Antezana' });
+  assert(resPostNoi === null, 'Debe quedar en silencio post-despedida');
+  console.log('   ✅ "noi" reconocido como negativa y cerrado con MUTE.\n');
+
   console.log('🏆 ==============================================================');
-  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (8/8) SUPERADAS CON ÉXITO');
+  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (9/9) SUPERADAS CON ÉXITO');
   console.log('🏆 ==============================================================');
 }
 
