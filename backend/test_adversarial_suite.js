@@ -108,7 +108,7 @@ async function runAdversarialSuite() {
   console.log('   ✅ Auto-recuperación de sesiones huérfanas validada.\n');
 
   // CASO A7: Comandos explícitos de reinicio
-  console.log('✔ [7/7] Adversarial: Comandos explícitos de reinicio (reset/reiniciar/menu)...');
+  console.log('✔ [7/8] Adversarial: Comandos explícitos de reinicio (reset/reiniciar/menu)...');
   const u7 = 'adv_user_reset';
   await processUserMessage(u7, 'Hola');
   await processUserMessage(u7, 'Busco terreno');
@@ -118,8 +118,20 @@ async function runAdversarialSuite() {
   assert(resNext.includes('una excelente variedad de opciones'), 'Debe responder a opciones tras reinicio');
   console.log('   ✅ Comandos de reseteo validados al 100%.\n');
 
+  // CASO A8: Cortesía/Cierre con "gracias\" sin datos en ESTADO_3_DATA
+  console.log('✔ [8/8] Adversarial: Cortesía/Cierre con "gracias\\" sin datos en ESTADO_3_DATA...');
+  const u8 = 'adv_user_gracias';
+  await processUserMessage(u8, '¡Hola! Quiero más información', { pushName: 'Marcos Antezana' });
+  const resGracias = await processUserMessage(u8, 'gracias\\', { pushName: 'Marcos Antezana' });
+  assert(resGracias.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana!'), 'Debe despedirse cordialmente');
+  assert(resGracias.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝'), 'Debe incluir frase corporativa');
+  assert(!resGracias.includes('Ya tengo tus datos principales'), 'NO debe inventar que tiene datos cuando el cliente solo dijo gracias');
+  const resPostGracias = await processUserMessage(u8, 'hola?', { pushName: 'Marcos Antezana' });
+  assert(resPostGracias === null, 'Debe quedar en silencio/mute post-despedida');
+  console.log('   ✅ Cortesía "gracias\\" y MUTE post-despedida validados al 100%.\n');
+
   console.log('🏆 ==============================================================');
-  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (7/7) SUPERADAS CON ÉXITO');
+  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (8/8) SUPERADAS CON ÉXITO');
   console.log('🏆 ==============================================================');
 }
 

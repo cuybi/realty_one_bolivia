@@ -131,8 +131,18 @@ function isRefusal(text) {
   return ['no', 'no quiero', 'no gracias', 'no los daré', 'no los dare'].includes(lo);
 }
 
+function isCourtesyExit(text) {
+  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
+  const exitPhrases = [
+    'gracias', 'muchas gracias', 'ok gracias', 'listo gracias', 'vale gracias',
+    'ya gracias', 'bueno gracias', 'gracias amigo', 'gracias estimado',
+    'ok', 'listo', 'vale', 'dale', 'bueno', 'perfecto', 'chau', 'adios', 'adiós', 'hasta luego'
+  ];
+  return exitPhrases.includes(lo) || /^gracias\b/.test(lo) || /^muchas gracias\b/.test(lo);
+}
+
 function extractFullName(text) {
-  if (!text || isRefusal(text)) return null;
+  if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
   const cities = [
     'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
     'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
@@ -187,7 +197,7 @@ function extractFullName(text) {
 }
 
 function extractCity(text) {
-  if (isRefusal(text)) return null;
+  if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
   const cities = [
     'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
     'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
@@ -200,19 +210,10 @@ function extractCity(text) {
       return c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
   }
-  // Patrón "vivo en X"
-  const vm = text.match(/(?:vivo en|ciudad de|desde|en la ciudad de|de la ciudad de|en)\s+([A-Za-zÁÉÍÓÚñáéíóú\s]{3,20})/i);
+  // Patrón explícito "vivo en X", "ciudad de X"
+  const vm = text.match(/(?:vivo en|ciudad de|desde la ciudad de|de la ciudad de)\s+([A-Za-zÁÉÍÓÚñáéíóú\s]{3,20})/i);
   if (vm && !/(?:lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo|gmail|hotmail)/i.test(vm[1])) {
     return vm[1].trim();
-  }
-  // Tercer campo separado por coma/punto y coma que no sea email, teléfono ni nombre de 2+ palabras
-  for (const p of text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean)) {
-    if (!extractEmail(p) && !extractPhone(p) && p.length >= 3 && p.length <= 30 && !/\d{4}/.test(p)) {
-      if (p.split(/\s+/).length >= 2 && !cities.some(c => p.toLowerCase().includes(c))) {
-        continue;
-      }
-      return p;
-    }
   }
   return null;
 }
@@ -648,18 +649,20 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
   if (s.state === 'ESTADO_3_DATA') {
-    // Si se niega a dar datos o dice no gracias / en otra oportunidad
-    if (isRefusal(raw) || isNegative(raw)) {
+    // Extraer datos primero para saber si el usuario incluyó información de contacto
+    const phone = extractPhone(raw);
+    const email = extractEmail(raw);
+    const city  = extractCity(raw);
+    const fullName = extractFullName(raw);
+    const hasData = !!(phone || email || city || (fullName && fullName !== s.clientName));
+
+    // Si se niega a dar datos o envía despedida/cortesía sin datos (ej. "gracias\", "ok gracias")
+    if (isRefusal(raw) || isNegative(raw) || (!hasData && isCourtesyExit(raw))) {
       s.state = 'ESTADO_FAREWELL';
       s.isClosed = true;
       return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
     }
 
-    // Extraer datos
-    const phone = extractPhone(raw);
-    const email = extractEmail(raw);
-    const city  = extractCity(raw);
-    const fullName = extractFullName(raw);
     if (phone) s.phone = phone;
     if (email) s.email = email;
     if (city)  s.city  = city;
@@ -667,6 +670,11 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       s.clientName = fullName;
       name = ` ${s.clientName}`;
       nom = s.clientName;
+    }
+
+    // Si no envió ningún dato de contacto ni los teníamos previamente
+    if (!hasData && !s.phone && !s.email) {
+      return `Para que un agente especializado pueda brindarte la mejor atención y enviarte las opciones disponibles, por favor compártenos tu número de teléfono o WhatsApp y tu correo electrónico. 📲🤝`;
     }
 
     const displayName = s.clientName || 'estimado cliente';
