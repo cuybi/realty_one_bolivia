@@ -599,8 +599,24 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       conversationSessions.delete(userId);
       s = getSession(userId, pushName);
     } else {
-      // REGLA: MUTE absoluto tras despedida (no contesta si escribe, manda audio o algo parecido)
-      return null;
+      // Verificamos si el cliente cambió de opinión y envió sus datos de contacto (teléfono, correo o fecha de visita)
+      const latePhone = extractPhone(raw);
+      const lateEmail = extractEmail(raw);
+      const lateDate  = hasValidDate(raw);
+      if (latePhone || lateEmail || lateDate) {
+        s.state = 'ESTADO_3_DATA';
+        s.isClosed = false;
+        // Permite que el flujo procese los datos a continuación
+      } else if (isInquiry) {
+        // Si hace una nueva consulta inmobiliaria concreta, reactivamos sesión fresca
+        sessions.delete(userId);
+        userFlowSessions.delete(userId);
+        conversationSessions.delete(userId);
+        s = getSession(userId, pushName);
+      } else {
+        // MUTE para despedidas residuales, emojis o cortesías repetidas
+        return null;
+      }
     }
   }
 

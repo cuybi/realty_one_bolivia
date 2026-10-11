@@ -131,7 +131,7 @@ async function runAdversarialSuite() {
   console.log('   ✅ Cortesía "gracias\\" y MUTE post-despedida validados al 100%.\n');
 
   // CASO A9: Error tipográfico "noi" (teclado móvil o/i) al declinar visita
-  console.log('✔ [9/9] Adversarial: Error tipográfico "noi" al declinar visita en ESTADO_4_SCHEDULE...');
+  console.log('✔ [9/10] Adversarial: Error tipográfico "noi" al declinar visita en ESTADO_4_SCHEDULE...');
   const u9 = 'adv_user_noi';
   await processUserMessage(u9, 'Hola busco departamento', { pushName: 'Marcos Antezana' });
   await processUserMessage(u9, 'Marcos Antezana, 70012345, marcos@gmail.com, Santa Cruz', { pushName: 'Marcos Antezana' });
@@ -143,8 +143,20 @@ async function runAdversarialSuite() {
   assert(resPostNoi === null, 'Debe quedar en silencio post-despedida');
   console.log('   ✅ "noi" reconocido como negativa y cerrado con MUTE.\n');
 
+  // CASO A10: Envío tardío de datos de contacto tras despedida previa (reactivación inteligente)
+  console.log('✔ [10/10] Adversarial: Envío de datos tras haber dicho gracias (reactivación inteligente)...');
+  const u10 = 'adv_user_late_data';
+  await processUserMessage(u10, '¡Hola! Quiero más información', { pushName: 'Marcos Antezana' });
+  const resFarewell10 = await processUserMessage(u10, 'gracias', { pushName: 'Marcos Antezana' });
+  assert(resFarewell10.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana!'), 'Debe despedirse tras gracias');
+  // Ahora el cliente cambia de parecer y manda sus datos tardíamente:
+  const resLateData = await processUserMessage(u10, 'marcos antezana, 60034649', { pushName: 'Marcos Antezana' });
+  assert(resLateData.includes('¡Perfecto Marcos Antezana!'), 'Debe reactivar y reconocer los datos');
+  assert(resLateData.includes('¿quieres agendar una visita?'), 'Debe ofrecer agendamiento tras recibir datos');
+  console.log('   ✅ Reactivación ante envío tardío de datos validada al 100%.\n');
+
   console.log('🏆 ==============================================================');
-  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (9/9) SUPERADAS CON ÉXITO');
+  console.log('🏆  TODAS LAS PRUEBAS ADVERSARIALES (10/10) SUPERADAS CON ÉXITO');
   console.log('🏆 ==============================================================');
 }
 
