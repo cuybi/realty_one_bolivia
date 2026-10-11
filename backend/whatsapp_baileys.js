@@ -387,7 +387,7 @@ async function startWhatsAppClient() {
           ext?.canonicalUrl
         ].filter(Boolean).join(' ');
 
-        const messageText = (baseText + (adContext ? ' | ' + adContext : '')).trim();
+        const messageText = (baseText || adContext || '').trim();
 
         if (!messageText) continue;
 

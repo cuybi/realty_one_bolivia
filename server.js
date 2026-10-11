@@ -412,13 +412,13 @@ async function startWhatsAppClient() {
         console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}"`);
 
         const referral = msg.message.extendedTextMessage?.contextInfo?.externalAdReply;
-        const referralData = {
-          source: referral ? 'Facebook Ads (CTWA)' : 'WhatsApp Directo',
+        const referralData = (referral?.title || referral?.body) ? {
+          source: 'Facebook Ads (CTWA)',
           headline: referral?.title || '',
           body: referral?.body || '',
           mediaUrl: referral?.mediaUrl || '',
           pushName: pushName
-        };
+        } : (pushName ? { pushName } : null);
 
         if (aiAgent && aiAgent.processUserMessage) {
           try {

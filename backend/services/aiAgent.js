@@ -522,10 +522,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   const lo  = raw.toLowerCase();
   const history = getSessionHistory(userId);
 
-  const isAd = Boolean(referralData || lo.includes('fb.me') || lo.includes('facebook.com'));
-
-  // Comando de reinicio o entrada desde anuncio nuevo de Facebook
-  if (isAd || ['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
+  // Comando de reinicio explícito
+  if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
     sessions.delete(userId);
     userFlowSessions.delete(userId);
     conversationSessions.delete(userId);
@@ -685,15 +683,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
     // Si responde pero no da día, fecha y hora exacta
     if (!hasValidDate(raw)) {
-      // Si el usuario hace una nueva consulta, saluda o pide más información:
-      if (isInquiry || lo.startsWith('hola') || lo.startsWith('¡hola') || lo.includes('info') || isAd) {
-        s.interestMsg = raw;
-        s.state = 'ESTADO_3_DATA';
-        if (isSelling) {
-          return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
-        }
-        return `¡Sí, tenemos a disposición excelentes una variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
-      }
       return `Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝`;
     }
 
