@@ -493,9 +493,9 @@ function extractSchedule(text = '') {
  * @returns {object} e-Realtor asignado
  */
 function assignERealtorByAI(leadData = {}) {
-  const op = (leadData.tipo_interes || '').toLowerCase();
-  const zona = (leadData.zona_interes || '').toLowerCase();
-  const campana = (leadData.campana || '').toLowerCase();
+  const op = normalizeText(leadData.tipo_interes || '');
+  const zona = normalizeText(leadData.zona_interes || '');
+  const campana = normalizeText(leadData.campana || '');
 
   // 1. Propietarios y Captaciones directas -> Robert Oliva (Master Broker)
   if (op.includes('propietario') || op.includes('consignar')) {
