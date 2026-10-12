@@ -492,8 +492,42 @@ function extractSchedule(text = '') {
  * @param {object} leadData - Datos recolectados del lead
  * @returns {object} e-Realtor asignado
  */
-function assignERealtorByAI(leadData) {
-  // Configuración titular individual: todo prospecto asignado a Marcos Antezana Lenz
+function assignERealtorByAI(leadData = {}) {
+  const op = (leadData.tipo_interes || '').toLowerCase();
+  const zona = (leadData.zona_interes || '').toLowerCase();
+  const campana = (leadData.campana || '').toLowerCase();
+
+  // 1. Propietarios y Captaciones directas -> Robert Oliva (Master Broker)
+  if (op.includes('propietario') || op.includes('consignar')) {
+    return E_REALTORS.find(r => r.id === 'robert_oliva') || E_REALTORS[0];
+  }
+
+  // 2. Terrenos Industriales, G77, Warnes, Lotes -> Andrés Montaño
+  if (op.includes('terreno') || op.includes('g77') || zona.includes('g77') || zona.includes('industrial') || campana.includes('g77') || campana.includes('industrial')) {
+    return E_REALTORS.find(r => r.id === 'andres_montano') || E_REALTORS[0];
+  }
+
+  // 3. Anticréticos y Asesoría Legal -> Lucía Vaca
+  if (op.includes('anticret') || zona.includes('hamacas') || zona.includes('urbari')) {
+    return E_REALTORS.find(r => r.id === 'lucia_vaca') || E_REALTORS[0];
+  }
+
+  // 4. Alquileres Corporativos y Departamentos -> Valeria Suárez
+  if (op.includes('alquil') || (op.includes('departamento') && !op.includes('venta'))) {
+    return E_REALTORS.find(r => r.id === 'valeria_suarez') || E_REALTORS[0];
+  }
+
+  // 5. Inversiones y Preventas -> Marcos Antezana Lenz
+  if (op.includes('inversion') || op.includes('preventa') || zona.includes('equipetrol') || zona.includes('sirari')) {
+    return E_REALTORS.find(r => r.id === 'marcos_antezana') || E_REALTORS[0];
+  }
+
+  // 6. Casas de Lujo, Urubó, Las Palmas -> Carlos Rodríguez
+  if (op.includes('vent') && (zona.includes('urubo') || zona.includes('palmas'))) {
+    return E_REALTORS.find(r => r.id === 'carlos_rodriguez') || E_REALTORS[0];
+  }
+
+  // 7. Atención general y consultas públicas: Marcos Antezana Lenz (Líder Comercial)
   return E_REALTORS.find(r => r.id === 'marcos_antezana') || E_REALTORS[0];
 }
 
