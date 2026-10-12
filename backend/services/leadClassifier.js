@@ -493,37 +493,8 @@ function extractSchedule(text = '') {
  * @returns {object} e-Realtor asignado
  */
 function assignERealtorByAI(leadData) {
-  const op = (leadData.tipo_interes || '').toLowerCase();
-  const zona = (leadData.zona_interes || '').toLowerCase();
-  const campana = (leadData.campana || '').toLowerCase();
-
-  // 1. Propietarios y Captaciones directas -> Robert Oliva (Master Broker)
-  if (op.includes('propietario') || op.includes('consignar')) {
-    return E_REALTORS.find(r => r.id === 'robert_oliva');
-  }
-
-  // 2. Terrenos Industriales, G77, Warnes, Lotes -> Andrés Montaño
-  if (op.includes('terreno') || op.includes('g77') || zona.includes('g77') || zona.includes('industrial') || campana.includes('g77') || campana.includes('industrial')) {
-    return E_REALTORS.find(r => r.id === 'andres_montano');
-  }
-
-  // 3. Anticréticos y Asesoría Legal -> Lucía Vaca
-  if (op.includes('anticret') || zona.includes('hamacas') || zona.includes('urbari')) {
-    return E_REALTORS.find(r => r.id === 'lucia_vaca');
-  }
-
-  // 4. Alquileres Corporativos y Departamentos -> Valeria Suárez
-  if (op.includes('alquil') || (op.includes('departamento') && !op.includes('venta'))) {
-    return E_REALTORS.find(r => r.id === 'valeria_suarez');
-  }
-
-  // 5. Venta de Lujo, Urubó, Las Palmas, Mansiones -> Carlos Rodríguez
-  if (op.includes('vent') || zona.includes('urubo') || zona.includes('palmas') || leadData.presupuesto.includes('450') || leadData.presupuesto.includes('320')) {
-    return E_REALTORS.find(r => r.id === 'carlos_rodriguez');
-  }
-
-  // Fallback balanceado
-  return E_REALTORS.find(r => r.id === 'carlos_rodriguez') || E_REALTORS[0];
+  // Configuración titular individual: todo prospecto asignado a Marcos Antezana Lenz
+  return E_REALTORS.find(r => r.id === 'marcos_antezana') || E_REALTORS[0];
 }
 
 /**
