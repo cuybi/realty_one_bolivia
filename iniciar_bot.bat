@@ -7,7 +7,7 @@ echo ========================================================
 echo   🦁 REALTY ONE GROUP BOLIVIA - CONECTOR WHATSAPP BOT
 echo ========================================================
 echo.
-echo Iniciando conector de WhatsApp con soporte para Facebook Ads...
+echo Iniciando conector unificado de WhatsApp con soporte para Facebook Ads...
 echo.
-node backend/whatsapp_baileys.js
+node server.js
 pause

@@ -152,12 +152,12 @@ function isRefusal(text) {
 
 function isCourtesyExit(text) {
   const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  const exitPhrases = [
-    'gracias', 'muchas gracias', 'ok gracias', 'listo gracias', 'vale gracias',
-    'ya gracias', 'bueno gracias', 'gracias amigo', 'gracias estimado',
-    'chau', 'adios', 'adiós', 'hasta luego'
-  ];
-  return exitPhrases.includes(lo) || /^gracias\b/.test(lo) || /^muchas gracias\b/.test(lo);
+  if (/\b(gracias|muchas gracias|muchísimas gracias|muchisimas gracias|chau|adios|adiós|hasta luego|que tenga|que pases|saludos)\b/i.test(lo)) {
+    return true;
+  }
+  const exitWords = new Set(['gracias', 'chau', 'adios', 'adiós', 'listo', 'ok', 'vale', 'dale', 'bueno', 'ya']);
+  const words = lo.split(/\s+/).filter(Boolean);
+  return words.length > 0 && words.every(w => exitWords.has(w));
 }
 
 function extractFullName(text) {
@@ -272,6 +272,7 @@ function isNegative(text) {
   const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
   if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
   if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
+  if (/\b(no tengo|no uso|no poseo)\s+(correo|email|mail|telefono|teléfono|celular|whatsapp)\b/i.test(lo)) return false;
   const words = lo.split(/\s+/).filter(Boolean);
   if (['no', 'noi', 'nop', 'nope', 'noo', 'nooo', 'nel', 'non', 'noup'].includes(lo)) return true;
   if (words.length <= 4 && /^(?:no|noi|nop|nope)\b/i.test(lo)) return true;
@@ -592,10 +593,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     conversationSessions.delete(userId);
     const sFresh = getSession(userId, pushName);
     sFresh.state = 'ESTADO_2_INTEREST';
-    const nom = sFresh.clientName || '';
-    const timeGreeting = getTimeGreeting();
-    const saludoHora = nom ? `${timeGreeting.slice(0, -1)} ${nom}!` : `${timeGreeting}`;
-    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
   }
 
   // 2. REGLA DE ORO DE ANUNCIOS DE FACEBOOK:
@@ -607,12 +605,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     conversationSessions.delete(userId);
   }
 
-  // 3. RECUPERACIÓN DE ESTADOS PREVIOS NO CONCLUIDOS:
-  // Si la sesión anterior quedó esperando datos (ESTADO_3) o agendamiento (ESTADO_4),
-  // pero el mensaje entrante es claramente un nuevo saludo ("Hola", "Buenas") o pasaron más de 30 minutos de inactividad:
+  // 3. RECUPERACIÓN DE ESTADOS PREVIOS:
+  // Si entra un nuevo saludo ("Hola", "Buenas") o pasaron más de 30 minutos de inactividad,
+  // reiniciamos sesión para no quedar atrapado en estados viejos ni silenciar al usuario:
+  const isNewGreeting = lo.startsWith('hola') || lo.startsWith('¡hola') || lo.startsWith('buenas') || lo.startsWith('buen dia') || lo.startsWith('buenos dias') || lo.startsWith('buen día');
   const prevSession = sessions.get(userId);
-  if (prevSession && (prevSession.state === 'ESTADO_4_SCHEDULE' || prevSession.state === 'ESTADO_3_DATA')) {
-    const isNewGreeting = lo.startsWith('hola') || lo.startsWith('¡hola') || lo.startsWith('buenas') || lo.startsWith('buen dia') || lo.startsWith('buenos dias');
+  if (prevSession) {
     const isStale = (Date.now() - (prevSession.lastActivity || 0)) > 30 * 60 * 1000;
     if (isRealAd || isNewGreeting || isStale) {
       sessions.delete(userId);
@@ -625,14 +623,14 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // 4. Si la conversación previa ya había concluido (despedida / cerrada):
   if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
-    // Si el cliente hace clic en un NUEVO anuncio publicitario de Facebook, reabrimos
-    if (isRealAd) {
+    // Si el cliente hace clic en un anuncio o envía un nuevo saludo, reabrimos sesión fresca
+    if (isRealAd || isNewGreeting) {
       sessions.delete(userId);
       userFlowSessions.delete(userId);
       conversationSessions.delete(userId);
       s = getSession(userId, pushName);
     } else {
-      // Verificamos si el cliente cambió de opinión y envió sus datos de contacto (teléfono, correo o fecha de visita)
+      // Verificamos si el cliente envió datos de contacto (teléfono, correo o fecha de visita)
       const latePhone = extractPhone(raw);
       const lateEmail = extractEmail(raw);
       const lateDate  = hasValidDate(raw);
@@ -646,9 +644,15 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
         userFlowSessions.delete(userId);
         conversationSessions.delete(userId);
         s = getSession(userId, pushName);
-      } else {
-        // MUTE para despedidas residuales, emojis o cortesías repetidas
+      } else if (isCourtesyExit(raw) || /^[👍👌🙏👋😊✨🎉🦁\s]+$/u.test(raw)) {
+        // MUTE ÚNICAMENTE para despedidas residuales o emojis de confirmación (ej: "gracias", "chau", "👍")
         return null;
+      } else {
+        // Para cualquier otro mensaje o duda del cliente, reabrimos para atenderlo y no dejarlo en silencio
+        sessions.delete(userId);
+        userFlowSessions.delete(userId);
+        conversationSessions.delete(userId);
+        s = getSession(userId, pushName);
       }
     }
   }
@@ -660,13 +664,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   let name = s.clientName ? ` ${s.clientName}` : '';
   let nom  = s.clientName || '';
 
-  const timeGreeting = getTimeGreeting();
   const timeFarewell = getTimeFarewell();
-
-  // Saludo según la hora formateado con o sin nombre
-  const saludoHora = nom
-    ? `${timeGreeting.slice(0, -1)} ${nom}!`
-    : `${timeGreeting}`;
 
   // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
@@ -675,13 +673,13 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       s.interestMsg = raw;
       s.state = 'ESTADO_3_DATA';
       if (isSelling) {
-        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
       }
-      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
     }
 
     s.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
   }
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
@@ -704,13 +702,33 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const email = extractEmail(raw);
     const city  = extractCity(raw);
     const fullName = extractFullName(raw);
-    const hasData = !!(phone || email || city || (fullName && fullName !== s.clientName));
+    // Nombre válido = ≥2 palabras (nombre Y apellido)
+    const isFullNameValid = fullName && fullName.trim().split(/\s+/).length >= 2;
+    const hasData = !!(phone || email || city || (isFullNameValid && fullName !== s.clientName));
 
     // Si se niega a dar datos o envía despedida/cortesía sin datos (ej. "gracias\", "ok gracias")
     if (isRefusal(raw) || isNegative(raw) || (!hasData && isCourtesyExit(raw))) {
       s.state = 'ESTADO_FAREWELL';
       s.isClosed = true;
       return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    }
+
+    // GUARD: mensaje sin ningún dato de contacto (pregunta libre, emoji, texto genérico).
+    // El bot no avanza ni responde otra cosa: repite el recordatorio de datos faltantes.
+    if (!hasData) {
+      const missingGuard = [];
+      const nameWords = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
+      if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || nameWords.length < 2) missingGuard.push('tu nombre y apellido');
+      if (!s.phone) missingGuard.push('tu número de teléfono o WhatsApp');
+      if (!s.email) missingGuard.push('tu correo electrónico');
+      if (!s.city)  missingGuard.push('tu ciudad');
+      const dN = s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' ? s.clientName : 'estimado/a cliente';
+      const mgt = missingGuard.length === 1
+        ? missingGuard[0]
+        : missingGuard.length === 2
+          ? `${missingGuard[0]} y ${missingGuard[1]}`
+          : `${missingGuard.slice(0, -1).join(', ')} y ${missingGuard[missingGuard.length - 1]}`;
+      return `Por favor ${dN}, para poder atenderte mejor y coordinar con un agente especializado, necesitamos que nos compartas ${mgt}. 📲🏡`;
     }
 
     if (phone) s.phone = phone;
@@ -726,6 +744,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
     // Determinar qué datos faltan todavía para tener la ficha de contacto completa
     const missing = [];
+    const sessionNameWords = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
+    if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || sessionNameWords.length < 2) missing.push('tu nombre y apellido');
     if (!s.phone) missing.push('tu número de teléfono o WhatsApp');
     if (!s.email) missing.push('tu correo electrónico');
     if (!s.city)  missing.push('tu ciudad');

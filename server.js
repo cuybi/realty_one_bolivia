@@ -6,6 +6,14 @@
 // Configurar zona horaria oficial de Bolivia (America/La_Paz, UTC-4)
 process.env.TZ = 'America/La_Paz';
 
+// Crash guards obligatorios — evitan que un error no capturado deje el bot mudo
+process.on('uncaughtException', (err) => {
+  console.error('💥 [server.js uncaughtException]:', err?.stack || err?.message || err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('💥 [server.js unhandledRejection]:', reason?.stack || reason?.message || reason);
+});
+
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
@@ -138,8 +146,13 @@ app.post('/api/whatsapp/pairing-code', async (req, res) => {
     if (!activeSock) {
       return res.status(503).json({ success: false, error: 'Iniciando conector de WhatsApp... por favor espera unos segundos y reintenta.' });
     }
-    if (connectionStatus === 'conectado') {
-      return res.json({ success: false, error: `Ya está conectado al número +${connectedNumber}` });
+    if (connectionStatus === 'conectado' && !req.body?.force && !req.query?.force) {
+      return res.json({ success: false, error: `Ya está conectado al número +${connectedNumber}. Envía {"force": true} para forzar nueva vinculación.` });
+    }
+    if (connectionStatus === 'conectado' && (req.body?.force || req.query?.force)) {
+      console.log('🔄 [pairing-code] Forzando nueva vinculación solicitada por el usuario...');
+      connectionStatus = 'desconectado';
+      connectedNumber = null;
     }
 
     console.log(`\n📲 Solicitando código de emparejamiento para WhatsApp +${cleanNumber}...`);
@@ -200,6 +213,8 @@ app.get('/qr_connect.html', (req, res) => {
 app.get('/api/ping', (req, res) => res.send('pong'));
 
 let lastErrorMsg = null;
+let lastInbound = null;
+let lastOutbound = null;
 
 app.get('/api/health', (req, res) => {
   res.json({
@@ -209,8 +224,11 @@ app.get('/api/health', (req, res) => {
     numeroConectado: connectedNumber,
     hasQR: Boolean(currentQR),
     lastError: lastErrorMsg,
+    lastInbound,
+    lastOutbound,
     uptime: Math.round(process.uptime()),
     hasMongoUri: Boolean(process.env.MONGODB_URI),
+    mongoConnected: Boolean(global.mongoClientSingleton),
     time: new Date().toISOString()
   });
 });
@@ -285,44 +303,59 @@ async function startWhatsAppClient() {
           : './services/mongoAuthState';
         const { useMongoAuthState } = require(mongoAuthModule);
 
-        // ponytail: ping a la DB de la app (no admin — Atlas free tier restringe admin)
+        // Ping con timeout específico si ya existe singleton
         if (global.mongoClientSingleton) {
           try {
             await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
           } catch (pingErr) {
-            console.warn('⚠️ [MongoDB] Singleton muerto, reconectando...', pingErr.message);
+            console.warn('⚠️ [MongoDB] Singleton no responde, reconectando...', pingErr.message);
             try { await global.mongoClientSingleton.close(); } catch (_) {}
             global.mongoClientSingleton = null;
           }
         }
 
         if (!global.mongoClientSingleton) {
+          // Opciones explícitas sin mezclar flags TLS en conflicto
           global.mongoClientSingleton = new MongoClient(mongoUri, {
             serverSelectionTimeoutMS: 10000,
             socketTimeoutMS: 45000,
-            maxIdleTimeMS: 30000 // reconectar antes de que Atlas cierre la conexión idle
+            maxIdleTimeMS: 30000
           });
           await global.mongoClientSingleton.connect();
-          console.log('✅ [MongoDB Atlas] Conectado para persistencia de sesión Baileys 24/7');
+          // Verificación real con ping antes de cargar el auth state
+          await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
+          console.log('✅ [MongoDB Atlas] Conectado y verificado (ping: 1) para persistencia de sesión Baileys 24/7');
         }
         const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
         ({ state, saveCreds } = await useMongoAuthState(col));
         mongoLoaded = true;
-        lastErrorMsg = null; // ponytail: limpiar error previo — conexión exitosa
+        lastErrorMsg = null;
       } catch (mErr) {
-        console.warn('⚠️ [MongoDB Atlas] Error conectando a Mongo, usando fallback local:', mErr.message);
-        lastErrorMsg = 'Mongo fallback: ' + mErr.message;
-        global.mongoClientSingleton = null; // forzar reconexión en próximo intento
+        console.error('❌ [MongoDB Atlas] Error conectando a Mongo:', mErr.message);
+        lastErrorMsg = 'Error MongoDB: ' + mErr.message;
+        global.mongoClientSingleton = null;
       }
     }
+
+    // PASO 2 OBLIGATORIO: Eliminar fallback silencioso a disco efímero en producción.
+    // Si MONGODB_URI fue configurado pero Mongo no conecta, no arrancar con disco efímero vacío.
+    if (mongoUri && !mongoLoaded) {
+      connectionStatus = 'error_mongo';
+      console.error('⛔ [startWhatsAppClient] Falló conexión persistente a MongoDB. Abortando inicio con sesión efímera vacía para no desautenticar el número.');
+      isConnecting = false;
+      setTimeout(startWhatsAppClient, 15000);
+      return;
+    }
+
     if (!mongoLoaded) {
+      // Solo en desarrollo local si NO se configuró MONGODB_URI
       const authDir = fs.existsSync(path.join(__dirname, 'backend'))
         ? path.join(__dirname, 'backend', 'baileys_auth')
         : path.join(__dirname, 'baileys_auth');
 
       if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
       ({ state, saveCreds } = await useMultiFileAuthState(authDir));
-      console.log('⚠️ [server.js] Usando disco local para credenciales Baileys');
+      console.log('⚠️ [server.js] Modo Local: Usando disco local para credenciales Baileys');
     }
 
     const sock = makeWASocket({
@@ -390,92 +423,154 @@ async function startWhatsAppClient() {
       if (m.type !== 'notify') return;
 
       for (const msg of m.messages) {
-        if (!msg.message || msg.key.fromMe) continue;
+        try {
+          if (!msg.message || msg.key.fromMe) continue;
 
-        const senderJid = msg.key.remoteJid;
-        if (!senderJid || senderJid.endsWith('@g.us')) continue; // Ignorar grupos
+          const rawJid = msg.key.remoteJid;
+          if (!rawJid || rawJid.endsWith('@g.us')) continue; // Ignorar grupos
 
-        const senderPhone = senderJid.replace('@s.whatsapp.net', '');
-        const pushName = msg.pushName || 'Cliente';
+          // Detección de @lid vs JID telefónico real (especialmente común en Meta Ads / CTWA)
+          let targetJid = rawJid;
+          let senderPhone = '';
 
-        let rawMsg = msg.message;
-        if (rawMsg?.ephemeralMessage?.message) rawMsg = rawMsg.ephemeralMessage.message;
-        if (rawMsg?.viewOnceMessage?.message) rawMsg = rawMsg.viewOnceMessage.message;
-        if (rawMsg?.viewOnceMessageV2?.message) rawMsg = rawMsg.viewOnceMessageV2.message;
-        if (rawMsg?.documentWithCaptionMessage?.message) rawMsg = rawMsg.documentWithCaptionMessage.message;
-
-        const ext = rawMsg?.extendedTextMessage;
-        const contextInfo = ext?.contextInfo || rawMsg?.contextInfo;
-        const externalAdReply = contextInfo?.externalAdReply;
-
-        const messageText = (
-          rawMsg?.conversation ||
-          ext?.text ||
-          rawMsg?.imageMessage?.caption ||
-          rawMsg?.videoMessage?.caption ||
-          rawMsg?.documentMessage?.caption ||
-          rawMsg?.buttonsResponseMessage?.selectedDisplayText ||
-          rawMsg?.templateButtonReplyMessage?.selectedDisplayText ||
-          rawMsg?.listResponseMessage?.title ||
-          externalAdReply?.title ||
-          ''
-        ).trim();
-
-        if (!messageText) continue;
-
-        console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}"`);
-
-        const referral = externalAdReply;
-        const referralData = (referral?.title || referral?.body || referral?.sourceUrl || referral?.description) ? {
-          source: 'Facebook Ads (CTWA)',
-          headline: referral?.title || '',
-          body: referral?.body || '',
-          sourceUrl: referral?.sourceUrl || '',
-          description: referral?.description || '',
-          mediaUrl: referral?.mediaUrl || '',
-          pushName: pushName
-        } : (pushName ? { pushName } : null);
-
-        if (aiAgent && aiAgent.processUserMessage) {
-          try {
-            const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
-            if (botReply && typeof botReply === 'string' && botReply.trim()) {
-              console.log(`🤖 [Respuesta enviada a +${senderPhone}]:\n${botReply}\n`);
-              
-              // Si el cliente pide fotos de Mar Adentro, Parque Industrial o Departamentos
-              const normMsg = messageText.toLowerCase();
-              let photoPath = null;
-              if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
-                const marPath = path.join(__dirname, 'assets', 'images', 'mar_adentro.jpg');
-                const indPath = path.join(__dirname, 'assets', 'images', 'terreno.png');
-                const aptPath = path.join(__dirname, 'assets', 'images', 'apartamento.png');
-
-                if ((botReply.includes('Mar Adentro') || normMsg.includes('mar adentro')) && fs.existsSync(marPath)) {
-                  photoPath = marPath;
-                } else if ((botReply.includes('Industrial') || normMsg.includes('industrial')) && fs.existsSync(indPath)) {
-                  photoPath = indPath;
-                } else if ((botReply.includes('Departamento') || normMsg.includes('departamento')) && fs.existsSync(aptPath)) {
-                  photoPath = aptPath;
-                }
-              }
-
-              if (photoPath && fs.existsSync(photoPath)) {
-                try {
-                  await sock.sendMessage(senderJid, {
-                    image: fs.readFileSync(photoPath),
-                    caption: botReply
-                  });
-                  continue;
-                } catch(imgErr) {
-                  console.error('Error enviando imagen:', imgErr);
-                }
-              }
-
-              await sock.sendMessage(senderJid, { text: botReply });
+          if (rawJid.endsWith('@lid')) {
+            if (msg.key.remoteJidAlt && msg.key.remoteJidAlt.endsWith('@s.whatsapp.net')) {
+              targetJid = msg.key.remoteJidAlt;
+            } else if (msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
+              targetJid = msg.key.participant;
+            } else if (msg.key.participantAlt && msg.key.participantAlt.endsWith('@s.whatsapp.net')) {
+              targetJid = msg.key.participantAlt;
             }
-          } catch(procErr) {
-            console.error('Error procesando mensaje con AI Agent:', procErr);
           }
+
+          if (targetJid.endsWith('@s.whatsapp.net')) {
+            senderPhone = targetJid.replace('@s.whatsapp.net', '').split(':')[0];
+          } else if (msg.key.remoteJidAlt && msg.key.remoteJidAlt.endsWith('@s.whatsapp.net')) {
+            senderPhone = msg.key.remoteJidAlt.replace('@s.whatsapp.net', '').split(':')[0];
+          } else if (msg.key.participant && msg.key.participant.endsWith('@s.whatsapp.net')) {
+            senderPhone = msg.key.participant.replace('@s.whatsapp.net', '').split(':')[0];
+          } else {
+            senderPhone = rawJid.split('@')[0];
+          }
+
+          const pushName = msg.pushName || 'Cliente';
+
+          let rawMsg = msg.message;
+          if (rawMsg?.ephemeralMessage?.message) rawMsg = rawMsg.ephemeralMessage.message;
+          if (rawMsg?.viewOnceMessage?.message) rawMsg = rawMsg.viewOnceMessage.message;
+          if (rawMsg?.viewOnceMessageV2?.message) rawMsg = rawMsg.viewOnceMessageV2.message;
+          if (rawMsg?.documentWithCaptionMessage?.message) rawMsg = rawMsg.documentWithCaptionMessage.message;
+
+          const ext = rawMsg?.extendedTextMessage;
+          const contextInfo = ext?.contextInfo || rawMsg?.contextInfo;
+          const externalAdReply = contextInfo?.externalAdReply;
+
+          const messageText = (
+            rawMsg?.conversation ||
+            ext?.text ||
+            rawMsg?.imageMessage?.caption ||
+            rawMsg?.videoMessage?.caption ||
+            rawMsg?.documentMessage?.caption ||
+            rawMsg?.buttonsResponseMessage?.selectedDisplayText ||
+            rawMsg?.templateButtonReplyMessage?.selectedDisplayText ||
+            rawMsg?.listResponseMessage?.title ||
+            externalAdReply?.title ||
+            ''
+          ).trim();
+
+          if (!messageText) continue;
+
+          // Registrar lastInbound para diagnóstico en vivo desde /api/health
+          lastInbound = {
+            rawJid,
+            targetJid,
+            senderPhone,
+            pushName,
+            text: messageText.slice(0, 200),
+            hasAd: Boolean(externalAdReply),
+            adTitle: externalAdReply?.title || null,
+            timestamp: new Date().toISOString()
+          };
+
+          console.log(`\n📩 [Mensaje recibido de +${senderPhone} (${pushName})]: "${messageText}" [JID destino: ${targetJid}]`);
+
+          const referral = externalAdReply;
+          const referralData = (referral?.title || referral?.body || referral?.sourceUrl || referral?.description) ? {
+            source: 'Facebook Ads (CTWA)',
+            headline: referral?.title || '',
+            body: referral?.body || '',
+            sourceUrl: referral?.sourceUrl || '',
+            description: referral?.description || '',
+            mediaUrl: referral?.mediaUrl || '',
+            pushName: pushName
+          } : (pushName ? { pushName } : null);
+
+          if (aiAgent && aiAgent.processUserMessage) {
+            try {
+              const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+              if (botReply && typeof botReply === 'string' && botReply.trim()) {
+                // Si el cliente pide fotos de Mar Adentro, Parque Industrial o Departamentos
+                const normMsg = messageText.toLowerCase();
+                let photoPath = null;
+                if (normMsg.includes('foto') || normMsg.includes('imagen') || normMsg.includes('ver fotos') || normMsg.includes('tiene fotos')) {
+                  const marPath = path.join(__dirname, 'assets', 'images', 'mar_adentro.jpg');
+                  const indPath = path.join(__dirname, 'assets', 'images', 'terreno.png');
+                  const aptPath = path.join(__dirname, 'assets', 'images', 'apartamento.png');
+
+                  if ((botReply.includes('Mar Adentro') || normMsg.includes('mar adentro')) && fs.existsSync(marPath)) {
+                    photoPath = marPath;
+                  } else if ((botReply.includes('Industrial') || normMsg.includes('industrial')) && fs.existsSync(indPath)) {
+                    photoPath = indPath;
+                  } else if ((botReply.includes('Departamento') || normMsg.includes('departamento')) && fs.existsSync(aptPath)) {
+                    photoPath = aptPath;
+                  }
+                }
+
+                let sendSuccess = false;
+                try {
+                  if (photoPath && fs.existsSync(photoPath)) {
+                    await sock.sendMessage(targetJid, {
+                      image: fs.readFileSync(photoPath),
+                      caption: botReply
+                    });
+                  } else {
+                    await sock.sendMessage(targetJid, { text: botReply });
+                  }
+                  sendSuccess = true;
+                } catch (sendErr) {
+                  console.warn(`⚠️ Error enviando a targetJid ${targetJid}:`, sendErr.message);
+                  if (rawJid !== targetJid) {
+                    console.log(`🔄 Reintentando con rawJid alternativo ${rawJid}...`);
+                    if (photoPath && fs.existsSync(photoPath)) {
+                      await sock.sendMessage(rawJid, {
+                        image: fs.readFileSync(photoPath),
+                        caption: botReply
+                      });
+                    } else {
+                      await sock.sendMessage(rawJid, { text: botReply });
+                    }
+                    sendSuccess = true;
+                  } else {
+                    throw sendErr;
+                  }
+                }
+
+                if (sendSuccess) {
+                  lastOutbound = {
+                    targetJid,
+                    senderPhone,
+                    text: botReply.slice(0, 150),
+                    timestamp: new Date().toISOString()
+                  };
+                  console.log(`🤖 [Respuesta enviada a +${senderPhone}]:\n${botReply}\n`);
+                }
+              }
+            } catch (procErr) {
+              console.error('💥 Error procesando mensaje con AI Agent:', procErr?.stack || procErr?.message || procErr);
+            }
+          }
+        } catch (itemErr) {
+          console.error('💥 Error en bucle de mensaje Baileys:', itemErr?.stack || itemErr?.message || itemErr);
         }
       }
     });
