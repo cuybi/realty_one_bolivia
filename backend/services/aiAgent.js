@@ -577,11 +577,26 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     lo.includes('departamento') || lo.includes('dpto') || lo.includes('casa') ||
     lo.includes('terreno') || lo.includes('lote') || lo.includes('monoambiente') ||
     lo.includes('alquiler') || lo.includes('alquilar') || lo.includes('anticretico') ||
-    lo.includes('anticrético') || lo.includes('venta') || lo.includes('comprar') ||
-    lo.includes('informacion') || lo.includes('información') || lo.includes('opciones') ||
-    lo.includes('propiedad') || lo.includes('mas info') || lo.includes('más info') ||
+    lo.includes('anticrético') || lo.includes('venta') || lo.includes('vender') ||
+    lo.includes('comprar') || lo.includes('compra') ||
+    lo.includes('informacion') || lo.includes('información') || lo.includes('info') ||
+    lo.includes('opciones') || lo.includes('propiedad') || lo.includes('propiedades') ||
+    lo.includes('mas info') || lo.includes('más info') ||
     lo.includes('visita') || lo.includes('agendar') || lo.includes('asesor') ||
-    lo.includes('hectárea') || lo.includes('hectarea') || lo.includes('hectáreas')
+    lo.includes('hectárea') || lo.includes('hectarea') || lo.includes('hectáreas') ||
+    // Tipos de inmueble adicionales
+    lo.includes('oficina') || lo.includes('local comercial') || lo.includes('comercial') ||
+    lo.includes('galpon') || lo.includes('galpón') || lo.includes('deposito') || lo.includes('depósito') ||
+    lo.includes('almacen') || lo.includes('almacén') || lo.includes('garzonier') || lo.includes('garzónier') ||
+    lo.includes('duplex') || lo.includes('dúplex') || lo.includes('triplex') || lo.includes('tríplex') ||
+    lo.includes('penthouse') || lo.includes('suite') || lo.includes('consultorio') ||
+    lo.includes('edificio') || lo.includes('parqueo') || lo.includes('garaje') || lo.includes('garage') ||
+    lo.includes('finca') || lo.includes('chacra') || lo.includes('campo') || lo.includes('quinta') ||
+    // Intención de compra/alquiler
+    lo.includes('busco') || lo.includes('buscando') || lo.includes('quiero') || lo.includes('quisiera') ||
+    lo.includes('necesito') || lo.includes('deseo') || lo.includes('interesa') || lo.includes('interesado') ||
+    lo.includes('cotiza') || lo.includes('precio') || lo.includes('disponib') || lo.includes('oferta') ||
+    lo.includes('mayor informacion') || lo.includes('más información') || lo.includes('mas informacion')
   );
 
   const isRealAd = Boolean(
@@ -659,12 +674,27 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   let name = s.clientName ? ` ${s.clientName}` : '';
   let nom  = s.clientName || '';
 
+  // ── Filtro de relevancia ──────────────────────────────────────────────────
+  // Evita responder como si fuera una consulta real a mensajes que no tienen
+  // que ver (ej. "cocodrilo"). Saludo, consulta inmobiliaria, datos, fecha,
+  // negativa o cortesía sí se procesan; el resto pide aclaración al cliente.
+  const isDataMsg = Boolean(
+    extractPhone(raw) || extractEmail(raw) || extractCity(raw) || extractFullName(raw)
+  );
+  const isRelevantMsg = isRealAd || isNewGreeting || isInquiry || isDataMsg ||
+    hasValidDate(raw) || isNegative(raw) || isRefusal(raw) || isCourtesyExit(raw);
+  const CLARIFY_MSG = 'No entendí bien 😅. ¿Estás buscando comprar, alquilar o vender una propiedad? Cuéntame tu consulta y con gusto te ayudo. 📲';
+
   const timeGreeting = getTimeGreeting();
   const timeFarewell = getTimeFarewell();
   const saludoHora = nom ? `${timeGreeting.slice(0, -1)} ${nom}!` : timeGreeting;
 
   // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
+    // Mensaje que no tiene relación: no lo tratamos como consulta.
+    if (!isRelevantMsg) {
+      return CLARIFY_MSG;
+    }
     // Si en el primer mensaje el usuario ya preguntó por inmuebles o venta:
     if (isInquiry) {
       s.interestMsg = raw;
@@ -681,6 +711,11 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
   if (s.state === 'ESTADO_2_INTEREST') {
+    // Mensaje que no tiene relación con inmuebles: pedimos aclaración en vez de
+    // responder con "tenemos opciones" como si fuera una consulta real.
+    if (!isRelevantMsg) {
+      return CLARIFY_MSG;
+    }
     s.interestMsg = raw;
     s.state = 'ESTADO_3_DATA';
 
