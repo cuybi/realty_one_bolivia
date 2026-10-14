@@ -751,16 +751,21 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     if (!s.email) missing.push('tu correo electrónico');
     if (!s.city)  missing.push('tu ciudad');
 
-    // Si todavía falta información esencial (por ejemplo correo y ciudad) y el usuario no los completó todos
-    if (missing.length > 0) {
-      let missingText = '';
-      if (missing.length === 1) {
-        missingText = missing[0];
-      } else if (missing.length === 2) {
-        missingText = `${missing[0]} y ${missing[1]}`;
-      } else {
-        missingText = `${missing.slice(0, -1).join(', ')} y ${missing[missing.length - 1]}`;
-      }
+    // Forzar siempre todos los 4 datos: nombre y apellido, teléfono/whatsapp, correo electrónico y ciudad
+    const missingAll = [];
+    const snw2 = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
+    if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || snw2.length < 2) missingAll.push('tu nombre y apellido');
+    if (!s.phone) missingAll.push('tu número de teléfono o WhatsApp');
+    if (!s.email) missingAll.push('tu correo electrónico');
+    if (!s.city) missingAll.push('tu ciudad');
+    if (missingAll.length > 0) {
+      let mtxt = '';
+      if (missingAll.length === 1) mtxt = missingAll[0];
+      else if (missingAll.length === 2) mtxt = missingAll[0] + ' y ' + missingAll[1];
+      else mtxt = missingAll.slice(0, -1).join(', ') + ' y ' + missingAll[missingAll.length - 1];
+      const dN = (s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' && snw2.length >= 2) ? s.clientName : 'estimado/a cliente';
+      return 'Por favor ' + dN + ', necesitamos que nos compartas ' + mtxt + '. 📲🏡';
+    }
       return `¡Entendido ${displayName}! En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo y enviarte las mejores opciones disponibles, por favor compártenos ${missingText}. 📲🏡`;
     }
 
