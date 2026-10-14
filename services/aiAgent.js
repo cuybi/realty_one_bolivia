@@ -156,6 +156,20 @@ function isCourtesyExit(text) {
   return words.length > 0 && words.every(w => exitWords.has(w));
 }
 
+// Despedida/cortesía REAL (agradecimiento o despedida explícita). A diferencia de
+// isCourtesyExit, NO incluye respuestas ambiguas como "ok", "vale", "listo", "ya",
+// "bueno": esas pueden significar "sí, adelante" (p.ej. aceptar agendar una visita).
+function isFarewellOnly(text) {
+  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
+  return /\b(gracias|chau|adios|adiós|hasta luego|hasta pronto|hasta la proxima|hasta la próxima|nos vemos|que tenga|que tengas|que pases|saludos|bendiciones|cuídate|cuidate)\b/i.test(lo);
+}
+
+// Confirmaciones/afirmaciones ambiguas que NO deben tratarse como despedida.
+function isAffirmative(text) {
+  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
+  return /^(ok|okay|okey|dale|vale|listo|bueno|ya|si|sí|claro|perfecto|genial|excelente|de acuerdo|esta bien|está bien|por favor|si por favor|sí por favor|con gusto|de una|hagamoslo|hagámoslo)\b/.test(lo);
+}
+
 function extractFullName(text) {
   if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
   const cities = [
@@ -738,8 +752,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     const isFullNameValid = fullName && fullName.trim().split(/\s+/).length >= 2;
     const hasData = !!(phone || email || city || (isFullNameValid && fullName !== s.clientName));
 
-    // Si se niega a dar datos o envía despedida/cortesía sin datos (ej. "gracias\", "ok gracias")
-    if (isRefusal(raw) || isNegative(raw) || (!hasData && isCourtesyExit(raw))) {
+    // Si se niega a dar datos o envía despedida/cortesía REAL sin datos (ej. "gracias"),
+    // se despide. Si es una confirmación ambigua ("ok", "vale", "listo") sin datos, NO
+    // se despide: se le vuelve a pedir la información (GUARD más abajo).
+    if (isRefusal(raw) || isNegative(raw) || (!hasData && isFarewellOnly(raw))) {
       s.state = 'ESTADO_FAREWELL';
       s.isClosed = true;
       return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
@@ -831,8 +847,9 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   if (s.state === 'ESTADO_4_SCHEDULE') {
     const displayName = s.clientName || 'estimado cliente';
 
-    // Si no quiere visita / responde negativamente (por ahora no, despues, noi, no, etc.) o despedida
-    if (isNegative(raw) || isRefusal(raw) || isCourtesyExit(raw)) {
+    // Si no quiere visita / responde negativamente (por ahora no, despues, noi, no, etc.)
+    // o despedida/cortesía REAL. Las confirmaciones ambiguas ("ok", "vale", "si") NO cierran.
+    if (isNegative(raw) || isRefusal(raw) || isFarewellOnly(raw)) {
       s.state = 'ESTADO_FAREWELL';
       s.isClosed = true;
       try {
@@ -844,6 +861,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
         }).catch(() => {});
       } catch (_) {}
       return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    }
+
+    // Confirmación ambigua ("ok", "si", "dale", "vale", "listo"): el cliente quiere
+    // agendar pero no indicó cuándo. Insistimos pidiendo día, fecha y hora.
+    if (isAffirmative(raw) && !hasValidDate(raw)) {
+      return `¡Genial ${displayName}! 😊 Para agendar tu visita, indícame el día, la fecha y la hora que te queden mejor (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝`;
     }
 
     // Si responde pero no da día, fecha y hora exacta
