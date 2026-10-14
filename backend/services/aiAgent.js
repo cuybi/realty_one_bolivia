@@ -743,14 +743,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
     const displayName = s.clientName || 'estimado cliente';
 
-    // Determinar qué datos faltan todavía para tener la ficha de contacto completa
-    const missing = [];
-    const sessionNameWords = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
-    if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || sessionNameWords.length < 2) missing.push('tu nombre y apellido');
-    if (!s.phone) missing.push('tu número de teléfono o WhatsApp');
-    if (!s.email) missing.push('tu correo electrónico');
-    if (!s.city)  missing.push('tu ciudad');
-
     // Forzar siempre todos los 4 datos: nombre y apellido, teléfono/whatsapp, correo electrónico y ciudad
     const missingAll = [];
     const snw2 = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
@@ -765,8 +757,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       else mtxt = missingAll.slice(0, -1).join(', ') + ' y ' + missingAll[missingAll.length - 1];
       const dN = (s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' && snw2.length >= 2) ? s.clientName : 'estimado/a cliente';
       return 'Por favor ' + dN + ', necesitamos que nos compartas ' + mtxt + '. 📲🏡';
-    }
-      return `¡Entendido ${displayName}! En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo y enviarte las mejores opciones disponibles, por favor compártenos ${missingText}. 📲🏡`;
     }
 
     // Si también envió el agendamiento completo de visita en el mismo mensaje
