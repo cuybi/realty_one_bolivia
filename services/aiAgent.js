@@ -263,9 +263,9 @@ function getTimeGreeting() {
 
 function getTimeFarewell() {
   const h = getBoliviaHour();
-  if (h >= 5 && h < 12) return '¡Que tengas un excelente día!';
-  if (h >= 12 && h < 19) return '¡Que tengas una excelente tarde!';
-  return '¡Que tengas una excelente noche!';
+  if (h >= 5 && h < 12) return '¡Que tengas buenos días!';
+  if (h >= 12 && h < 19) return '¡Que tengas buenas tardes!';
+  return '¡Que tengas buenas noches!';
 }
 
 function isNegative(text) {
@@ -593,7 +593,9 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     conversationSessions.delete(userId);
     const sFresh = getSession(userId, pushName);
     sFresh.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
+    const nomReset = sFresh.clientName || '';
+    const saludoReset = nomReset ? `${getTimeGreeting().slice(0, -1)} ${nomReset}!` : getTimeGreeting();
+    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoReset} ¿En qué puedo ayudarte?`;
   }
 
   // 2. REGLA DE ORO DE ANUNCIOS DE FACEBOOK:
@@ -638,21 +640,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
         s.state = 'ESTADO_3_DATA';
         s.isClosed = false;
         // Permite que el flujo procese los datos a continuación
-      } else if (isInquiry) {
-        // Si hace una nueva consulta inmobiliaria concreta, reactivamos sesión fresca
-        sessions.delete(userId);
-        userFlowSessions.delete(userId);
-        conversationSessions.delete(userId);
-        s = getSession(userId, pushName);
-      } else if (isCourtesyExit(raw) || /^[👍👌🙏👋😊✨🎉🦁\s]+$/u.test(raw)) {
-        // MUTE ÚNICAMENTE para despedidas residuales o emojis de confirmación (ej: "gracias", "chau", "👍")
-        return null;
       } else {
-        // Para cualquier otro mensaje o duda del cliente, reabrimos para atenderlo y no dejarlo en silencio
-        sessions.delete(userId);
-        userFlowSessions.delete(userId);
-        conversationSessions.delete(userId);
-        s = getSession(userId, pushName);
+        // Tras la despedida el asistente queda en silencio ante cualquier mensaje residual
+        // (cortesías, emojis, audios o texto genérico). Solo se reabre con un nuevo saludo o anuncio.
+        return null;
       }
     }
   }
@@ -664,7 +655,9 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   let name = s.clientName ? ` ${s.clientName}` : '';
   let nom  = s.clientName || '';
 
+  const timeGreeting = getTimeGreeting();
   const timeFarewell = getTimeFarewell();
+  const saludoHora = nom ? `${timeGreeting.slice(0, -1)} ${nom}!` : timeGreeting;
 
   // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
@@ -673,13 +666,13 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       s.interestMsg = raw;
       s.state = 'ESTADO_3_DATA';
       if (isSelling) {
-        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
       }
-      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
     }
 
     s.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n¿En qué puedo ayudarte?`;
+    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
   }
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
@@ -688,11 +681,11 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.state = 'ESTADO_3_DATA';
 
     if (isSelling) {
-      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
     }
 
     // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o más información
-    return `¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲`;
+    return `¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
   }
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────

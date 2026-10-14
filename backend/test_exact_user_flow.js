@@ -17,7 +17,7 @@ async function runTests() {
 
   const r2 = await processUserMessage(u1, 'tienes departamento de 2 dormitorios para alquilar?', { pushName: 'Marcos Antezana' });
   console.log('\n2. Consulta Cliente -> Bot:\n' + r2);
-  if (!r2.includes('¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor compártenos tu nombre y apellido, tu número de teléfono o WhatsApp, tu correo electrónico y ciudad. 📲')) {
+  if (!r2.includes('¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲')) {
     throw new Error('Fallo en respuesta a opciones');
   }
 
@@ -41,10 +41,15 @@ async function runTests() {
     throw new Error('Fallo al agendar y despedir');
   }
 
-  const r6 = await processUserMessage(u1, 'Hola de nuevo bot', { pushName: 'Marcos Antezana' });
-  console.log('\n6. Cliente escribe después de despedido -> Bot Silenciado:', r6);
+  const r6 = await processUserMessage(u1, 'muchas gracias', { pushName: 'Marcos Antezana' });
+  console.log('\n6. Cliente envía cortesía tras despedida -> Bot Silenciado:', r6);
   if (r6 !== null) {
-    throw new Error('El bot NO debió responder tras haberse despedido');
+    throw new Error('El bot debió silenciar agradecimiento residual');
+  }
+  const r7 = await processUserMessage(u1, 'Hola', { pushName: 'Marcos Antezana' });
+  console.log('\n7. Cliente saluda de nuevo -> Bot Responde:', r7);
+  if (!r7 || !r7.includes('¿En qué puedo ayudarte?')) {
+    throw new Error('El bot debe responder si el cliente saluda de nuevo');
   }
   console.log('✅ CASO 1 APROBADO 100%\n');
 
@@ -71,9 +76,13 @@ async function runTests() {
   if (!rNo.includes('¡Muchas gracias por habernos elegido y por comunicarte con nosotros Marcos Antezana! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝')) {
     throw new Error('Fallo en despedida por no visita');
   }
-  const rSilent = await processUserMessage(u3, 'buenas tardes', { pushName: 'Marcos Antezana' });
+  const rSilent = await processUserMessage(u3, 'ok muchas gracias', { pushName: 'Marcos Antezana' });
   if (rSilent !== null) {
-    throw new Error('El bot debió quedar silenciado tras la despedida');
+    throw new Error('El bot debió quedar silenciado ante cortesía tras la despedida');
+  }
+  const rReactivate3 = await processUserMessage(u3, 'buenas tardes', { pushName: 'Marcos Antezana' });
+  if (!rReactivate3 || !rReactivate3.includes('¿En qué puedo ayudarte?')) {
+    throw new Error('El bot debe responder si el cliente saluda de nuevo');
   }
   console.log('✅ CASO 3 APROBADO 100%\n');
 
@@ -88,9 +97,13 @@ async function runTests() {
       !rNoData.includes('Cualquier duda o inquietud no dude en llamar. 📞🤝')) {
     throw new Error('Fallo en despedida cordial por negativa de datos');
   }
-  const rSilent4 = await processUserMessage(u4, 'Hola?', { pushName: 'Marcos' });
+  const rSilent4 = await processUserMessage(u4, 'gracias chau', { pushName: 'Marcos' });
   if (rSilent4 !== null) {
-    throw new Error('El bot debió quedar silenciado tras negativa de datos');
+    throw new Error('El bot debió quedar silenciado tras despedida residual');
+  }
+  const rReactivate4 = await processUserMessage(u4, 'Hola?', { pushName: 'Marcos' });
+  if (!rReactivate4 || !rReactivate4.includes('¿En qué puedo ayudarte?')) {
+    throw new Error('El bot debe responder si el cliente vuelve a escribir');
   }
   console.log('✅ CASO 4 APROBADO 100%\n');
 
@@ -100,8 +113,8 @@ async function runTests() {
   const rDirect = await processUserMessage(u5, 'Buenas noches, tienen departamentos en alquiler?', { pushName: 'Valeria' });
   console.log('Respuesta Bot a consulta directa en 1er mensaje:\n' + rDirect);
   if (!rDirect.includes('¡Hola Valeria! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁') ||
-      !rDirect.includes('¡Sí, tenemos a disposición una excelente variedad de opciones! 🏡✨') ||
-      !rDirect.includes('Para coordinarlo, por favor compártenos tu nombre y apellido')) {
+      !rDirect.includes('¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨') ||
+      !rDirect.includes('Para coordinarlo, por favor dame tu nombre y apellido')) {
     throw new Error('Fallo en respuesta directa en mensaje 1');
   }
   console.log('✅ CASO 5 APROBADO 100%\n');
