@@ -236,14 +236,22 @@ function extractCity(text) {
     return vm[1].trim();
   }
   // Si viene en lista estructurada (con coma/salto de línea) Y el mensaje contiene email o teléfono:
+  // Solo se acepta una ciudad DESCONOCIDA si es una única palabra aislada (ej: "Cotoca", "Camiri"),
+  // nunca frases de relleno (ej: "quiero que me contacten").
   if (extractEmail(text) || extractPhone(text)) {
+    const filler = new Set([
+      'gracias', 'contacto', 'contacten', 'contactenme', 'contáctenme', 'contactarme',
+      'info', 'informacion', 'información', 'precio', 'precios', 'foto', 'fotos',
+      'urgente', 'hola', 'buenas', 'listo', 'saludos', 'favor', 'ayuda', 'consulta'
+    ]);
     const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
     for (const p of parts) {
-      if (!extractEmail(p) && !extractPhone(p) && p.length >= 3 && p.length <= 25 && /^[A-Za-zÁÉÍÓÚñáéíóú\s]+$/.test(p)) {
-        const fn = extractFullName(text);
-        if (fn && fn.toLowerCase() === p.toLowerCase()) continue;
-        return p.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-      }
+      if (extractEmail(p) || extractPhone(p)) continue;
+      if (!/^[A-Za-zÁÉÍÓÚÑñáéíóú]{3,25}$/.test(p)) continue;
+      if (filler.has(p.toLowerCase())) continue;
+      const fn = extractFullName(text);
+      if (fn && fn.toLowerCase() === p.toLowerCase()) continue;
+      return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
     }
   }
   return null;
