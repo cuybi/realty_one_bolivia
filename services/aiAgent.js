@@ -60,7 +60,6 @@ const cleanupTimer = setInterval(() => {
 if (cleanupTimer.unref) cleanupTimer.unref();
 
 function getSession(userId, pushName = '') {
-  const userPhone = extractPhone(userId);
   if (!sessions.has(userId)) {
     if (sessions.size >= MAX_SESSIONS) {
       sessions.delete(sessions.keys().next().value);
@@ -71,7 +70,7 @@ function getSession(userId, pushName = '') {
       state: 'ESTADO_1_GREETING',
       clientName: name,
       interestMsg: '',
-      phone: userPhone || null,
+      phone: null,
       email: null,
       city: null,
       dataRequested: false,
@@ -83,9 +82,6 @@ function getSession(userId, pushName = '') {
   const s = sessions.get(userId);
   if (pushName && pushName !== 'Cliente' && !s.clientName) {
     s.clientName = pushName.trim();
-  }
-  if (!s.phone && userPhone) {
-    s.phone = userPhone;
   }
   s.lastActivity = Date.now();
   return s;
