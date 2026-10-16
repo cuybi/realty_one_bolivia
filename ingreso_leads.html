@@ -868,7 +868,7 @@
       <span class="live-pill" id="liveStatusPill"><i class="fa-solid fa-circle" style="color:#25d366; font-size:0.6rem; animation: pulse 1.5s infinite;"></i> <span>En Vivo (3s)</span></span>
       <button class="btn btn-secondary" onclick="toggleTemplateDrawer()" style="border-color: rgba(212,175,55,0.4); color:var(--gold-primary);" title="Plantillas de Respuestas Rápidas"><i class="fa-solid fa-bolt-lightning"></i> Plantillas 1-Clic</button>
       <button class="btn btn-secondary" onclick="manualRefresh()" style="border-color: rgba(212,175,55,0.4); color:#D4AF37;" title="Recargar lista de prospectos"><i class="fa-solid fa-rotate" id="refreshIcon"></i> Actualizar</button>
-      <a href="https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
+      <a href="https://realyonegroupbolivia.e-techgroupbolivia.com/" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
       <a href="publicidades.html" class="btn btn-secondary"><i class="fa-solid fa-bullhorn"></i> Campañas Ads</a>
       <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-brands fa-whatsapp"></i> Conectar QR</a>
       <button class="btn btn-excel" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> Exportar a Excel (.xlsx)</button>
@@ -1227,16 +1227,33 @@
     let isDeleting = false;
     let deletingTimer = null;
 
-    // ponytail: blacklist solo en memoria de sesion para no ocultar leads historicos
-    const sessionDeletedIds = new Set();
-    try { localStorage.removeItem('crm_deleted_leads_v4'); } catch(e) {}
+    // Backoff exponencial cuando SiteGround devuelve 403/429 (bot protection / rate limit)
+    const POLL_INTERVAL_MS = 10000; // antes 2.5s — reduce disparos de bot-protection
+    let pollFailStreak = 0;         // 403/429 consecutivos
+    let rateLimitedUntil = 0;       // timestamp hasta el cual no se consulta
 
+    // Blacklist persistente en localStorage para que los prospectos eliminados no reaparezcan
+    const DELETED_STORAGE_KEY = 'rog_deleted_leads_v5';
     function getDeletedBlacklist() {
-      return { ids: Array.from(sessionDeletedIds) };
+      try {
+        const stored = localStorage.getItem(DELETED_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) return { ids: parsed };
+        }
+      } catch(e) {}
+      return { ids: [] };
     }
 
     function addToDeletedBlacklist(id) {
-      if (id) sessionDeletedIds.add(id);
+      if (!id) return;
+      try {
+        const current = getDeletedBlacklist().ids;
+        if (!current.includes(id)) {
+          current.push(id);
+          localStorage.setItem(DELETED_STORAGE_KEY, JSON.stringify(current));
+        }
+      } catch(e) {}
     }
 
     // Helper: detectar si un lead tiene visita válida agendada
@@ -1253,6 +1270,8 @@
     // Cargar leads en tiempo real con sincronización
     async function loadLeads(isManual = false) {
       if ((isPolling || isDeleting) && !isManual) return;
+      // Si estamos en backoff por 403/429, no martillear el servidor
+      if (!isManual && Date.now() < rateLimitedUntil) return;
       isPolling = true;
 
       const refreshIcon = document.getElementById('refreshIcon');
@@ -1277,11 +1296,21 @@
         for (const u of candidateUrls) {
           try {
             const res = await fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined, cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'x-admin-key': 'ONE2026' } });
+            if (res.status === 403 || res.status === 429) {
+              // SiteGround bot-protection / rate limit: backoff exponencial
+              pollFailStreak++;
+              const backoff = Math.min(POLL_INTERVAL_MS * Math.pow(2, pollFailStreak), 60000);
+              rateLimitedUntil = Date.now() + backoff;
+              console.warn(`Rate limit (${res.status}) en ${u} — backoff ${backoff}ms (intento ${pollFailStreak})`);
+              continue;
+            }
             if (res.ok) {
               const d = await res.json();
               const items = d?.leads || d;
               if (Array.isArray(items) && items.length > 0) {
                 data = items;
+                pollFailStreak = 0; // éxito → reset backoff
+                rateLimitedUntil = 0;
                 break;
               }
             }
@@ -1633,11 +1662,26 @@
       applyFilters();
       showToast(`🗑️ Prospecto "${name}" eliminado.`);
 
-      // Sync en paralelo: delete_lead.php (elimina por id) + save_leads_sync.php (sincroniza estado completo)
+      // Sync redundante y robusto: SiteGround (PHP) + Backend Node (Render / Local)
       const payload = { id: id, phone: cleanPhone, all_leads: allLeads };
+      const SG_BASE = 'https://realyonegroupbolivia.e-techgroupbolivia.com';
+      const RENDER_BASE = 'https://realty-one-bolivia.onrender.com';
 
       const syncPromises = [
-        fetch(`delete_lead.php?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&t=${Date.now()}`, {
+        // 1. SiteGround absoluto: delete_lead.php
+        fetch(`${SG_BASE}/delete_lead.php?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&key=ONE2026&t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
+          body: JSON.stringify(payload)
+        }).catch(() => {}),
+        // 2. SiteGround absoluto: save_leads_sync.php
+        fetch(`${SG_BASE}/save_leads_sync.php?key=ONE2026&t=${Date.now()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
+          body: JSON.stringify(allLeads)
+        }).catch(() => {}),
+        // 3. Ruta relativa PHP si estamos en SiteGround
+        fetch(`delete_lead.php?id=${encodeURIComponent(id)}&phone=${encodeURIComponent(cleanPhone)}&key=ONE2026&t=${Date.now()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
           body: JSON.stringify(payload)
@@ -1649,9 +1693,25 @@
         }).catch(() => {})
       ];
 
+      // 4. API de Node (Render o localhost)
       if (IS_NODE_BACKEND) {
         syncPromises.push(
-          fetch(`/api/whatsapp/leads/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { 'x-admin-key': 'ONE2026' } }).catch(() => {})
+          fetch(`/api/whatsapp/leads/${encodeURIComponent(id)}?key=ONE2026`, { method: 'DELETE', headers: { 'x-admin-key': 'ONE2026' } }).catch(() => {}),
+          fetch(`/api/whatsapp/leads/sync?key=ONE2026`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
+            body: JSON.stringify({ all_leads: allLeads })
+          }).catch(() => {})
+        );
+      } else {
+        // Si estamos navegando desde SiteGround, sincronizar también con Render Cloud
+        syncPromises.push(
+          fetch(`${RENDER_BASE}/api/whatsapp/leads/${encodeURIComponent(id)}?key=ONE2026`, { method: 'DELETE', headers: { 'x-admin-key': 'ONE2026' } }).catch(() => {}),
+          fetch(`${RENDER_BASE}/api/whatsapp/leads/sync?key=ONE2026`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': 'ONE2026' },
+            body: JSON.stringify({ all_leads: allLeads })
+          }).catch(() => {})
         );
       }
 
@@ -1975,12 +2035,12 @@
       showToast('📄 Descargando archivo CSV...');
     }
 
-    // Inicialización con polling en tiempo real (cada 2.5s)
+    // Inicialización con polling en tiempo real (cada 10s; backoff exponencial si 403/429)
     document.addEventListener('DOMContentLoaded', () => {
       loadLeads(false);
       setInterval(() => {
         loadLeads(false);
-      }, 2500);
+      }, POLL_INTERVAL_MS);
     });
 
     // ponytail: escuchar extensión Chrome — resaltar prospecto del chat activo en WhatsApp

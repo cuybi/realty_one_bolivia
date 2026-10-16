@@ -18,6 +18,8 @@ const LEADS_FILE = path.join(__dirname, '..', 'leads.json');
 const SG_HOSTNAME = 'realyonegroupbolivia.e-techgroupbolivia.com';
 const SG_SYNC_PATH = '/save_leads_sync.php';
 const SG_ADMIN_KEY = process.env.ADMIN_KEY || 'ONE2026';
+// UA navegador estándar: SiteGround Bot Protection bloquea UAs de bot (ej: RealtyONEBot/2.0 → 403)
+const SG_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 // Cache en memoria para evitar lecturas repetidas en el mismo proceso
 let _memoryCache = null;
@@ -97,9 +99,10 @@ const MESES = [
 
 /**
  * Recupera leads desde SiteGround (fuente de verdad) vía HTTPS GET
+ * Reintenta 1 vez tras 2s si HTTP 403/429 (bot-protection / rate limit).
  * Retorna Promise<Array>
  */
-function fetchLeadsFromSiteGround() {
+function fetchLeadsFromSiteGround(attempt = 0) {
   return new Promise((resolve) => {
     const options = {
       hostname: SG_HOSTNAME,
@@ -109,7 +112,7 @@ function fetchLeadsFromSiteGround() {
       headers: {
         'Accept': 'application/json',
         'X-Admin-Key': SG_ADMIN_KEY,
-        'User-Agent': 'RealtyONEBot/2.0'
+        'User-Agent': SG_UA
       },
       timeout: 8000
     };
@@ -117,6 +120,16 @@ function fetchLeadsFromSiteGround() {
       let data = '';
       res.on('data', (c) => { data += c; });
       res.on('end', () => {
+        if ((res.statusCode === 403 || res.statusCode === 429) && attempt < 1) {
+          console.warn(`[SiteGround] ⚠️ HTTP ${res.statusCode} (bloqueo/rate-limit) — reintento en 2s (intento ${attempt + 1}/1)`);
+          setTimeout(() => resolve(fetchLeadsFromSiteGround(attempt + 1)), 2000);
+          return;
+        }
+        if (res.statusCode === 403 || res.statusCode === 429) {
+          console.error(`[SiteGround] ❌ HTTP ${res.statusCode} persistente — revisar Bot Protection de SiteGround`);
+          resolve([]);
+          return;
+        }
         try {
           const parsed = JSON.parse(data);
           const arr = Array.isArray(parsed) ? parsed : [];
@@ -196,9 +209,10 @@ async function getLeadsAsync() {
 }
 
 /**
- * Envía leads a SiteGround. Retorna Promise<boolean>.
+ * Envía leads a SiteGround. Reintenta 1 vez tras 2s si HTTP 403/429.
+ * Retorna Promise<boolean>.
  */
-function syncLeadsToSiteGround(leads) {
+function syncLeadsToSiteGround(leads, attempt = 0) {
   return new Promise((resolve) => {
     try {
       const payload = JSON.stringify(leads);
@@ -210,7 +224,7 @@ function syncLeadsToSiteGround(leads) {
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
-          'User-Agent': 'RealtyONEBot/2.0',
+          'User-Agent': SG_UA,
           'Accept': 'application/json',
           'X-Admin-Key': SG_ADMIN_KEY
         },
@@ -221,6 +235,16 @@ function syncLeadsToSiteGround(leads) {
         let respData = '';
         res.on('data', (chunk) => { respData += chunk; });
         res.on('end', () => {
+          if ((res.statusCode === 403 || res.statusCode === 429) && attempt < 1) {
+            console.warn(`[SiteGround] ⚠️ Sync HTTP ${res.statusCode} (bloqueo/rate-limit) — reintento en 2s (intento ${attempt + 1}/1)`);
+            setTimeout(() => resolve(syncLeadsToSiteGround(leads, attempt + 1)), 2000);
+            return;
+          }
+          if (res.statusCode === 403 || res.statusCode === 429) {
+            console.error(`[SiteGround] ❌ Sync HTTP ${res.statusCode} persistente — revisar Bot Protection de SiteGround`);
+            resolve(false);
+            return;
+          }
           if (res.statusCode >= 200 && res.statusCode < 300) {
             console.log(`[SiteGround] ✅ ${leads.length} leads sincronizados (HTTP ${res.statusCode})`);
             resolve(true);
@@ -268,10 +292,13 @@ async function saveLeads(leads) {
     fs.writeFileSync(rootLeads, JSON.stringify(leads, null, 2), 'utf8');
   } catch (e) {}
 
-  // Sincronizar con SiteGround (en segundo plano para no bloquear mensajería ni pruebas)
-  syncLeadsToSiteGround(leads).then(ok => {
+  // Sincronizar con SiteGround de manera inmediata y consistente
+  try {
+    const ok = await syncLeadsToSiteGround(leads);
     if (!ok) console.warn('[saveLeads] ⚠️ Sync a SiteGround reintentará en siguiente ciclo.');
-  }).catch(e => console.warn('[saveLeads] ⚠️ Error background sync:', e.message));
+  } catch (e) {
+    console.warn('[saveLeads] ⚠️ Error background sync:', e.message);
+  }
 
   return true;
 }
