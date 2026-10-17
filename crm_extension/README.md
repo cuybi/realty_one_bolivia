@@ -6,22 +6,24 @@
 1. Abrir Chrome o Edge → escribir en la barra: `chrome://extensions`
 2. Activar **"Modo de desarrollador"** (interruptor arriba a la derecha)
 3. Clic en **"Cargar descomprimida"** (o "Cargar sin empaquetar")
-4. Seleccionar la carpeta: `c:\Users\etechadmin\.gemini\antigravity-ide\scratch\realtor_team_bot\crm_extension`
-5. ✅ Listo — extensión v1.2.3 instalada con el logo dorado ONE
+4. Seleccionar la carpeta: `c:\Users\etechadmin\.gemini\antigravity-ide\scratch\realty_one_bolivia\crm_extension`
+5. ✅ Listo — extensión **v1.2.5** instalada con diseño Luxury Dark & Gold de Realty ONE
 
-## Cómo usar (Paneles estilo MiCierro)
+## Cómo usar (Paneles estilo MiCierro / OneSuite)
 
 1. Abrir **web.whatsapp.com**.
 2. **Pestaña lateral dorada `ONE INGRESO LEADS`** o atajos:
    - `Alt + L` → Alternar panel lateral.
    - `Alt + K` → Abrir Tablero Kanban directo.
    - Botón `⛶` en cabecera → Expandir a pantalla panorámica completa (1200px+).
-3. **Módulos incluidos:**
-   - 📊 **Tablero Kanban Visual:** 6 columnas (`Nuevo`, `Contactado`, `Visita`, `Negociación`, `Cerrado`, `Descartado`) con Drag & Drop para mover leads de etapa arrastrando la tarjeta.
-   - 👤 **Ficha Lead Activo:** Detección instantánea del chat abierto, teléfono, asesor (Marcos Antezana Lenz), notas y exportación a Excel.
-   - 📅 **Agenda & Recordatorios (Follow-up):** Programa visitas con fecha y hora para no olvidar a ningún cliente.
-   - ⚡ **Respuestas Rápidas (1 Clic):** Plantillas de catálogo, visitas a Urubó/Equipetrol y requisitos bancarios con botón para pegar en WhatsApp.
-   - 📢 **Difusión Segmentada:** Envío de mensajes de reactivación a listas filtradas.
+3. **Módulos incluidos en v1.2.5:**
+   - 📊 **Tablero Kanban Visual Drag & Drop:** 6 columnas (`✨ Solicitud / Nuevo`, `📞 Contactado`, `📅 Visita Agendada`, `📝 Negociación`, `🏆 Cerrado / Ganado`, `❌ Descartado`), filtros por prioridad (`🔥 Potencial`, `⚡ Indeciso`, `❄️ Pasivo`, `💼 Propietario`), avatares con iniciales y botón directo de borrado `🗑️`.
+   - 👤 **Ficha Lead Activo Ultra-Moderna:** Avatar circular con iniciales, detección del chat abierto, teléfono con enlaces a WhatsApp, selector de e-Realtors, timeline de notas históricas y barra de acciones rápidas (`💬 Chatear`, `📅 Agendar`, `🗑️ Eliminar`).
+   - 📅 **Agenda & Recordatorios (Follow-up):** Atajos de fecha rápida (`Hoy`, `Mañana`, `+2 días`, `En 1 semana`), citas con countdown, botón para escribir mensaje directo y botón para borrar citas.
+   - ⚡ **Respuestas Rápidas Ampliadas (12 Plantillas Inmobiliarias):** Buscador en tiempo real por palabras clave, filtros por categorías (`Atención Inicial`, `Visitas`, `Inventario`, `Operación & Legal`, `Financiamiento`, `Negociación`) y botón de 1-clic para inyectar en el chat activo de WhatsApp.
+   - 📢 **Difusión Masiva Segmentada:** Envío asistido con variables dinámicas (`{nombre}`, `{asesor}`, `{zona}`) anti-baneo.
+   - 🔄 **Sincronización Resiliente Multicapa:** Localhost (Tier 1) → Render Cloud (Tier 2) → SiteGround Fallback (Tier 3), asegurando funcionamiento 24/7 en cualquier red.
+   - 📊 **Exportación a Excel Oficial (.xlsx / .xls):** Descarga instantánea de la base de datos limpia con nombres, celulares, fechas, etapas y notas.
 4. **Inyecciones directas en WhatsApp Web:**
    - Barra de filtros arriba de la lista de chats: `Todos`, `No leídos`, `🔥 Leads CRM`, `📅 Visitas`.
    - Botones rápidos en la cabecera de la conversación: `📊 Kanban`, `📅 Agenda`, `⚡ Respuestas`.

@@ -2,9 +2,32 @@
  * panel.js — Realty ONE Group Bolivia CRM Panel
  * Inyectado como iframe extension-page en WhatsApp Web
  * Módulos: Tablero Kanban (Drag & Drop), Ficha Lead, Recordatorios, Respuestas Rápidas y Difusión
+ * Multi-tier Sync: Localhost -> Render Cloud -> SiteGround Fallback
  */
 
-const BACKEND_URL = 'https://realty-one-bolivia.onrender.com';
+let BACKEND_URL = 'https://realty-one-bolivia.onrender.com';
+if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+  chrome.storage.local.get(['rog_crm_url'], (res) => {
+    if (res && res.rog_crm_url) {
+      try {
+        const parsed = new URL(res.rog_crm_url);
+        BACKEND_URL = `${parsed.protocol}//${parsed.host}`;
+      } catch (_) {}
+    }
+  });
+}
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === 'ROG_UPDATE_URL' && msg.url) {
+      try {
+        const parsed = new URL(msg.url);
+        BACKEND_URL = `${parsed.protocol}//${parsed.host}`;
+        if (typeof syncLeadsFromBackend === 'function') syncLeadsFromBackend();
+      } catch (_) {}
+    }
+  });
+}
+const SITEGROUND_URL = 'https://realyonegroupbolivia.e-techgroupbolivia.com';
 const ADMIN_KEY = 'ONE2026';
 const CACHE_KEY = 'rog_cached_leads';
 const REMINDERS_KEY = 'rog_reminders_list';
@@ -12,49 +35,88 @@ const REMINDERS_KEY = 'rog_reminders_list';
 let allLeads = [];
 let allReminders = [];
 let currentFilter = 'TODAS';
+let currentKanbanFilter = 'ALL';
 let currentSearch = '';
 let currentKanbanSearch = '';
 let activeLead = null;
 let activeContactData = null;
 let isExpanded = false;
+let currentTemplateCategory = 'TODAS';
+let currentTemplateSearch = '';
 
-// ─── Plantillas Inmobiliarias Ampliadas ─────────────────────────────────────
+// ─── Catálogo de Respuestas Rápidas Ampliado (12 Plantillas Inmobiliarias) ─────
 const TEMPLATES_CATALOG = [
   {
     id: 'bienvenida',
     categoria: 'Atención Inicial',
     titulo: '👋 Bienvenida Oficial Realty ONE',
-    texto: '¡Hola! Gracias por comunicarte con Realty ONE Group Bolivia. Mi nombre es Marcos Antezana Lenz. ¿En qué tipo de propiedad o zona estás interesado en Santa Cruz?'
+    texto: '¡Hola! Te damos una cordial bienvenida a Realty ONE Group Bolivia 🦁✨ Mi nombre es Marcos Antezana Lenz. ¿En qué zona o tipo de propiedad en Santa Cruz te gustaría que te asesoremos hoy?'
   },
   {
     id: 'agendar',
     categoria: 'Visitas',
     titulo: '📅 Agendar Visita Inmobiliaria',
-    texto: '📅 ¡Con gusto coordinamos una visita! Disponemos de horarios hoy por la tarde o mañana en la mañana. ¿Qué horario te queda más cómodo para que te reserve el espacio?'
+    texto: '📅 ¡Con mucho gusto coordinamos tu visita presencial! Disponemos de espacios hoy por la tarde y mañana en la mañana. ¿Qué día y horario te queda más cómodo para que te reserve el espacio?'
   },
   {
     id: 'catalogo',
     categoria: 'Inventario',
     titulo: '🏠 Catálogo Exclusivo Urubó & Equipetrol',
-    texto: '🏠 *Catálogo Inmobiliario Realty ONE Group*:\nDisponemos de casas, departamentos, terrenos y anticréticos exclusivos con alta plusvalía. ¿Qué características y rango de presupuesto buscas aproximado?'
+    texto: '🏠 *Catálogo Inmobiliario Realty ONE Group*:\nDisponemos de casas, departamentos en preventa y entrega inmediata, terrenos en condominios cerrados y anticréticos con alta plusvalía. ¿Qué características y rango de inversión buscas aproximado?'
+  },
+  {
+    id: 'mar_adentro',
+    categoria: 'Inventario',
+    titulo: '🌊 Lote en Condominio Mar Adentro (Urubó)',
+    texto: '🌊 *Condominio Mar Adentro - Urubó*:\nTerrenos de 450 m² a solo 300 m de la Laguna Cristalina navegable con playas de arena blanca, Club House de lujo, canchas y seguridad 24/7. Precio: $112,500 USD (con Folio Real al día). ¿Deseas que te comparta fotos y plano de ubicación?'
+  },
+  {
+    id: 'industrial_g77',
+    categoria: 'Inventario',
+    titulo: '🏭 Terreno Industrial 7.000 m² (Av. G77)',
+    texto: '🏭 *Terreno Industrial en Parque Industrial (Salida G77)*:\nSuperficie: 7.000 m² con 185 m de frente. Factibilidad inmediata de energía trifásica y agua industrial. Apto para galpones logísticos de alto tonelaje. Folio Real individualizado. ¿Te gustaría coordinar una visita técnica?'
+  },
+  {
+    id: 'westgate',
+    categoria: 'Inventario',
+    titulo: '🏢 Westgate Tower (Frente a Fexpocruz)',
+    texto: '🏢 *Westgate Tower - Preventa Exclusiva*:\nMonoambientes, 1 y 2 dormitorios sobre Av. Roca y Coronado (frente a Fexpocruz). Precios desde USD 40.800 con facilidades de pago en cuotas. Ideal para vivienda o inversión en Airbnb. ¿Te comparto la lista de precios?'
   },
   {
     id: 'requisitos',
-    categoria: 'Operación',
+    categoria: 'Operación & Legal',
     titulo: '📋 Requisitos de Operación & Anticrético',
-    texto: '📋 *Requisitos generales para la operación*:\n1. Cédula de Identidad vigente.\n2. Verificación de folio real en Derechos Reales (asesoría legal incluida).\n3. Reserva formal para bloqueo de unidad.'
+    texto: '📋 *Requisitos generales para la operación*:\n1. Cédula de Identidad vigente.\n2. Verificación de folio real en Derechos Reales (DDRR) libre de gravamen.\n3. Asesoría legal y redacción de contrato formal incluida.\n4. Reserva formal para bloqueo de unidad.'
+  },
+  {
+    id: 'legal_ddrr',
+    categoria: 'Operación & Legal',
+    titulo: '⚖️ Asesoría Legal y Folio Real',
+    texto: '⚖️ En Realty ONE Group todas nuestras propiedades cuentan con due diligence legal completo: Folio Real al día, plano de uso de suelo aprobado e impuestos pagados. Tu inversión está 100% protegida.'
   },
   {
     id: 'credito',
     categoria: 'Financiamiento',
     titulo: '🏦 Asesoría de Crédito de Vivienda',
-    texto: '🏦 Trabajamos con todos los bancos del sistema financiero boliviano para crédito de vivienda social o comercial. ¿Cuentas ya con precalificación o deseas que te contactemos con un oficial de crédito?'
+    texto: '🏦 Trabajamos con los principales bancos del sistema financiero boliviano para crédito de vivienda social o comercial. ¿Cuentas ya con precalificación bancaria o deseas que te contactemos con un oficial de crédito especializado?'
+  },
+  {
+    id: 'consignar',
+    categoria: 'Operación & Legal',
+    titulo: '💼 Venta o Consignación de Propiedades',
+    texto: '🏡 ¡Con mucho gusto te ayudamos a vender o alquilar tu propiedad! Realizamos valuación comercial, sesión fotográfica profesional y pauta publicitaria en Meta Ads para captar compradores calificados en tiempo récord. ¿En qué zona se encuentra tu inmueble?'
   },
   {
     id: 'cierre',
     categoria: 'Negociación',
-    titulo: '🏆 Oferta Formal y Bloqueo',
-    texto: '¡Excelente decisión! Para presentar la carta de intención de compra / alquiler al propietario y asegurar el precio acordado, podemos redactar la reserva hoy mismo.'
+    titulo: '🏆 Oferta Formal y Bloqueo de Unidad',
+    texto: '¡Excelente decisión! Para presentar la carta de intención de compra / alquiler al propietario y asegurar el precio acordado, podemos redactar la reserva formal hoy mismo. ¿Te comparto los datos de la cuenta fiduciaria?'
+  },
+  {
+    id: 'despedida_oficial',
+    categoria: 'Atención Inicial',
+    titulo: '🦁 Despedida y Atención Permanente',
+    texto: '¡Muchas gracias por comunicarte con nosotros! Nuestro equipo especializado estará siempre atento a tus requerimientos. Cualquier duda o inquietud no dude en llamar al +591 60034649. ¡Que tenga un excelente día!'
   }
 ];
 
@@ -68,15 +130,15 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTemplatesFullGrid();
   fetchFreshLeads();
 
-  // Polling silencioso cada 12s para sincronizar
-  setInterval(fetchFreshLeads, 12000);
+  // Polling silencioso cada 10s para sincronizar
+  setInterval(fetchFreshLeads, 10000);
 });
 
 function initUI() {
   // Botones de cabecera
   document.getElementById('btn-refresh').addEventListener('click', () => {
     setSyncStatus('syncing', 'Sincronizando...');
-    fetchFreshLeads();
+    fetchFreshLeads(true);
   });
 
   document.getElementById('btn-open-full').addEventListener('click', () => {
@@ -97,100 +159,199 @@ function initUI() {
   const exportBtn2 = document.getElementById('btn-export-excel-banner');
   if (exportBtn2) exportBtn2.addEventListener('click', exportToExcel);
 
-  // Buscador lista
-  const searchInput = document.getElementById('leads-search');
-  if (searchInput) {
-    searchInput.addEventListener('input', (e) => {
+  // Buscador lista de prospectos
+  const leadsSearch = document.getElementById('leads-search');
+  const leadsSearchClear = document.getElementById('leads-search-clear');
+  if (leadsSearch) {
+    leadsSearch.addEventListener('input', (e) => {
       currentSearch = e.target.value.toLowerCase().trim();
+      if (leadsSearchClear) leadsSearchClear.classList.toggle('hidden', !currentSearch);
+      renderLeadsList();
+    });
+  }
+  if (leadsSearchClear) {
+    leadsSearchClear.addEventListener('click', () => {
+      if (leadsSearch) leadsSearch.value = '';
+      currentSearch = '';
+      leadsSearchClear.classList.add('hidden');
       renderLeadsList();
     });
   }
 
   // Buscador Kanban
-  const kanbanSearchInput = document.getElementById('kanban-search');
-  if (kanbanSearchInput) {
-    kanbanSearchInput.addEventListener('input', (e) => {
+  const kanbanSearch = document.getElementById('kanban-search');
+  const kanbanSearchClear = document.getElementById('kanban-search-clear');
+  if (kanbanSearch) {
+    kanbanSearch.addEventListener('input', (e) => {
       currentKanbanSearch = e.target.value.toLowerCase().trim();
+      if (kanbanSearchClear) kanbanSearchClear.classList.toggle('hidden', !currentKanbanSearch);
+      renderKanbanBoard();
+    });
+  }
+  if (kanbanSearchClear) {
+    kanbanSearchClear.addEventListener('click', () => {
+      if (kanbanSearch) kanbanSearch.value = '';
+      currentKanbanSearch = '';
+      kanbanSearchClear.classList.add('hidden');
       renderKanbanBoard();
     });
   }
 
-  // Filtros de pipeline
-  document.querySelectorAll('.pill').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
+  // Filtros de píldoras Kanban
+  document.querySelectorAll('.k-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.k-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentKanbanFilter = pill.dataset.kfilter;
+      renderKanbanBoard();
+    });
+  });
+
+  // Filtros de píldoras Lista
+  document.querySelectorAll('.filter-pills .pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pills .pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentFilter = pill.dataset.filter;
       renderLeadsList();
     });
   });
 
-  // Controles de lead activo
+  // Guardar nota
+  document.getElementById('btn-save-note').addEventListener('click', saveQuickNote);
+  document.getElementById('quick-note-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') saveQuickNote();
+  });
+
+  // Acciones rápidas del lead activo
   document.getElementById('lead-stage').addEventListener('change', (e) => {
     updateActiveLeadField('etapa_embudo', e.target.value);
   });
-
   document.getElementById('lead-priority').addEventListener('change', (e) => {
     updateActiveLeadField('prioridad', e.target.value);
   });
-
   document.getElementById('lead-realtor').addEventListener('change', (e) => {
     updateActiveLeadField('e_realtor_id', e.target.value);
   });
 
-  document.getElementById('btn-save-note').addEventListener('click', saveQuickNote);
+  // Botones de acción directa del lead activo
+  const btnLeadWa = document.getElementById('btn-lead-act-wa');
+  if (btnLeadWa) {
+    btnLeadWa.addEventListener('click', () => {
+      if (activeLead && activeLead.numero_celular) {
+        const cleanP = activeLead.numero_celular.replace(/[^0-9]/g, '');
+        window.open(`https://web.whatsapp.com/send?phone=${cleanP}`, '_top');
+      } else {
+        showToast('Chat activo seleccionado', true);
+      }
+    });
+  }
 
-  // Guardar recordatorio
-  const saveRemBtn = document.getElementById('btn-save-reminder');
-  if (saveRemBtn) saveRemBtn.addEventListener('click', saveReminder);
+  const btnLeadSchedule = document.getElementById('btn-lead-act-schedule');
+  if (btnLeadSchedule) {
+    btnLeadSchedule.addEventListener('click', () => {
+      switchTab('reminders');
+      const noteInput = document.getElementById('rem-note');
+      if (noteInput && activeLead) {
+        noteInput.value = `Visita con ${activeLead.cliente_nombre || 'Cliente'}`;
+      }
+    });
+  }
 
-  // Plantillas chips de lead activo
-  document.querySelectorAll('.chip-btn').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const templateKey = chip.dataset.template;
-      const found = TEMPLATES_CATALOG.find(t => t.id === templateKey);
-      if (found) {
-        copyAndInsertText(found.texto, chip);
+  const btnLeadDelete = document.getElementById('btn-lead-act-delete');
+  if (btnLeadDelete) {
+    btnLeadDelete.addEventListener('click', () => {
+      if (activeLead && activeLead.id) {
+        deleteLead(activeLead.id, activeLead.cliente_nombre);
+      }
+    });
+  }
+
+  // Chips de respuesta rápida en ficha de lead
+  document.querySelectorAll('.template-chips .chip-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const templateId = btn.dataset.template;
+      const t = TEMPLATES_CATALOG.find(x => x.id === templateId);
+      if (t) {
+        copyAndInsertText(t.texto, btn);
       }
     });
   });
 
-  // Selector de audiencia para difusión masiva
-  const audSelect = document.getElementById('broadcast-audience');
-  if (audSelect) {
-    audSelect.addEventListener('change', renderBroadcastQueue);
+  const btnViewAllT = document.getElementById('btn-view-all-templates');
+  if (btnViewAllT) {
+    btnViewAllT.addEventListener('click', () => switchTab('templates'));
   }
 
-  // Escuchar mensajes de WhatsApp (content.js)
+  // Recordatorios
+  document.getElementById('btn-save-reminder').addEventListener('click', saveReminder);
+
+  // Atajos rápidos de fecha en agenda
+  document.querySelectorAll('.qdate-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const days = parseInt(btn.dataset.days, 10) || 0;
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() + days);
+      const dateInput = document.getElementById('rem-date');
+      if (dateInput) {
+        dateInput.value = targetDate.toISOString().split('T')[0];
+      }
+    });
+  });
+
+  // Filtros de plantillas
+  const templateSearchInput = document.getElementById('template-search-input');
+  if (templateSearchInput) {
+    templateSearchInput.addEventListener('input', (e) => {
+      currentTemplateSearch = e.target.value.toLowerCase().trim();
+      renderTemplatesFullGrid();
+    });
+  }
+
+  document.querySelectorAll('#template-category-pills .t-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#template-category-pills .t-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentTemplateCategory = pill.dataset.cat;
+      renderTemplatesFullGrid();
+    });
+  });
+
+  // Difusión
+  const audSelect = document.getElementById('broadcast-audience');
+  if (audSelect) audSelect.addEventListener('change', renderBroadcastQueue);
+
+  const bcastText = document.getElementById('broadcast-message-text');
+  if (bcastText) bcastText.addEventListener('input', renderBroadcastQueue);
+
+  // Escuchar mensajes de WhatsApp Web desde content.js
   window.addEventListener('message', (event) => {
     if (!event.data) return;
     if (event.data.type === 'ROG_ACTIVE_CONTACT') {
       handleActiveContactFromWA(event.data.name, event.data.phone);
-    } else if (event.data.type === 'ROG_NAVIGATE_TAB') {
-      switchTab(event.data.tab);
     }
   });
 }
 
 function toggleExpandSidebar() {
   isExpanded = !isExpanded;
-  try {
-    window.parent.postMessage({ type: 'ROG_TOGGLE_EXPAND', expanded: isExpanded }, '*');
-  } catch (e) {}
-
   const btn = document.getElementById('btn-toggle-expand');
-  if (btn) {
-    btn.textContent = isExpanded ? '🗗' : '⛶';
-    btn.title = isExpanded ? 'Reducir a panel estándar' : 'Expandir a tablero panorámico';
-  }
+  if (btn) btn.textContent = isExpanded ? '⇲' : '⛶';
+
+  try {
+    window.parent.postMessage({
+      type: 'ROG_TOGGLE_EXPAND_SIDEBAR',
+      expanded: isExpanded
+    }, '*');
+  } catch (_) {}
 }
 
-// ─── Pestañas de Navegación ────────────────────────────────────────────────
+// ─── Gestión de Tabs ────────────────────────────────────────────────────────
 function initTabs() {
-  const tabs = document.querySelectorAll('.nav-tab');
-  tabs.forEach(tab => {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      switchTab(tab.dataset.view);
+      const targetView = tab.dataset.view;
+      switchTab(targetView);
     });
   });
 }
@@ -208,12 +369,14 @@ function switchTab(viewId) {
     renderKanbanBoard();
   } else if (viewId === 'reminders') {
     renderRemindersList();
+  } else if (viewId === 'templates') {
+    renderTemplatesFullGrid();
   } else if (viewId === 'broadcast') {
     renderBroadcastQueue();
   }
 }
 
-// ─── Sincronización con API / Backend ──────────────────────────────────────
+// ─── Sincronización Resiliente Multicapa ─────────────────────────────────────
 function setSyncStatus(status, text) {
   const badge = document.getElementById('sync-indicator');
   if (!badge) return;
@@ -224,7 +387,7 @@ function setSyncStatus(status, text) {
 function loadCachedLeads() {
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get([CACHE_KEY], (res) => {
-      if (res[CACHE_KEY] && Array.isArray(res[CACHE_KEY]) && res[CACHE_KEY].length > 0) {
+      if (res && res[CACHE_KEY] && Array.isArray(res[CACHE_KEY]) && res[CACHE_KEY].length > 0) {
         allLeads = res[CACHE_KEY];
         renderLeadsList();
         renderKanbanBoard();
@@ -234,46 +397,56 @@ function loadCachedLeads() {
   }
 }
 
-async function fetchFreshLeads() {
+async function fetchFreshLeads(showFeedback = false) {
   try {
     let rawData = null;
+    let sourceLabel = '';
 
     // 1. Probar backend local (localhost:3000)
     try {
-      const localRes = await fetch('http://localhost:3000/api/leads', { signal: AbortSignal.timeout(1500) });
+      const localRes = await fetch('http://localhost:3000/api/leads', { signal: AbortSignal.timeout(1200) });
       if (localRes.ok) {
         const localData = await localRes.json();
         if (Array.isArray(localData) && localData.length > 0) {
-          rawData = localData.map(l => ({
-            id: l.id,
-            cliente_nombre: l.nombre || l.cliente_nombre || 'Prospecto',
-            numero_celular: l.celular || l.numero_celular || '',
-            prioridad: (l.prioridad || 'POTENCIAL').toUpperCase(),
-            etapa_embudo: l.etapa_embudo || (l.fecha_visita ? 'VISITA_AGENDADA' : 'SOLICITUD'),
-            e_realtor_id: l.agente_slug === 'marcos-antezana' ? 'marcos_antezana' : (l.e_realtor_id || 'marcos_antezana'),
-            e_realtor_asignado: l.agente_nombre || 'Marcos Antezana Lenz',
-            zona_interes: l.zona_interes || l.zona || 'Santa Cruz (General)',
-            notas_asesor: l.notas || l.notas_asesor || '',
-            presupuesto: l.presupuesto_usd ? `$us ${l.presupuesto_usd}` : (l.presupuesto || ''),
-            fecha_creacion: l.fecha || new Date().toISOString()
-          }));
+          rawData = localData;
+          sourceLabel = 'Local 💻';
         }
       }
     } catch (_) {}
 
     // 2. Si no hay datos locales, sincronizar con nube Render
     if (!rawData) {
-      const res = await fetch(`${BACKEND_URL}/api/whatsapp/leads?key=${ADMIN_KEY}`, {
-        headers: {
-          'x-admin-key': ADMIN_KEY,
-          'Accept': 'application/json'
-        },
-        signal: AbortSignal.timeout(6000)
-      });
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/whatsapp/leads?key=${ADMIN_KEY}`, {
+          headers: {
+            'x-admin-key': ADMIN_KEY,
+            'Accept': 'application/json'
+          },
+          signal: AbortSignal.timeout(5000)
+        });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      rawData = await res.json();
+        if (res.ok) {
+          rawData = await res.json();
+          sourceLabel = 'Render 🟢';
+        }
+      } catch (_) {}
     }
+
+    // 3. Fallback a SiteGround si Render no responde
+    if (!rawData) {
+      try {
+        const sgRes = await fetch(`${SITEGROUND_URL}/save_leads_sync.php?key=${ADMIN_KEY}&t=${Date.now()}`, {
+          headers: { 'Accept': 'application/json' },
+          signal: AbortSignal.timeout(5000)
+        });
+        if (sgRes.ok) {
+          rawData = await sgRes.json();
+          sourceLabel = 'SiteGround ☁️';
+        }
+      } catch (_) {}
+    }
+
+    if (!rawData) throw new Error('Sin conexión con servidores');
 
     let leadsList = [];
     if (Array.isArray(rawData)) {
@@ -283,7 +456,7 @@ async function fetchFreshLeads() {
     }
 
     allLeads = leadsList;
-    setSyncStatus('online', 'En Línea 🟢');
+    setSyncStatus('online', sourceLabel || 'En Línea 🟢');
 
     if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({ [CACHE_KEY]: allLeads });
@@ -296,6 +469,8 @@ async function fetchFreshLeads() {
     if (activeContactData) {
       matchOrCreateActiveLead(activeContactData.name, activeContactData.phone);
     }
+
+    if (showFeedback) showToast(`Sincronizados ${allLeads.length} prospectos`, true);
   } catch (err) {
     console.warn('[Realty ONE CRM] Sync notice:', err.message);
     setSyncStatus('offline', 'Reconectando...');
@@ -315,7 +490,24 @@ function handleActiveContactFromWA(name, phone = '') {
   document.getElementById('active-contact-phone').textContent = activeContactData.phone || '';
   document.getElementById('active-contact-time').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Avatar initials
+  const avatarEl = document.getElementById('active-contact-avatar');
+  if (avatarEl) {
+    avatarEl.textContent = getInitials(activeContactData.name);
+  }
+
+  // Mostrar punto de chat activo
+  const dot = document.getElementById('tab-chat-active-dot');
+  if (dot) dot.classList.add('visible');
+
   matchOrCreateActiveLead(activeContactData.name, activeContactData.phone);
+}
+
+function getInitials(name = '') {
+  if (!name) return 'RO';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 function matchOrCreateActiveLead(name, phone) {
@@ -333,28 +525,57 @@ function matchOrCreateActiveLead(name, phone) {
   activeLead = match;
 
   const controls = document.getElementById('active-lead-controls');
+  const actionBar = document.getElementById('active-lead-action-bar');
   const noMsg = document.getElementById('no-contact-msg');
+  const zonePill = document.getElementById('active-contact-zone');
 
   if (activeLead) {
     controls.classList.remove('hidden');
+    actionBar.classList.remove('hidden');
     noMsg.style.display = 'none';
 
     document.getElementById('lead-stage').value = activeLead.etapa_embudo || 'SOLICITUD';
     document.getElementById('lead-priority').value = (activeLead.prioridad || 'POTENCIAL').toUpperCase();
     document.getElementById('lead-realtor').value = activeLead.e_realtor_id || 'marcos_antezana';
     document.getElementById('quick-note-input').value = '';
-    document.getElementById('quick-note-input').placeholder = 'Escribir nueva nota sobre este prospecto...';
+
+    if (zonePill) {
+      zonePill.textContent = `📍 ${activeLead.zona_interes || 'Santa Cruz'}`;
+      zonePill.classList.remove('hidden');
+    }
+
+    renderLeadNotesHistory(activeLead);
   } else {
     controls.classList.remove('hidden');
+    actionBar.classList.remove('hidden');
     noMsg.style.display = 'none';
     document.getElementById('lead-stage').value = 'SOLICITUD';
     document.getElementById('lead-priority').value = 'POTENCIAL';
     document.getElementById('lead-realtor').value = 'marcos_antezana';
     document.getElementById('quick-note-input').value = '';
-    document.getElementById('quick-note-input').placeholder = 'Guardar nota para registrar como nuevo prospecto...';
+    if (zonePill) zonePill.classList.add('hidden');
+
+    const historyBox = document.getElementById('lead-notes-history');
+    if (historyBox) historyBox.innerHTML = '<span style="color:#777; font-size:10px;">Nuevo prospecto por registrar. Escribe una nota abajo.</span>';
   }
 
   highlightSelectedLeadItem(activeLead ? activeLead.id : null);
+}
+
+function renderLeadNotesHistory(lead) {
+  const container = document.getElementById('lead-notes-history');
+  if (!container) return;
+
+  const rawNotes = lead.notas_asesor || lead.notas || '';
+  if (!rawNotes.trim()) {
+    container.innerHTML = '<span style="color:#777; font-size:10px;">Sin notas registradas aún.</span>';
+    return;
+  }
+
+  const lines = rawNotes.split('\n').filter(Boolean);
+  container.innerHTML = lines.map(line => {
+    return `<div class="note-item-bubble">${line}</div>`;
+  }).join('');
 }
 
 async function updateActiveLeadField(field, value) {
@@ -366,31 +587,34 @@ async function updateActiveLeadField(field, value) {
   activeLead[field] = value;
   if (field === 'e_realtor_id') {
     const realtorMap = {
-      'marcos_antezana': 'Marcos Antezana Lenz',
-      'carlos_rodriguez': 'Carlos Rodríguez',
-      'valeria_suarez': 'Valeria Suárez',
-      'andres_montano': 'Andrés Montaño',
-      'lucia_vaca': 'Lucía Vaca',
-      'robert_oliva': 'Robert Oliva'
+      'marcos_antezana': 'Marcos Antezana Lenz (+591 60034649)',
+      'carlos_rodriguez': 'Carlos Rodríguez (Venta de Lujo & Casas)',
+      'valeria_suarez': 'Valeria Suárez (Alquileres & Deptos)',
+      'andres_montano': 'Andrés Montaño (Terrenos & Parque Ind.)',
+      'lucia_vaca': 'Lucía Vaca (Anticréticos & Asesoría Legal)',
+      'robert_oliva': 'Robert Oliva (Master Broker / Inversión VIP)'
     };
     activeLead.e_realtor_asignado = realtorMap[value] || value;
   }
 
   renderLeadsList();
   renderKanbanBoard();
+  showToast('Actualizado ✓', true);
 
+  // Sync en paralelo con Render y SiteGround
   try {
-    await fetch(`${BACKEND_URL}/api/whatsapp/leads/${activeLead.id}?key=${ADMIN_KEY}`, {
+    fetch(`${BACKEND_URL}/api/whatsapp/leads/${activeLead.id}?key=${ADMIN_KEY}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': ADMIN_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
       body: JSON.stringify({ [field]: value })
-    });
-  } catch (err) {
-    console.warn('[Realty ONE CRM] Error al actualizar lead:', err.message);
-  }
+    }).catch(() => {});
+
+    fetch(`${SITEGROUND_URL}/save_leads_sync.php?key=${ADMIN_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allLeads)
+    }).catch(() => {});
+  } catch (_) {}
 }
 
 async function saveQuickNote() {
@@ -405,31 +629,35 @@ async function saveQuickNote() {
     await createLeadFromActiveContact({ notas_asesor: note });
     input.value = '';
     btn.textContent = '¡Registrado! ✓';
-    setTimeout(() => { btn.textContent = 'Guardar'; }, 1500);
+    setTimeout(() => { btn.textContent = 'Guardar'; }, 1400);
+    showToast('Prospecto registrado en el CRM', true);
     return;
   }
 
   const existingNotes = activeLead.notas_asesor || activeLead.notas || '';
-  const dateTag = new Date().toLocaleDateString();
+  const dateTag = new Date().toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const newNotes = existingNotes ? `${existingNotes}\n[${dateTag}] ${note}` : `[${dateTag}] ${note}`;
   activeLead.notas_asesor = newNotes;
 
+  renderLeadNotesHistory(activeLead);
+  input.value = '';
+  btn.textContent = '¡Listo! ✓';
+  setTimeout(() => { btn.textContent = 'Guardar'; }, 1400);
+  showToast('Nota guardada con éxito', true);
+
   try {
-    await fetch(`${BACKEND_URL}/api/whatsapp/leads/${activeLead.id}?key=${ADMIN_KEY}`, {
+    fetch(`${BACKEND_URL}/api/whatsapp/leads/${activeLead.id}?key=${ADMIN_KEY}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': ADMIN_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
       body: JSON.stringify({ notas_asesor: newNotes })
-    });
-    input.value = '';
-    btn.textContent = '¡Listo! ✓';
-    setTimeout(() => { btn.textContent = 'Guardar'; }, 1500);
-  } catch (err) {
-    btn.textContent = 'Error';
-    setTimeout(() => { btn.textContent = 'Guardar'; }, 1500);
-  }
+    }).catch(() => {});
+
+    fetch(`${SITEGROUND_URL}/save_leads_sync.php?key=${ADMIN_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allLeads)
+    }).catch(() => {});
+  } catch (_) {}
 }
 
 async function createLeadFromActiveContact(extraFields = {}) {
@@ -439,11 +667,11 @@ async function createLeadFromActiveContact(extraFields = {}) {
     id: `lead_${Date.now()}_ext`,
     cliente_nombre: activeContactData.name || 'Prospecto WhatsApp',
     numero_celular: activeContactData.phone || '',
-    canal_origen: 'WhatsApp Web Panel',
+    canal_origen: 'WhatsApp Web Extension',
     prioridad: document.getElementById('lead-priority').value || 'POTENCIAL',
     etapa_embudo: document.getElementById('lead-stage').value || 'SOLICITUD',
     e_realtor_id: document.getElementById('lead-realtor').value || 'marcos_antezana',
-    e_realtor_asignado: 'Marcos Antezana Lenz',
+    e_realtor_asignado: 'Marcos Antezana Lenz (+591 60034649)',
     fecha_creacion: new Date().toISOString(),
     ...extraFields
   };
@@ -453,19 +681,68 @@ async function createLeadFromActiveContact(extraFields = {}) {
   renderLeadsList();
   renderKanbanBoard();
   updateCounters();
+  showToast(`Nuevo prospecto ${newLeadData.cliente_nombre} registrado`, true);
 
   try {
-    await fetch(`${BACKEND_URL}/api/whatsapp/leads?key=${ADMIN_KEY}`, {
+    fetch(`${BACKEND_URL}/api/whatsapp/leads?key=${ADMIN_KEY}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-admin-key': ADMIN_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
       body: JSON.stringify(newLeadData)
-    });
-  } catch (err) {
-    console.warn('[Realty ONE CRM] Error guardando nuevo lead:', err.message);
+    }).catch(() => {});
+
+    fetch(`${SITEGROUND_URL}/save_leads_sync.php?key=${ADMIN_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allLeads)
+    }).catch(() => {});
+  } catch (_) {}
+}
+
+// ─── ELIMINAR PROSPECTO CON CONFIRMACIÓN ───────────────────────────────────
+async function deleteLead(leadId, clientName = '') {
+  if (!leadId) return;
+
+  const displayName = clientName || 'este prospecto';
+  if (!confirm(`¿Estás seguro de eliminar a "${displayName}" del CRM? Esta acción no se puede deshacer.`)) {
+    return;
   }
+
+  const targetId = String(leadId);
+  const targetLead = allLeads.find(l => String(l.id) === targetId);
+  const targetPhone = targetLead ? (targetLead.numero_celular || targetLead.telefono || '') : '';
+
+  // Eliminar en memoria local
+  allLeads = allLeads.filter(l => String(l.id) !== targetId);
+  if (activeLead && String(activeLead.id) === targetId) {
+    activeLead = null;
+    document.getElementById('active-lead-controls').classList.add('hidden');
+    document.getElementById('active-lead-action-bar').classList.add('hidden');
+    document.getElementById('no-contact-msg').style.display = 'flex';
+  }
+
+  renderLeadsList();
+  renderKanbanBoard();
+  updateCounters();
+
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ [CACHE_KEY]: allLeads });
+  }
+
+  showToast(`🗑️ "${displayName}" eliminado del CRM`, true);
+
+  // Sincronizar eliminación en Render y SiteGround
+  try {
+    fetch(`${BACKEND_URL}/api/whatsapp/leads/${encodeURIComponent(targetId)}?key=${ADMIN_KEY}`, {
+      method: 'DELETE',
+      headers: { 'x-admin-key': ADMIN_KEY }
+    }).catch(() => {});
+
+    fetch(`${SITEGROUND_URL}/delete_lead.php?id=${encodeURIComponent(targetId)}&phone=${encodeURIComponent(targetPhone)}&key=${ADMIN_KEY}&t=${Date.now()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+      body: JSON.stringify({ id: targetId, phone: targetPhone, all_leads: allLeads })
+    }).catch(() => {});
+  } catch (_) {}
 }
 
 // ─── TABLERO KANBAN (DRAG & DROP) ──────────────────────────────────────────
@@ -502,19 +779,21 @@ function initKanbanDragAndDrop() {
         renderKanbanBoard();
         renderLeadsList();
         updateCounters();
+        showToast(`Movido a ${formatStage(targetStage)}`, true);
 
         try {
-          await fetch(`${BACKEND_URL}/api/whatsapp/leads/${lead.id}?key=${ADMIN_KEY}`, {
+          fetch(`${BACKEND_URL}/api/whatsapp/leads/${lead.id}?key=${ADMIN_KEY}`, {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-admin-key': ADMIN_KEY
-            },
+            headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
             body: JSON.stringify({ etapa_embudo: targetStage })
-          });
-        } catch (err) {
-          console.warn('[Kanban] Error actualizando etapa:', err);
-        }
+          }).catch(() => {});
+
+          fetch(`${SITEGROUND_URL}/save_leads_sync.php?key=${ADMIN_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(allLeads)
+          }).catch(() => {});
+        } catch (_) {}
       }
     });
   });
@@ -525,12 +804,20 @@ function renderKanbanBoard() {
   let hotCount = 0;
 
   let filtered = allLeads;
+
+  // Filtro por prioridad
+  if (currentKanbanFilter !== 'ALL') {
+    filtered = filtered.filter(l => (l.prioridad || '').toUpperCase() === currentKanbanFilter);
+  }
+
+  // Búsqueda en Kanban
   if (currentKanbanSearch) {
     filtered = filtered.filter(l => {
       const name = (l.cliente_nombre || l.nombre || l.cliente || '').toLowerCase();
       const phone = (l.numero_celular || l.telefono || '').toLowerCase();
       const zone = (l.zona_interes || l.tipo_interes || '').toLowerCase();
-      return name.includes(currentKanbanSearch) || phone.includes(currentKanbanSearch) || zone.includes(currentKanbanSearch);
+      const realtor = (l.e_realtor_asignado || '').toLowerCase();
+      return name.includes(currentKanbanSearch) || phone.includes(currentKanbanSearch) || zone.includes(currentKanbanSearch) || realtor.includes(currentKanbanSearch);
     });
   }
 
@@ -552,9 +839,10 @@ function renderKanbanBoard() {
 
     const name = lead.cliente_nombre || lead.nombre || lead.cliente || 'Sin Nombre';
     const phone = lead.numero_celular || lead.telefono || '';
-    const realtor = lead.e_realtor_asignado || lead.agente_nombre || 'Marcos Antezana Lenz';
+    const realtor = lead.e_realtor_asignado || lead.agente_nombre || 'Marcos Antezana';
     const zone = lead.zona_interes || lead.tipo_interes || '';
     const budget = lead.presupuesto || '';
+    const initials = getInitials(name);
 
     const card = document.createElement('div');
     card.className = 'kanban-card';
@@ -563,16 +851,22 @@ function renderKanbanBoard() {
 
     card.innerHTML = `
       <div class="kc-top">
-        <span class="kc-name" title="${name}">${name}</span>
+        <div class="kc-client-group">
+          <span class="kc-avatar">${initials}</span>
+          <span class="kc-name" title="${name}">${name}</span>
+        </div>
         <span class="lead-priority ${priority}">${formatPriorityBadge(priority)}</span>
       </div>
       <div class="kc-mid">
-        ${phone ? `<a class="kc-phone-btn" href="https://web.whatsapp.com/send?phone=${phone.replace(/[^0-9]/g, '')}" target="_top" title="Abrir chat en WhatsApp">💬 ${phone}</a>` : '<span>Sin Teléfono</span>'}
+        ${phone ? `<a class="kc-phone-btn" href="https://web.whatsapp.com/send?phone=${phone.replace(/[^0-9]/g, '')}" target="_top" title="Abrir chat en WhatsApp">💬 ${phone}</a>` : '<span style="font-size:10px; color:#666;">Sin Teléfono</span>'}
         ${budget ? `<span class="budget-tag">${budget}</span>` : ''}
       </div>
       <div class="kc-bottom">
         <span class="kc-realtor" title="${realtor}">👤 ${realtor}</span>
-        ${zone ? `<span class="kc-zone" title="${zone}">📍 ${zone}</span>` : ''}
+        <div class="kc-actions">
+          ${zone ? `<span class="zone-tag" title="${zone}">📍 ${zone}</span>` : ''}
+          <button class="kc-btn-del" title="Eliminar este lead" data-id="${lead.id}">🗑️</button>
+        </div>
       </div>
     `;
 
@@ -585,15 +879,32 @@ function renderKanbanBoard() {
       card.classList.remove('dragging');
     });
 
+    // Clic en botón eliminar de la tarjeta
+    const delBtn = card.querySelector('.kc-btn-del');
+    if (delBtn) {
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteLead(lead.id, name);
+      });
+    }
+
     // Clic en tarjeta selecciona el lead para edición
     card.addEventListener('click', (e) => {
-      if (e.target.tagName.toLowerCase() === 'a') return;
+      if (e.target.tagName.toLowerCase() === 'a' || e.target.classList.contains('kc-btn-del')) return;
       activeLead = lead;
       handleActiveContactFromWA(name, phone);
       switchTab('lead');
     });
 
     container.appendChild(card);
+  });
+
+  // Mostrar mensaje vacío si la columna no tiene tarjetas
+  STAGES.forEach(s => {
+    const el = document.querySelector(`.col-cards[data-stage="${s}"]`);
+    if (el && el.children.length === 0) {
+      el.innerHTML = '<div style="text-align:center; padding:18px 8px; color:#555; font-size:10px;">Sin tarjetas en esta etapa</div>';
+    }
   });
 
   // Actualizar contadores de cabecera de columnas
@@ -604,8 +915,10 @@ function renderKanbanBoard() {
 
   const totalEl = document.getElementById('kanban-total-count');
   const hotEl = document.getElementById('kanban-hot-count');
+  const tabKanbanEl = document.getElementById('tab-count-kanban');
   if (totalEl) totalEl.textContent = filtered.length;
   if (hotEl) hotEl.textContent = hotCount;
+  if (tabKanbanEl) tabKanbanEl.textContent = allLeads.length;
 }
 
 // ─── Renderizado de la Lista CRM ───────────────────────────────────────────
@@ -628,9 +941,13 @@ function renderLeadsList() {
       const name = (l.cliente_nombre || l.nombre || l.cliente || '').toLowerCase();
       const phone = (l.numero_celular || l.telefono || '').toLowerCase();
       const zone = (l.zona_interes || l.tipo_interes || '').toLowerCase();
-      return name.includes(currentSearch) || phone.includes(currentSearch) || zone.includes(currentSearch);
+      const realtor = (l.e_realtor_asignado || '').toLowerCase();
+      return name.includes(currentSearch) || phone.includes(currentSearch) || zone.includes(currentSearch) || realtor.includes(currentSearch);
     });
   }
+
+  const totalBadge = document.getElementById('pipeline-total-badge');
+  if (totalBadge) totalBadge.textContent = `${filtered.length} Registros`;
 
   if (filtered.length === 0) {
     container.innerHTML = `
@@ -647,13 +964,17 @@ function renderLeadsList() {
     const phone = lead.numero_celular || lead.telefono || lead.telefono_cliente || '';
     const priority = (lead.prioridad || 'INDECISO').toUpperCase();
     const stage = formatStage(lead.etapa_embudo || 'SOLICITUD');
-    const realtor = lead.e_realtor_asignado || lead.agente_nombre || (lead.e_realtor_id === 'marcos_antezana' ? 'Marcos Antezana Lenz' : (lead.e_realtor_id || ''));
+    const realtor = lead.e_realtor_asignado || lead.agente_nombre || 'Marcos Antezana Lenz';
     const zone = lead.zona_interes || lead.tipo_interes || '';
+    const initials = getInitials(name);
 
     return `
       <div class="lead-item ${isSelected ? 'selected' : ''}" data-lead-id="${lead.id}">
         <div class="lead-top">
-          <span class="lead-name" title="${name}">${name}</span>
+          <div class="lead-top-left">
+            <span class="lead-avatar-sm">${initials}</span>
+            <span class="lead-name" title="${name}">${name}</span>
+          </div>
           <span class="lead-priority ${priority}">${formatPriorityBadge(priority)}</span>
         </div>
         <div class="lead-mid">
@@ -676,14 +997,7 @@ function renderLeadsList() {
       const found = allLeads.find(l => String(l.id) === String(leadId));
       if (found) {
         activeLead = found;
-        document.getElementById('active-contact-name').textContent = found.cliente_nombre || found.nombre || found.cliente;
-        document.getElementById('active-contact-phone').textContent = found.numero_celular || found.telefono || '';
-        document.getElementById('lead-stage').value = found.etapa_embudo || 'SOLICITUD';
-        document.getElementById('lead-priority').value = (found.prioridad || 'POTENCIAL').toUpperCase();
-        document.getElementById('lead-realtor').value = found.e_realtor_id || 'marcos_antezana';
-        document.getElementById('active-lead-controls').classList.remove('hidden');
-        document.getElementById('no-contact-msg').style.display = 'none';
-        highlightSelectedLeadItem(found.id);
+        handleActiveContactFromWA(found.cliente_nombre || found.nombre, found.numero_celular || found.telefono);
       }
     });
   });
@@ -718,40 +1032,31 @@ function formatStage(stage) {
   return map[stage] || stage;
 }
 
-function formatPriorityBadge(prioridad) {
+function formatPriorityBadge(prio) {
   const map = {
-    'POTENCIAL': '🔥 ALTA',
-    'INDECISO': '⚡ MEDIA',
-    'PASIVO': '❄️ BAJA',
-    'PROPIETARIO': '💼 CAPTACIÓN'
+    'POTENCIAL': '🔥 Alta',
+    'INDECISO': '⚡ Media',
+    'PASIVO': '❄️ Baja',
+    'PROPIETARIO': '💼 Captación'
   };
-  return map[prioridad] || prioridad;
+  return map[prio] || prio;
 }
 
-// ─── RECORDATORIOS & AGENDA (FOLLOW-UP) ────────────────────────────────────
+// ─── RECORDATORIOS Y AGENDA ────────────────────────────────────────────────
 function loadReminders() {
   if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
     chrome.storage.local.get([REMINDERS_KEY], (res) => {
-      if (res[REMINDERS_KEY] && Array.isArray(res[REMINDERS_KEY])) {
+      if (res && res[REMINDERS_KEY] && Array.isArray(res[REMINDERS_KEY])) {
         allReminders = res[REMINDERS_KEY];
       } else {
-        // Semilla por defecto con los prospectos activos
         allReminders = [
           {
-            id: 'rem-1',
-            cliente: 'Carla Bruun',
-            telefono: '+591 77397850',
-            fecha: new Date().toISOString().split('T')[0],
-            hora: '16:00',
-            nota: 'Confirmar visita a Casa de Lujo en Urubó con Marcos Antezana'
-          },
-          {
-            id: 'rem-2',
+            id: 'rem_1',
             cliente: 'Robert Oliva',
             telefono: '+591 79878853',
             fecha: new Date(Date.now() + 86400000).toISOString().split('T')[0],
             hora: '10:30',
-            nota: 'Enviar ficha técnica de Lote Mar Adentro'
+            nota: 'Confirmar visita presencial a Lote en Condominio Mar Adentro'
           }
         ];
       }
@@ -788,16 +1093,28 @@ function saveReminder() {
 
   noteInput.value = '';
   renderRemindersList();
+  showToast('📅 Cita guardada en tu Agenda', true);
 
   const btn = document.getElementById('btn-save-reminder');
-  btn.textContent = '¡Recordatorio Agendado! ✓';
-  setTimeout(() => { btn.textContent = '📅 Guardar Recordatorio'; }, 1500);
+  btn.textContent = '¡Cita Agendada! ✓';
+  setTimeout(() => { btn.textContent = '📅 Guardar Recordatorio en Agenda'; }, 1500);
+}
+
+function deleteReminder(remId) {
+  allReminders = allReminders.filter(r => r.id !== remId);
+  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+    chrome.storage.local.set({ [REMINDERS_KEY]: allReminders });
+  }
+  renderRemindersList();
+  showToast('Cita eliminada', true);
 }
 
 function renderRemindersList() {
   const container = document.getElementById('reminders-list');
   const countBadge = document.getElementById('reminders-count');
+  const counterSub = document.getElementById('reminders-list-counter');
   if (countBadge) countBadge.textContent = allReminders.length;
+  if (counterSub) counterSub.textContent = `${allReminders.length} citas`;
   if (!container) return;
 
   if (allReminders.length === 0) {
@@ -814,19 +1131,42 @@ function renderRemindersList() {
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
           <span class="rem-time-tag">📅 ${rem.fecha} ${rem.hora}</span>
-          ${rem.telefono ? `<button class="chip-btn" onclick="window.parent.postMessage({type:'ROG_INSERT_WHATSAPP_CHAT', text:'Hola ${rem.cliente}, le escribo para confirmar nuestro horario coordinado para hoy.'}, '*')" style="font-size:9.5px; padding:2px 6px;">💬 Escribir</button>` : ''}
+          <div style="display:flex; gap:4px; align-items:center;">
+            ${rem.telefono ? `<button class="chip-btn" onclick="copyAndInsertText('Hola ${rem.cliente}, le escribo de Realty ONE Group para confirmar nuestra visita coordinada.', this)" style="font-size:9.5px; padding:2px 7px;">💬 Escribir</button>` : ''}
+            <button class="kc-btn-del" onclick="deleteReminder('${rem.id}')" title="Eliminar recordatorio">✕</button>
+          </div>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// ─── PLANTILLAS AMPLIADAS ──────────────────────────────────────────────────
+// ─── PLANTILLAS AMPLIADAS & FILTRADO ────────────────────────────────────────
 function renderTemplatesFullGrid() {
   const container = document.getElementById('templates-full-grid');
   if (!container) return;
 
-  container.innerHTML = TEMPLATES_CATALOG.map(t => {
+  let filtered = TEMPLATES_CATALOG;
+
+  if (currentTemplateCategory !== 'TODAS') {
+    filtered = filtered.filter(t => t.categoria === currentTemplateCategory);
+  }
+
+  if (currentTemplateSearch) {
+    filtered = filtered.filter(t => {
+      const tit = t.titulo.toLowerCase();
+      const txt = t.texto.toLowerCase();
+      const cat = t.categoria.toLowerCase();
+      return tit.includes(currentTemplateSearch) || txt.includes(currentTemplateSearch) || cat.includes(currentTemplateSearch);
+    });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state">No hay plantillas para "${currentTemplateSearch}".</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(t => {
     return `
       <div class="template-card">
         <div class="template-card-header">
@@ -836,7 +1176,7 @@ function renderTemplatesFullGrid() {
         <div class="template-card-text">${t.texto}</div>
         <div class="template-card-actions">
           <button class="chip-btn" data-text="${encodeURIComponent(t.texto)}" onclick="copyDirectText(decodeURIComponent(this.dataset.text), this)">📋 Copiar</button>
-          <button class="btn-template-insert" data-text="${encodeURIComponent(t.texto)}" onclick="insertDirectText(decodeURIComponent(this.dataset.text), this)">⚡ Pegar en WhatsApp</button>
+          <button class="btn-template-insert" data-text="${encodeURIComponent(t.texto)}" onclick="copyAndInsertText(decodeURIComponent(this.dataset.text), this)">⚡ Pegar en WhatsApp</button>
         </div>
       </div>
     `;
@@ -848,12 +1188,9 @@ function copyDirectText(text, btn) {
     navigator.clipboard.writeText(text);
     const orig = btn.textContent;
     btn.textContent = '¡Copiado! ✓';
+    showToast('Texto copiado al portapapeles', true);
     setTimeout(() => { btn.textContent = orig; }, 1200);
   } catch (_) {}
-}
-
-function insertDirectText(text, btn) {
-  copyAndInsertText(text, btn);
 }
 
 // ─── DIFUSIÓN MASIVA SEGMENTADA ────────────────────────────────────────────
@@ -871,6 +1208,8 @@ function renderBroadcastQueue() {
     targets = targets.filter(l => (l.etapa_embudo || '').toUpperCase() === 'VISITA_AGENDADA');
   } else if (targetFilter === 'SOLICITUD') {
     targets = targets.filter(l => (l.etapa_embudo || '').toUpperCase() === 'SOLICITUD');
+  } else if (targetFilter === 'PROPIETARIO') {
+    targets = targets.filter(l => (l.prioridad || '').toUpperCase() === 'PROPIETARIO');
   }
 
   if (countEl) countEl.textContent = `${targets.length} contactos listos para difusión`;
@@ -931,6 +1270,8 @@ function copyAndInsertText(text, chipElement) {
     }, '*');
   } catch (e) {}
 
+  showToast('¡Texto insertado en WhatsApp! ✓', true);
+
   if (chipElement) {
     const orig = chipElement.textContent;
     chipElement.textContent = '¡Copiado! ✓';
@@ -942,6 +1283,25 @@ function copyAndInsertText(text, chipElement) {
       chipElement.style.color = '';
     }, 1400);
   }
+}
+
+// ─── Toast Modal de Notificación ───────────────────────────────────────────
+let toastTimer = null;
+function showToast(message, isSuccess = true) {
+  const toast = document.getElementById('crm-toast');
+  const msgEl = document.getElementById('toast-message');
+  const iconEl = document.getElementById('toast-icon');
+  if (!toast || !msgEl) return;
+
+  msgEl.textContent = message;
+  if (iconEl) iconEl.textContent = isSuccess ? '✓' : 'ℹ️';
+
+  toast.classList.remove('hidden');
+
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 2200);
 }
 
 // ─── Exportar a Excel (.xls) ───────────────────────────────────────────────
@@ -1025,6 +1385,7 @@ function exportToExcel() {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  showToast('📊 Archivo Excel descargado con éxito', true);
 }
 
 function escapeXml(str) {

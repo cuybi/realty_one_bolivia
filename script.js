@@ -232,22 +232,36 @@ async function persistCMSData() {
 
 let FILTRO_BUSQUEDA = { tab: 'todos', tipo: 'todos', ubicacion: '', precio: 0 };
 
+function getPropCategory(p) {
+    if (!p) return 'otro';
+    if (p.categoria) return p.categoria.toLowerCase();
+    const text = `${p.titulo || ''} ${p.descripcion_larga || ''} ${p.tipo || ''}`.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (/mansion|casa|chalet|villa|residencia|duplex/.test(text)) return 'casa';
+    if (/departamento|dpto|penthouse|studio|monoambiente|loft/.test(text)) return 'departamento';
+    if (/terreno|lote|hacienda|urbanizado/.test(text)) return 'terreno';
+    if (/oficina|local|comercial|industrial|galpon/.test(text)) return 'comercial';
+    return 'otro';
+}
+
 function switchTab(el, type) {
     document.querySelectorAll('.search-tabs .tab').forEach(t => t.classList.remove('active'));
-    el.classList.add('active');
+    if (el) el.classList.add('active');
     FILTRO_BUSQUEDA.tab = type;
 }
 
 function applyFilters() {
     const tipo = document.getElementById('search-type')?.value || 'todos';
-    const ubicacion = document.getElementById('search-location')?.value || '';
-    const precio = document.getElementById('search-price')?.value || 0;
+    const ubicacion = (document.getElementById('search-location')?.value || '').trim();
+    const precio = parseInt(document.getElementById('search-price')?.value) || 0;
     
-    // Si estamos en index.html, redirigimos a buscar.html con los parámetros
+    // Si estamos en index.html, redirigimos a buscar.html con los parámetros limpios y sincronizados
     if (window.location.pathname.includes('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/')) {
         const params = new URLSearchParams();
-        if (FILTRO_BUSQUEDA.tab !== 'todos') params.set('tab', FILTRO_BUSQUEDA.tab);
-        if (tipo !== 'todos') params.set('type', tipo);
+        if (FILTRO_BUSQUEDA.tab && FILTRO_BUSQUEDA.tab !== 'todos') params.set('tab', FILTRO_BUSQUEDA.tab);
+        if (tipo && tipo !== 'todos') {
+            params.set('categoria', tipo);
+            params.set('type', tipo);
+        }
         if (ubicacion !== '') params.set('loc', ubicacion);
         if (precio > 0) params.set('price', precio);
         
@@ -257,7 +271,7 @@ function applyFilters() {
 
     FILTRO_BUSQUEDA.tipo = tipo;
     FILTRO_BUSQUEDA.ubicacion = ubicacion.toLowerCase();
-    FILTRO_BUSQUEDA.precio = parseInt(precio) || 0;
+    FILTRO_BUSQUEDA.precio = precio;
     renderProperties();
     const propSection = document.getElementById('propiedades');
     if (propSection) window.scrollTo({ top: propSection.offsetTop - 80, behavior: 'smooth' });
@@ -415,7 +429,7 @@ function renderProperties() {
     const container = document.getElementById('property-container');
     if (!container) return;
     const path = window.location.pathname.toLowerCase();
-    const normalizeStr = (str) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const normalizeStr = (str) => (str || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     let lista = MIS_PROPIEDADES;
 
     if (path.includes('venta.html')) lista = MIS_PROPIEDADES.filter(p => normalizeStr(p.tipo).includes('venta'));
@@ -423,15 +437,33 @@ function renderProperties() {
     else if (path.includes('anticretico.html')) lista = MIS_PROPIEDADES.filter(p => normalizeStr(p.tipo).includes('anticretico'));
     else if (path.includes('terrenos.html') || path.includes('terreno.html')) lista = MIS_PROPIEDADES.filter(p => normalizeStr(p.tipo).includes('terreno'));
     else {
-        if (FILTRO_BUSQUEDA.tab !== 'todos') lista = lista.filter(p => normalizeStr(p.tipo).includes(FILTRO_BUSQUEDA.tab));
-        if (FILTRO_BUSQUEDA.tipo !== 'todos') lista = lista.filter(p => normalizeStr(p.tipo).includes(normalizeStr(FILTRO_BUSQUEDA.tipo)));
-        if (FILTRO_BUSQUEDA.ubicacion !== '') lista = lista.filter(p => normalizeStr(p.ubicacion || '').includes(normalizeStr(FILTRO_BUSQUEDA.ubicacion)));
+        if (FILTRO_BUSQUEDA.tab && FILTRO_BUSQUEDA.tab !== 'todos') {
+            lista = lista.filter(p => normalizeStr(p.tipo).includes(normalizeStr(FILTRO_BUSQUEDA.tab)));
+        }
+        if (FILTRO_BUSQUEDA.tipo && FILTRO_BUSQUEDA.tipo !== 'todos') {
+            const targetCat = normalizeStr(FILTRO_BUSQUEDA.tipo);
+            lista = lista.filter(p => getPropCategory(p) === targetCat || normalizeStr(p.tipo).includes(targetCat));
+        }
+        if (FILTRO_BUSQUEDA.ubicacion && FILTRO_BUSQUEDA.ubicacion !== '') {
+            const normLoc = normalizeStr(FILTRO_BUSQUEDA.ubicacion);
+            lista = lista.filter(p => normalizeStr(p.ubicacion || '').includes(normLoc) || normalizeStr(p.titulo || '').includes(normLoc));
+        }
         if (FILTRO_BUSQUEDA.precio > 0) {
             lista = lista.filter(p => {
-                const num = parseInt(p.precio.replace(/[^0-9]/g, ''));
+                const num = parseInt((p.precio || '').replace(/[^0-9]/g, '')) || 0;
                 return num <= FILTRO_BUSQUEDA.precio;
             });
         }
+    }
+
+    if (lista.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #888;">
+                <i class="fas fa-search" style="font-size: 3rem; color: var(--primary-color); margin-bottom: 15px; display: block;"></i>
+                <h3 style="color: #fff; margin-bottom: 8px;">No se encontraron inmuebles con estos criterios</h3>
+                <p style="font-size: 0.9rem;">Prueba cambiando la zona, ajustando el presupuesto o explorando otras categorías.</p>
+            </div>`;
+        return;
     }
 
     container.innerHTML = lista.map((p, index) => {
@@ -2074,10 +2106,50 @@ function copyCode() {
     if (section) section.style.display = 'none';
 }
 
+function initScrollSpy() {
+    const sections = document.querySelectorAll('section[id]');
+    const navLinks = document.querySelectorAll('#nav-menu a[href^="#"]');
+    if (!sections.length || !navLinks.length) return;
+
+    let isScrollingFromClick = false;
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            isScrollingFromClick = true;
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            setTimeout(() => { isScrollingFromClick = false; }, 800);
+        });
+    });
+
+    const observer = new IntersectionObserver((entries) => {
+        if (isScrollingFromClick) return;
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const id = entry.target.getAttribute('id');
+                navLinks.forEach(link => {
+                    const href = link.getAttribute('href');
+                    if (href === `#${id}`) {
+                        navLinks.forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    }, {
+        root: null,
+        rootMargin: '-20% 0px -60% 0px',
+        threshold: 0
+    });
+
+    sections.forEach(sec => observer.observe(sec));
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthSystem();
     await loadFromAPI();
     renderAll();
+    initScrollSpy();
     if (typeof AOS !== 'undefined') AOS.init({ duration: 1000, once: true });
 });
 
@@ -2128,14 +2200,10 @@ if (navMenu) {
     };
 }
 
-// Manejo de estado activo en el menú
+// Manejo de cierre en el menú móvil
 document.querySelectorAll('#nav-menu a').forEach(link => {
     link.addEventListener('click', function() {
-        document.querySelectorAll('#nav-menu a').forEach(l => l.classList.remove('active'));
-        this.classList.add('active');
-        
-        // Cerrar menú móvil si está abierto
-        if (navMenu.classList.contains('active')) {
+        if (navMenu && navMenu.classList.contains('active')) {
             navMenu.classList.remove('active');
             document.body.style.overflow = '';
             const icon = menuToggle?.querySelector('i');

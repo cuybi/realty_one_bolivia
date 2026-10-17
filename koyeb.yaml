@@ -1,0 +1,27 @@
+# Koyeb Deployment Configuration for Realty ONE Group Bolivia
+name: realty-one-bolivia
+services:
+  - name: bot-server
+    type: web
+    ports:
+      - port: 3000
+        path: /
+    routes:
+      - path: /
+        port: 3000
+    regions:
+      - was
+    scalings:
+      - min: 1
+        max: 1
+    env:
+      - key: PORT
+        value: "3000"
+      - key: TZ
+        value: "America/La_Paz"
+    health_checks:
+      - http:
+          path: /api/health
+          port: 3000
+        interval: 60
+        timeout: 5

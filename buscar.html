@@ -13,7 +13,7 @@
         body { background: #0a0a0a; color: #fff; }
 
         /* HEADER */
-        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(0,0,0,0.95); backdrop-filter: blur(10px); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1a1a1a; }
+        #header { position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(10, 10, 10, 0.72); backdrop-filter: blur(14px) saturate(180%); -webkit-backdrop-filter: blur(14px) saturate(180%); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(199, 170, 94, 0.3); }
         #header .logo img { max-height: 45px; }
         #header nav ul { list-style: none; display: flex; gap: 25px; }
         #header nav ul li a { color: #ccc; text-decoration: none; font-size: 0.9rem; letter-spacing: 1px; transition: 0.3s; }
@@ -226,11 +226,22 @@
             <div class="filter-group">
                 <label>Tipo de Operación</label>
                 <select id="f-operacion" onchange="applySearchFilters()">
-                    <option value="">Todas</option>
+                    <option value="">Todas las operaciones</option>
                     <option value="venta">Venta</option>
                     <option value="alquiler">Alquiler</option>
                     <option value="anticretico">Anticrético</option>
                     <option value="terreno">Terreno</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Tipo de Inmueble</label>
+                <select id="f-categoria" onchange="applySearchFilters()">
+                    <option value="">Todos los inmuebles</option>
+                    <option value="casa">Casa / Residencia</option>
+                    <option value="departamento">Departamento / Penthouse</option>
+                    <option value="terreno">Terreno / Lote</option>
+                    <option value="comercial">Comercial / Oficina</option>
                 </select>
             </div>
 
@@ -259,6 +270,11 @@
                     <option value="2">2+</option>
                     <option value="3">3+</option>
                 </select>
+            </div>
+
+            <div class="filter-group">
+                <label>Presupuesto Máx. ($US)</label>
+                <input type="number" id="f-precio-max" placeholder="Sin límite" min="0" step="5000" oninput="applySearchFilters()">
             </div>
 
             <div class="filter-group">
@@ -334,21 +350,29 @@
         }
 
         function applySearchFilters() {
-            const operacion = document.getElementById('f-operacion').value;
-            const ubicacion = normalizeStr(document.getElementById('f-ubicacion').value);
-            const minHab = parseInt(document.getElementById('f-habitaciones').value) || 0;
-            const minBan = parseInt(document.getElementById('f-banos').value) || 0;
-            const orden = document.getElementById('f-orden').value;
+            const operacion = (document.getElementById('f-operacion')?.value || '').toLowerCase();
+            const categoria = (document.getElementById('f-categoria')?.value || '').toLowerCase();
+            const ubicacion = normalizeStr(document.getElementById('f-ubicacion')?.value);
+            const minHab = parseInt(document.getElementById('f-habitaciones')?.value) || 0;
+            const minBan = parseInt(document.getElementById('f-banos')?.value) || 0;
+            const orden = document.getElementById('f-orden')?.value || 'reciente';
+            const precioMaxInput = parseInt(document.getElementById('f-precio-max')?.value) || 0;
+            const maxPrice = precioMaxInput > 0 ? precioMaxInput : (window._maxPriceFromUrl || 0);
 
             let lista = [...MIS_PROPIEDADES];
 
             if (operacion) lista = lista.filter(p => normalizeStr(p.tipo).includes(operacion));
-            if (ubicacion) lista = lista.filter(p => normalizeStr(p.ubicacion).includes(ubicacion));
-            if (minHab > 0) lista = lista.filter(p => p.habitaciones >= minHab);
-            if (minBan > 0) lista = lista.filter(p => p.banos >= minBan);
-            // Aplicar precio máximo si viene de index.html
-            if (window._maxPriceFromUrl > 0) {
-                lista = lista.filter(p => parsePrecio(p.precio) <= window._maxPriceFromUrl);
+            if (categoria) {
+                lista = lista.filter(p => {
+                    const cat = (typeof getPropCategory === 'function') ? getPropCategory(p) : '';
+                    return cat === categoria || normalizeStr(p.tipo).includes(categoria);
+                });
+            }
+            if (ubicacion) lista = lista.filter(p => normalizeStr(p.ubicacion).includes(ubicacion) || normalizeStr(p.titulo).includes(ubicacion));
+            if (minHab > 0) lista = lista.filter(p => (p.habitaciones || 0) >= minHab);
+            if (minBan > 0) lista = lista.filter(p => (p.banos || 0) >= minBan);
+            if (maxPrice > 0) {
+                lista = lista.filter(p => parsePrecio(p.precio) <= maxPrice);
             }
 
             if (orden === 'precio-asc') lista.sort((a, b) => parsePrecio(a.precio) - parsePrecio(b.precio));
@@ -359,10 +383,15 @@
 
         function clearFilters() {
             document.getElementById('f-operacion').value = '';
+            const catEl = document.getElementById('f-categoria');
+            if (catEl) catEl.value = '';
             document.getElementById('f-ubicacion').value = '';
             document.getElementById('f-habitaciones').value = '0';
             document.getElementById('f-banos').value = '0';
             document.getElementById('f-orden').value = 'reciente';
+            const pMax = document.getElementById('f-precio-max');
+            if (pMax) pMax.value = '';
+            window._maxPriceFromUrl = 0;
             quickFilterVal = 'todos';
             document.querySelectorAll('.quick-filter-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.quick-filter-btn')[0].classList.add('active');
@@ -434,19 +463,43 @@
                 if (waLink) waLink.href = `https://wa.me/${num}`;
             }
 
-            // Manejar parámetros de URL si vienen de index.html
+            // Manejar parámetros de URL si vienen de index.html u otra página
             const params = new URLSearchParams(window.location.search);
-            if (params.get('tab')) {
-                const tab = params.get('tab');
-                const btn = Array.from(document.querySelectorAll('.quick-filter-btn')).find(b => b.textContent.toLowerCase().includes(tab));
-                if (btn) setQuickFilter(tab, btn);
+            
+            // 1. Tab / Operación
+            const opParam = params.get('tab') || params.get('operacion');
+            if (opParam && opParam !== 'todos') {
+                const opEl = document.getElementById('f-operacion');
+                if (opEl) opEl.value = opParam.toLowerCase();
+                const btn = Array.from(document.querySelectorAll('.quick-filter-btn')).find(b => b.textContent.toLowerCase().includes(opParam.toLowerCase()));
+                if (btn) {
+                    document.querySelectorAll('.quick-filter-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    quickFilterVal = opParam.toLowerCase();
+                }
             }
-            if (params.get('type')) document.getElementById('f-operacion').value = params.get('type');
-            if (params.get('loc')) document.getElementById('f-ubicacion').value = params.get('loc');
-            // Leer filtro de precio máximo enviado desde index.html
-            if (params.get('price') && parseInt(params.get('price')) > 0) {
-                // Se aplica en el filtrado local como precio máximo
-                window._maxPriceFromUrl = parseInt(params.get('price'));
+
+            // 2. Categoría / Tipo de Inmueble
+            const catParam = params.get('categoria') || (params.get('type') && !['venta','alquiler','anticretico','terreno'].includes(params.get('type').toLowerCase()) ? params.get('type') : null);
+            if (catParam && catParam !== 'todos') {
+                const catEl = document.getElementById('f-categoria');
+                if (catEl) catEl.value = catParam.toLowerCase();
+            }
+
+            // 3. Ubicación
+            const locParam = params.get('loc') || params.get('ubicacion');
+            if (locParam) {
+                const locEl = document.getElementById('f-ubicacion');
+                if (locEl) locEl.value = locParam;
+            }
+
+            // 4. Presupuesto Máximo
+            const priceParam = params.get('price') || params.get('precio_max') || params.get('precio');
+            if (priceParam && parseInt(priceParam) > 0) {
+                const pVal = parseInt(priceParam);
+                window._maxPriceFromUrl = pVal;
+                const pMaxEl = document.getElementById('f-precio-max');
+                if (pMaxEl) pMaxEl.value = pVal;
             }
 
             applySearchFilters();

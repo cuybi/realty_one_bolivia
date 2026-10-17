@@ -252,3 +252,68 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
   - backend/test_user_screenshots.js: 11/11 casos pasados al 100% (Westgate Tower, Buenavista 217 Has, Depto 4D, crédito, permutas, expensas).
   - backend/test_campaign_bot.js: 100% validado para Mar Adentro y G77.
   - backend/test_lead_classifier.js: 5/5 pasadas (Lead scoring, desglose temporal, exportación Excel y CSV).
+
+---
+
+## 📌 6. Sesión del 13 de Octubre, 2026: Modernización Visual y Funcional del CRM Extensión (v1.2.5)
+
+### 6.1. Solicitud y Requerimiento
+- **Objetivo:** Mejorar integralmente el diseño visual y las funcionalidades del panel CRM en WhatsApp Web: Tablero Kanban Drag & Drop, Ficha de Lead Activo, Agenda de Seguimiento, Catálogo Ampliado de Respuestas Rápidas y Sincronización Resiliente Multicapa.
+
+### 6.2. Mejoras Visuales Implementadas (Luxury Dark & Gold Theme)
+- **Tipografía Premium:** Incorporación de fuentes Google Fonts oficiales `Outfit` (titulares y jerarquía) y `Montserrat` (texto limpio y números legibles).
+- **Paleta de Colores Exclusiva Realty ONE Group:**
+  - Fondo Obsidian Dark Glass con acentos dorados (`#CAA65E`, `#D4AF37`, `#F3CF55`).
+  - Micro-animaciones en tarjetas, botones y píldoras interactivas.
+  - Indicador de estado en tiempo real con punto de pulso esmeralda (En Línea 🟢 / Local 💻 / SiteGround ☁️).
+  - Scrollbars doradas sutiles y elegantes adaptadas al sidebar.
+
+### 6.3. Mejoras Funcionales Implementadas
+1. **Tablero Kanban con Eliminación Directa:**
+   - 6 columnas por etapas comerciales con Drag & Drop fluido.
+   - Avatares circulares con iniciales automáticas del cliente.
+   - Botón directo de eliminación de prospectos `🗑️` por tarjeta con confirmación modal.
+   - Filtros rápidos por prioridad dentro del propio Kanban (`🔥 Potencial`, `⚡ Indeciso`, `❄️ Pasivo`, `💼 Propietario`).
+2. **Ficha de Lead Activo Ultra-Moderna:**
+   - Tarjeta Glassmorphic Hero con avatar grande, nombre, celular y enlaces rápidos.
+   - Barra de acciones inmediatas: `💬 Chatear en WhatsApp`, `📅 Agendar Visita`, `🗑️ Eliminar Prospecto`.
+   - Selector de e-Realtors asignados actualizado con nombres y teléfonos oficiales.
+   - Historial cronológico de notas en burbujas con fecha/hora en lugar de texto plano.
+3. **Catálogo de Respuestas Rápidas Ampliado (12 Plantillas Especializadas):**
+   - Buscador dinámico en tiempo real por palabras clave (crédito, folio real, visita, precio).
+   - Filtro de pestañas por categoría (`Atención Inicial`, `Visitas`, `Inventario`, `Operación & Legal`, `Financiamiento`, `Negociación`).
+   - Plantillas oficiales añadidas: Mar Adentro, G77 Industrial, Westgate Tower, Folio Real DDRR, Captaciones y Despedida.
+4. **Agenda con Atajos Rápidos:**
+   - Atajos de 1-clic: `Hoy`, `Mañana`, `+2 días`, `En 1 semana`.
+   - Botón de borrado de citas y enlace rápido para escribir en WhatsApp.
+5. **Sincronización Multicapa Resiliente:**
+   - Tier 1: Localhost (1.2s timeout).
+   - Tier 2: Render Cloud (`https://realty-one-bolivia.onrender.com/api/whatsapp/leads?key=ONE2026`).
+   - Tier 3: SiteGround Fallback (`https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php?key=ONE2026`).
+   - Eliminación sincronizada en Render (`DELETE /api/whatsapp/leads/:id`) y SiteGround (`delete_lead.php`).
+   - `manifest.json` y `popup.html` actualizados a versión **v1.2.5**.
+
+---
+
+## 📌 7. Sesión del 16 de Octubre, 2026: Auditoría Adversarial y Rediseño del Portal Web (`index.html` & `buscar.html`)
+
+### 7.1. Solicitud y Requerimiento
+- **Instrucción del Usuario:** `/doubt-driven-development de este proyecto quiero trabajar en la pagina web en especifico, no en el chatbot eso quedo muy bien.`
+- **Premisa de Aislamiento:** Cero alteraciones en el bot de IA (`backend/services/aiAgent.js`, `services/aiAgent.js`, flujos CTWA de Baileys ni Webhook de Facebook). Foco 100% concentrado en la experiencia de usuario y arquitectura de frontend del portal web.
+
+### 7.2. Auditoría Adversarial (Hallazgos Críticos Identificados)
+1. **A1 - Buscador (Lógica de Datos Rota):** En `script.js`, se producía una colisión estructural donde `p.tipo` contiene el tipo de operación ("Venta", "Alquiler", "Anticrético", "Terreno"), pero los selectores de inmueble filtraban `p.tipo.includes(tipo_inmueble)` buscando "Casa", "Departamento" o "Comercial", resultando invariablemente en **0 resultados**.
+2. **A2 - Redirección `index.html` ➔ `buscar.html`:** El hero search de `index.html` enviaba `?tab=venta&type=Casa`, pero `buscar.html` asignaba `type` al select `f-operacion` (que solo admite "venta", "alquiler", "anticretico", "terreno"), perdiendo el filtro de categoría de inmueble.
+3. **A3 - Barra de Navegación (Header):** La clase `active` estaba fijada permanentemente en el elemento `<a href="#nosotros" class="active">`, sin ScrollSpy dinámico que refleje la sección activa del usuario.
+4. **A4 - Transición Header / Topbar:** Jank visual y salto de layout al hacer scroll > 40px en dispositivos móviles y tablets por colisión entre `topbar-hidden` y el drawer del menú móvil.
+5. **A5 - Mojibake en `script.js`:** Presencia de secuencias de caracteres con codificación corrupta en strings en español ("Mansin", "corazn", etc.).
+
+### 7.3. Contrato Técnico y Propuesta Aprobada (`audit_and_design_proposal.md`)
+- **Aislamiento Total:** Chatbot IA y flujos de marketing intocados.
+- **Normalización del Modelo:** Desacople entre `operacion` y `categoria`, con función retrocompatible `getPropCategory(p)`.
+- **Sincronización de Parámetros:** Parámetros URL estándar y bidireccionales (`?operacion=...&categoria=...&ubicacion=...&precio_max=...`).
+- **ScrollSpy Dinámico:** Resaltado reactivo según la posición de scroll del usuario.
+- **Hero & Search Card Gold & Black Luxury:** Tarjeta flotante con glassmorphism de alta fidelidad, pestañas de operación con respuesta visual inmediata y filtros integrados con iconos dorados.
+- **Estado de Aprobación:** Documento `audit_and_design_proposal.md` aprobado formalmente por el usuario para ejecución.
+
+

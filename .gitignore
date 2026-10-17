@@ -34,13 +34,20 @@ desktop.ini
 build/
 dist/
 
-# === Archivos de diagnóstico (no necesarios en producción) ===
+# === Archivos de diagnóstico y temporales ===
 diagnostico.php
 refactor.js
 refactor.py
 build_zip.ps1
 copy_assets.js
 copy_images.js
+check_*.js
+check_*.ps1
+test_*.js
+test_*.html
+update_logo.js
+copy_new_logos.js
+
 # === Python ===
 .venv/
 __pycache__/
@@ -48,3 +55,4 @@ __pycache__/
 
 westgate_brochure.pdf
 *.pdf
+

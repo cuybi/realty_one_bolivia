@@ -27,8 +27,11 @@
         return;
       }
 
-      // 3. Render / localhost: Node Basic Auth cubre la ruta — no se necesita prompt
+      // 3. Node backend (Koyeb / Railway / Fly / Render / localhost): Basic Auth o token cubre la ruta
       if (window.location.hostname.includes('onrender.com') ||
+          window.location.hostname.includes('koyeb.app') ||
+          window.location.hostname.includes('railway.app') ||
+          window.location.hostname.includes('fly.dev') ||
           window.location.hostname === 'localhost' ||
           window.location.hostname === '127.0.0.1') {
         return;
@@ -843,32 +846,16 @@
 
   <header>
     <div class="logo-container">
-      <div style="position:relative; width:42px; height:42px; border-radius:50%; flex-shrink:0; box-shadow:0 0 16px rgba(202,166,94,0.65);">
-        <svg width="42" height="42" viewBox="0 0 1000 1000" style="display:block; border-radius:50%;">
-          <circle cx="500" cy="500" r="500" fill="#CAA65E" />
-          <g fill="#000000">
-            <path fill-rule="evenodd" d="M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z" />
-            <rect x="432" y="362" width="58" height="276" />
-            <polygon points="432,362 490,362 650,638 592,638" />
-            <rect x="592" y="362" width="58" height="276" />
-            <rect x="708" y="362" width="58" height="276" />
-            <rect x="766" y="362" width="110" height="58" />
-            <rect x="766" y="471" width="84" height="58" />
-            <rect x="766" y="580" width="110" height="58" />
-          </g>
-          <polygon points="585,440 658,367 658,396 585,469" fill="#CAA65E" />
-        </svg>
-      </div>
-      <div>
-        <div class="brand-title">REALTY <span>ONE</span> GROUP</div>
-        <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.2px;">BOLIVIA • INGRESO DE LEADS</div>
+      <img src="assets/logo_bolivia.png" alt="Realty ONE Group Itaguazu" style="height: 38px; width: auto; object-fit: contain;">
+      <div style="border-left: 1px solid rgba(212,175,55,0.4); padding-left: 10px;">
+        <div style="font-size:0.72rem; font-weight:700; color:var(--gold-primary); letter-spacing:1.2px;">INGRESO DE LEADS</div>
       </div>
     </div>
     <div class="nav-actions">
       <span class="live-pill" id="liveStatusPill"><i class="fa-solid fa-circle" style="color:#25d366; font-size:0.6rem; animation: pulse 1.5s infinite;"></i> <span>En Vivo (3s)</span></span>
       <button class="btn btn-secondary" onclick="toggleTemplateDrawer()" style="border-color: rgba(212,175,55,0.4); color:var(--gold-primary);" title="Plantillas de Respuestas Rápidas"><i class="fa-solid fa-bolt-lightning"></i> Plantillas 1-Clic</button>
       <button class="btn btn-secondary" onclick="manualRefresh()" style="border-color: rgba(212,175,55,0.4); color:#D4AF37;" title="Recargar lista de prospectos"><i class="fa-solid fa-rotate" id="refreshIcon"></i> Actualizar</button>
-      <a href="https://realty-one-bolivia.onrender.com/ingreso_leads.html?key=ONE2026" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
+      <a href="ingreso_leads.html?key=ONE2026" target="_blank" class="btn btn-secondary"><i class="fa-solid fa-house"></i> Portal</a>
       <a href="publicidades.html" class="btn btn-secondary"><i class="fa-solid fa-bullhorn"></i> Campañas Ads</a>
       <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-brands fa-whatsapp"></i> Conectar QR</a>
       <button class="btn btn-excel" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> Exportar a Excel (.xlsx)</button>
@@ -1219,7 +1206,14 @@
       }
     ];
 
-    const IS_NODE_BACKEND = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname.includes('onrender.com'));
+    const IS_NODE_BACKEND = (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.includes('koyeb.app') ||
+      window.location.hostname.includes('railway.app') ||
+      window.location.hostname.includes('fly.dev') ||
+      window.location.hostname.includes('onrender.com')
+    );
 
     let allLeads = [];
     let activeLeadId = null;

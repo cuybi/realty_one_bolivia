@@ -1,9 +1,10 @@
-> **Última Actualización:** 09 de Octubre, 2026  
+> **Última Actualización:** 16 de Octubre, 2026  
 > **Plataforma:** Realty ONE Group Bolivia - Portal Web Inmobiliario, Chatbot IA & CRM de e-Realtors  
 > **Enfoque de Mercado:** Santa Cruz de la Sierra, Urubó, Equipetrol, Sirari, Las Palmas, Zona Norte, Parque Industrial G77 (Bolivia)  
 > **Identidad de Marca:** Estética Gold & Black Luxury (Dorado #D4AF37 y Fondo Oscuro #0d0d0d)  
 > **Integración Facebook Ads:** Campañas Click-to-WhatsApp activas de *Terreno Industrial G77 (7.000 m²)* y *Lote Condominio Mar Adentro (450 m²)*.
 > **Motor de IA Conversacional:** Arquitectura Híbrida (`aiAgent.js`): Flujo de Campañas CTWA + Asistente Virtual de Atención al Cliente (5 Estados / 6 Reglas).
+> **Foco Actual:** Modernización y corrección adversarial del Portal Web (`index.html`, `buscar.html`, `script.js`, `styles.css`) manteniendo el chatbot 100% blindado e intocado.
 
 ---
 
@@ -392,3 +393,35 @@ Implementada en `aiAgent.js` (`backend/` y `services/`):
   2. Ordenamiento reactivo por `ultima_actividad` o `fecha_creacion` más reciente en cada intervalo de 2.5s.
   3. Respaldo directo a SiteGround si la API primaria tuviera interrupciones.
   4. Carga verificada de **23 prospectos** en vivo, con actividad reciente (`Marcos`, 17:17, Visita Agendada) encabezando la lista.
+
+---
+
+## 16. Auditoría Adversarial y Modernización del Portal Web (16 de Octubre, 2026)
+
+### 16.1. Alcance y Compromiso de Blindaje
+- **Requerimiento:** Modernización y corrección integral del portal web (`index.html`, `buscar.html`, `script.js`, `styles.css`) bajo la metodología `/doubt-driven-development`.
+- **Aislamiento Categórico:** Queda expresamente blindado el Chatbot IA (`backend/services/aiAgent.js`, `services/aiAgent.js`, etc.) y flujos CTWA.
+
+### 16.2. Defectos Adversariales Críticos Aprobados para Corrección
+1. **Lógica de Filtrado de Inmuebles Rota (`script.js`):** Confusión entre `operacion` y `categoria`. Al filtrar inmuebles ("Casa", "Departamento", etc.), comparaba con `p.tipo` (que contiene "Venta", "Alquiler"), dando siempre 0 resultados.
+2. **Sincronización `index.html` ➔ `buscar.html` Rota:** Desajuste de parámetros URL (`type` vs `f-operacion`).
+3. **Navegación Header:** `Nosotros` tenía `class="active"` permanentemente forzado; falta de ScrollSpy reactivo.
+4. **Jank de Transición en Topbar/Header:** Saltos visuales en scroll > 40px en dispositivos móviles.
+5. **Codificación de Archivo:** Mojibake en caracteres en español dentro de `script.js`.
+
+### 16.3. Contrato Técnico Aprobado (`audit_and_design_proposal.md`)
+- Normalización retrocompatible de datos (`operacion` vs `categoria`).
+- Sincronización transparente de URLs y filtros de búsqueda.
+- ScrollSpy dinámico en el Header.
+- Rediseño Hero Search con Glassmorphism Gold & Black Luxury.
+
+### 16.4. Ejecución, Pruebas y Validación Exitosa
+1. **Desacople Operación vs Categoría:** Implementada función `getPropCategory(p)` en `script.js` y `buscar.html` permitiendo clasificar propiedades en "casa", "departamento", "terreno" o "comercial" independientemente del tipo de operación comercial ("venta", "alquiler", "anticretico").
+2. **Sincronización Bidireccional de Parámetros:** `index.html` envía `operacion`, `categoria`, `ubicacion` y `precio_max`. `buscar.html` interpreta tanto la nomenclatura moderna como los parámetros legados (`tab`, `type`, `loc`, `price`), sincronizando los botones rápidos y selects laterales.
+3. **Filtro Visible de Presupuesto en Sidebar:** Incorporado input numérico `Presupuesto Máx. ($US)` (`#f-precio-max`) en `buscar.html`, reactivo y conectado a `applySearchFilters()` y `clearFilters()`.
+4. **ScrollSpy Dinámico:** Activado mediante `IntersectionObserver` en `script.js` para resaltar automáticamente los enlaces de sección del Header al navegar por la página.
+5. **Estabilidad Móvil & Glassmorphism:** Asignado `z-index: 1005` a `.header-btns` asegurando acceso sin obstrucción al menú hamburguesa móvil sobre el drawer.
+6. **Blindaje del Chatbot Verificado:** Ejecutada la suite de pruebas `backend/test_customer_service_flow.js` con **5/5 escenarios validados al 100%** con código de salida 0. Cero alteraciones a la lógica de IA ni flujos de WhatsApp.
+7. **Bóveda Karpathy LLM Wiki Sincronizada:** Bóveda `.agents/memory/` actualizada con 12 páginas interconectadas, catálogo `index.md` al día y bitácora de actividad en `log.md`.
+
+

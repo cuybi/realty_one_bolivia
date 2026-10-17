@@ -1,57 +1,66 @@
 ---
 title: "Arquitectura Integral del Bot de WhatsApp e Inteligencia Artificial"
 type: topic
-tags: [arquitectura, chatbot, whatsapp, aiAgent, gemini, crm]
+tags: [arquitectura, chatbot, whatsapp, aiAgent, gemini, crm, state-machine]
 created: 2026-09-04
-updated: 2026-09-04
-aliases: ["Arquitectura WhatsApp Bot"]
+updated: 2026-10-16
+aliases: ["Arquitectura WhatsApp Bot", "Chatbot IA ROG"]
 ---
 
 # Arquitectura Integral del Bot de WhatsApp e Inteligencia Artificial
 
 Documentación técnica del pipeline de mensajería, calificación de prospectos y atención automatizada de [[realty-one-group-bolivia]].
 
-## Flujo de Datos en Producción
+## Flujo de Datos Híbrido en Producción
+
 ```
 [Prospecto en WhatsApp]
            │
            ▼
-[Meta Cloud API (Graph API)]
+[Meta Cloud API / Baileys WebSocket]
            │
-           ▼ (Webhook POST)
-[SiteGround (webhook.php)] ──► Guarda leads.json / leads.csv
-           │
-           ▼ (Forward POST /api/whatsapp/webhook)
-[Render (server.js)]
+           ▼ (Webhook / Evento de Mensaje)
+[SiteGround (webhook.php) / Render (server.js)]
            │
            ▼
-[aiAgent.js (Google Gemini 2.0 Flash Lite)]
+[aiAgent.js (Google Gemini 2.0 Flash Lite & Enrutador Híbrido)]
            │
-     ┌─────┴───────────────────────┐
-     ▼                             ▼
-[Detección Campaña Facebook]  [Consultas Generales]
-- Terreno Industrial G77      - Catálogo de inmuebles
-- Lote Mar Adentro            - Filtros por zona/precio
-     │                             │
-     └─────────────┬───────────────┘
-                   ▼
-[leadClassifier.js & campaignService.js]
-- Captura de Nombre, Teléfono, Interés
-- Asignación inteligente a e-Realtor
-                   │
-                   ▼
-[whatsappService.js] ──► Meta Cloud API ──► [Respuesta al Prospecto]
+     ┌─────┴──────────────────────────────────────────────────────┐
+     ▼                                                            ▼
+[Canal Pauta CTWA / Campañas]                      [Canal Orgánico: Atención al Cliente]
+- Detección de `externalAdReply`                   - [[customer-service-state-machine]]
+- Ficha inmediata de Terreno G77 (Bs 16.8M)        - 5 Estados (Saludo, Captura, Visita,
+- Ficha de Lote Mar Adentro ($112.5k USD)            Recordatorio, Despedida Oficial)
+- Ficha de Depto 4D ($120k USD)                    - Cero menús robóticos ni AI slop
+- Asesoría de crédito, permutas y expensas         - Frase de cierre obligatoria
+     │                                                            │
+     └──────────────────────────────┬─────────────────────────────┘
+                                    ▼
+                     [Calificación & Lead Scoring]
+                     - Perfilado (🔥 Potencial, ⚡ Indeciso, ❄️ Pasivo)
+                     - Asignación inteligente a e-Realtors
+                                    │
+                                    ▼
+             [Sincronización Inmediata con [[ingreso-leads-crm]]]
+             - leads.json / leads.csv / save_leads_sync.php
+             - Visualización en panel web y app Streamlit
+                                    │
+                                    ▼
+                [Envío de Respuesta al Prospecto en WhatsApp]
 ```
 
-## Componentes del Backend
-1. **`backend/server.js`:** Punto de entrada Express en producción, configuración de CORS, rutas API y recepción de webhooks.
-2. **`backend/routes/whatsappRoutes.js`:** Endpoints de webhook (`GET /webhook` para verificación, `POST /webhook` para mensajes entrantes), leads y exportación.
-3. **`backend/services/aiAgent.js`:** Motor conversacional con prompt del sistema para asesores inmobiliarios en Santa Cruz de la Sierra. Utiliza el modelo `gemini-2.0-flash-lite`.
-4. **`backend/services/whatsappService.js`:** Cliente HTTP para emitir mensajes de texto interactivos o normales a través de la API oficial de Meta.
-5. **`backend/services/leadClassifier.js`:** Clasificación en 4 categorías: 🔥 Potencial, ⚡ Indeciso, ❄️ Pasivo, 💼 Propietario.
+## Componentes del Backend y Servicios
+1. **`backend/server.js`:** Servidor Express central, CORS, rutas API y endpoints para webhook, pairing code y CMS.
+2. **`backend/services/aiAgent.js`:** Cerebro de IA con enrutamiento híbrido: respuestas especializadas de campañas + máquina de atención al cliente de 5 estados.
+3. **`backend/services/leadClassifier.js`:** Motor de scoring y priorización comercial con desglose temporal.
+4. **`backend/services/marketingHub.js`:** Suite de envíos masivos con retardos anti-baneo (8 a 22 seg), soporte multimedia (imágenes, PDF, audios PTT) y embudos en 1 clic.
+5. **`backend/whatsapp_baileys.js`:** Conector WebSocket multi-dispositivo con soporte de código de emparejamiento de 8 dígitos y QR.
 
 ## Enlaces Relacionados
+- [[customer-service-state-machine]]
+- [[ingreso-leads-crm]]
 - [[produccion-vs-local]]
 - [[meta-cloud-api]]
 - [[render]]
 - [[siteground]]
+- [[realty-one-group-bolivia]]

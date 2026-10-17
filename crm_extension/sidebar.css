@@ -122,12 +122,18 @@
 
 .rog-wa-filter-bar {
   display: flex !important;
+  align-items: center !important;
   gap: 6px !important;
-  padding: 6px 12px !important;
+  padding: 8px 12px !important;
   overflow-x: auto !important;
   background: #111b21 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   scrollbar-width: none !important;
+  flex-shrink: 0 !important;
+  min-height: 42px !important;
+  position: relative !important;
+  z-index: 10 !important;
+  box-sizing: border-box !important;
 }
 
 .rog-wa-filter-pill {

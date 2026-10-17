@@ -16,8 +16,14 @@ process.on('unhandledRejection', (reason) => {
 
 const fs = require('fs');
 const path = require('path');
+const dns = require('dns');
 const express = require('express');
 const cors = require('cors');
+
+// Resolver DNS SRV de MongoDB Atlas en Windows / ISPs locales
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (_) {}
 
 // Cargar variables de entorno
 const envPath = fs.existsSync(path.join(__dirname, '.env')) ? path.join(__dirname, '.env') : path.join(__dirname, 'backend', '.env');
@@ -40,13 +46,22 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Logo circular y Favicon oficial Realty ONE Group incrustado en memoria (cero 404s en Render/Cloud)
-const OFFICIAL_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><circle cx="500" cy="500" r="500" fill="#CAA65E"/><g fill="#000000"><path fill-rule="evenodd" d="M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z"/><rect x="432" y="362" width="58" height="276"/><polygon points="432,362 490,362 650,638 592,638"/><rect x="592" y="362" width="58" height="276"/><rect x="708" y="362" width="58" height="276"/><rect x="766" y="362" width="110" height="58"/><rect x="766" y="471" width="84" height="58"/><rect x="766" y="580" width="110" height="58"/></g><polygon points="585,440 658,367 658,396 585,469" fill="#CAA65E"/></svg>`;
+// Logo circular y Favicon oficial Realty ONE Group
+const OFFICIAL_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000"><circle cx="500" cy="500" r="500" fill="#CAA65E"/><g fill="#FFFFFF"><path fill-rule="evenodd" d="M 254 362 A 138 138 0 1 0 254 638 A 138 138 0 1 0 254 362 Z M 254 420 A 80 80 0 1 1 254 580 A 80 80 0 1 1 254 420 Z"/><rect x="432" y="362" width="58" height="276"/><polygon points="432,362 490,362 650,638 592,638"/><rect x="592" y="362" width="58" height="276"/><rect x="708" y="362" width="58" height="276"/><rect x="766" y="362" width="110" height="58"/><rect x="766" y="471" width="84" height="58"/><rect x="766" y="580" width="110" height="58"/></g><polygon points="585,440 658,367 658,396 585,469" fill="#CAA65E"/></svg>`;
 
 app.get(['/favicon.ico', '/favicon.png', '/assets/favicon.png'], (req, res) => {
+  const p = path.join(__dirname, 'assets', 'favicon.png');
+  if (fs.existsSync(p)) return res.sendFile(p);
   res.type('image/svg+xml').send(OFFICIAL_LOGO_SVG);
 });
-app.get(['/logo_one_circle.png', '/assets/logo_one_circle.png', '/assets/logo_circle.svg', '/assets/logo_bolivia.png'], (req, res) => {
+app.get(['/logo_one_circle.png', '/assets/logo_one_circle.png'], (req, res) => {
+  const p = path.join(__dirname, 'assets', 'logo_one_circle.png');
+  if (fs.existsSync(p)) return res.sendFile(p);
+  res.type('image/svg+xml').send(OFFICIAL_LOGO_SVG);
+});
+app.get(['/assets/logo_bolivia.png', '/logo_bolivia.png', '/assets/logo_itaguazu.png'], (req, res) => {
+  const p = path.join(__dirname, 'assets', 'logo_bolivia.png');
+  if (fs.existsSync(p)) return res.sendFile(p);
   res.type('image/svg+xml').send(OFFICIAL_LOGO_SVG);
 });
 app.get(['/index.html'], (req, res) => {
@@ -239,13 +254,13 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`📱 Conector QR en vivo disponible en: /qr_connect.html`);
   console.log(`======================================================\n`);
 
-  // Anti-Sleep Heartbeat para Render (Ping cada 4 minutos para no dormir)
-  const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://realty-one-bolivia.onrender.com';
-  console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${renderUrl}`);
+  // Anti-Sleep Heartbeat (Ping cada 4 minutos para mantener vivo en Koyeb/Render/Railway)
+  const externalUrl = process.env.EXTERNAL_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+  console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${externalUrl}`);
   setInterval(async () => {
     try {
-      await fetch(`${renderUrl}/api/ping`);
-      console.log(`💓 [Anti-Sleep Ping] Heartbeat exitoso a ${renderUrl}`);
+      await fetch(`${externalUrl}/api/ping`);
+      console.log(`💓 [Anti-Sleep Ping] Heartbeat exitoso a ${externalUrl}`);
     } catch (e) {}
   }, 4 * 60 * 1000);
 
@@ -377,7 +392,7 @@ async function startWhatsAppClient() {
         } catch (err) {
           currentQR = qr;
         }
-        console.log('\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en https://realty-one-bolivia.onrender.com/qr_connect.html\n');
+        console.log(`\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en ${process.env.EXTERNAL_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + PORT}/qr_connect.html\n`);
       }
 
       if (connection === 'close') {

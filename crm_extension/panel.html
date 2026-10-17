@@ -3,36 +3,63 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Realty ONE CRM Panel</title>
+  <title>Realty ONE • Ingreso Leads CRM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="panel.css">
 </head>
 <body>
   <div id="app">
-    <!-- Header -->
+    <!-- Header Premium -->
     <header class="panel-header">
       <div class="brand">
-        <img class="panel-brand-logo" src="icons/logo_one.png" alt="ONE" />
+        <div class="logo-wrapper">
+          <img class="panel-brand-logo" src="icons/logo_one.png" alt="ONE" />
+          <span class="status-pulse-dot" id="live-dot" title="Conexión en Vivo"></span>
+        </div>
         <div class="brand-text">
-          <span class="brand-title">Realty ONE • Ingreso Leads</span>
-          <span class="brand-sub">Bolivia • CRM WhatsApp</span>
+          <div class="brand-title-row">
+            <span class="brand-title">Realty ONE • Ingreso Leads</span>
+            <span class="brand-badge-vip">PRO</span>
+          </div>
+          <span class="brand-sub">Bolivia • WhatsApp Marketing & CRM</span>
         </div>
       </div>
       <div class="header-actions">
-        <span id="sync-indicator" class="sync-badge syncing" title="Estado de conexión">Conectando...</span>
+        <span id="sync-indicator" class="sync-badge syncing" title="Estado de conexión con Servidores">Conectando...</span>
         <button id="btn-toggle-expand" class="icon-btn" title="Expandir/Contraer Tablero Panorámico">⛶</button>
-        <button id="btn-export-excel" class="icon-btn" title="Exportar prospectos a Excel (.xlsx)" style="color:#25d366; border-color:rgba(37,211,102,0.4);">📊</button>
-        <button id="btn-refresh" class="icon-btn" title="Recargar prospectos">🔄</button>
-        <button id="btn-open-full" class="icon-btn" title="Abrir Ingreso Leads en nueva pestaña">↗</button>
+        <button id="btn-export-excel" class="icon-btn btn-excel-top" title="Exportar prospectos a Excel (.xlsx)">📊</button>
+        <button id="btn-refresh" class="icon-btn" title="Recargar y sincronizar prospectos">🔄</button>
+        <button id="btn-open-full" class="icon-btn" title="Abrir Ingreso Leads en pantalla completa">↗</button>
       </div>
     </header>
 
-    <!-- Barra de Navegación Principal Estilo MiCierro -->
+    <!-- Barra de Navegación Principal Estilo MiCierro / OneSuite -->
     <nav class="main-nav-tabs">
-      <button class="nav-tab active" data-view="kanban">📊 Kanban</button>
-      <button class="nav-tab" data-view="lead">👤 Lead Activo</button>
-      <button class="nav-tab" data-view="reminders">📅 Agenda (<span id="reminders-count">0</span>)</button>
-      <button class="nav-tab" data-view="templates">⚡ Respuestas</button>
-      <button class="nav-tab" data-view="broadcast">📢 Difusión</button>
+      <button class="nav-tab active" data-view="kanban">
+        <span class="tab-icon">📊</span>
+        <span>Kanban</span>
+        <span class="tab-count-badge" id="tab-count-kanban">0</span>
+      </button>
+      <button class="nav-tab" data-view="lead">
+        <span class="tab-icon">👤</span>
+        <span>Lead Activo</span>
+        <span class="tab-active-dot" id="tab-chat-active-dot"></span>
+      </button>
+      <button class="nav-tab" data-view="reminders">
+        <span class="tab-icon">📅</span>
+        <span>Agenda</span>
+        <span class="tab-count-badge gold" id="reminders-count">0</span>
+      </button>
+      <button class="nav-tab" data-view="templates">
+        <span class="tab-icon">⚡</span>
+        <span>Respuestas</span>
+      </button>
+      <button class="nav-tab" data-view="broadcast">
+        <span class="tab-icon">📢</span>
+        <span>Difusión</span>
+      </button>
     </nav>
 
     <!-- ========================================== -->
@@ -41,19 +68,32 @@
     <main id="view-kanban" class="view-panel active">
       <div class="kanban-header-bar">
         <div class="kanban-search-box">
-          <input type="text" id="kanban-search" placeholder="🔍 Filtrar tarjetas por cliente o zona..." />
+          <input type="text" id="kanban-search" placeholder="🔍 Filtrar por nombre, celular o zona..." />
+          <button class="clear-search-btn hidden" id="kanban-search-clear" title="Limpiar búsqueda">✕</button>
         </div>
         <div class="kanban-quick-stats">
           <span class="stat-chip">Total: <strong id="kanban-total-count">0</strong></span>
-          <span class="stat-chip gold">🔥 Potenciales: <strong id="kanban-hot-count">0</strong></span>
+          <span class="stat-chip hot">🔥 Potenciales: <strong id="kanban-hot-count">0</strong></span>
         </div>
+      </div>
+
+      <!-- Filtros rápidos por prioridad dentro del Kanban -->
+      <div class="kanban-filter-pills">
+        <button class="k-pill active" data-kfilter="ALL">Todas</button>
+        <button class="k-pill" data-kfilter="POTENCIAL">🔥 Potencial</button>
+        <button class="k-pill" data-kfilter="INDECISO">⚡ Indeciso</button>
+        <button class="k-pill" data-kfilter="PASIVO">❄️ Pasivo</button>
+        <button class="k-pill" data-kfilter="PROPIETARIO">💼 Propietario</button>
       </div>
 
       <div class="kanban-board" id="kanban-board">
         <!-- Columna 1: Solicitud / Nuevo -->
         <div class="kanban-col" data-stage="SOLICITUD">
           <div class="col-head col-solicitud">
-            <span class="col-title">✨ Solicitud / Nuevo</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-solicitud"></span>
+              <span class="col-title">Solicitud / Nuevo</span>
+            </div>
             <span class="col-counter" id="count-stage-SOLICITUD">0</span>
           </div>
           <div class="col-cards" data-stage="SOLICITUD"></div>
@@ -62,7 +102,10 @@
         <!-- Columna 2: Contactado -->
         <div class="kanban-col" data-stage="CONTACTADO">
           <div class="col-head col-contactado">
-            <span class="col-title">📞 Contactado</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-contactado"></span>
+              <span class="col-title">Contactado</span>
+            </div>
             <span class="col-counter" id="count-stage-CONTACTADO">0</span>
           </div>
           <div class="col-cards" data-stage="CONTACTADO"></div>
@@ -71,7 +114,10 @@
         <!-- Columna 3: Visita Agendada -->
         <div class="kanban-col" data-stage="VISITA_AGENDADA">
           <div class="col-head col-visita">
-            <span class="col-title">📅 Visita Agendada</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-visita"></span>
+              <span class="col-title">Visita Agendada</span>
+            </div>
             <span class="col-counter" id="count-stage-VISITA_AGENDADA">0</span>
           </div>
           <div class="col-cards" data-stage="VISITA_AGENDADA"></div>
@@ -80,7 +126,10 @@
         <!-- Columna 4: Propuesta / Negociación -->
         <div class="kanban-col" data-stage="PROPUESTA">
           <div class="col-head col-propuesta">
-            <span class="col-title">📝 Negociación</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-propuesta"></span>
+              <span class="col-title">Negociación</span>
+            </div>
             <span class="col-counter" id="count-stage-PROPUESTA">0</span>
           </div>
           <div class="col-cards" data-stage="PROPUESTA"></div>
@@ -89,7 +138,10 @@
         <!-- Columna 5: Cerrado / Ganado -->
         <div class="kanban-col" data-stage="CIERRE">
           <div class="col-head col-cierre">
-            <span class="col-title">🏆 Cerrado / Ganado</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-cierre"></span>
+              <span class="col-title">Cerrado / Ganado</span>
+            </div>
             <span class="col-counter" id="count-stage-CIERRE">0</span>
           </div>
           <div class="col-cards" data-stage="CIERRE"></div>
@@ -98,7 +150,10 @@
         <!-- Columna 6: Descartado -->
         <div class="kanban-col" data-stage="PERDIDO">
           <div class="col-head col-perdido">
-            <span class="col-title">❌ Descartado</span>
+            <div class="col-head-left">
+              <span class="col-dot dot-perdido"></span>
+              <span class="col-title">Descartado</span>
+            </div>
             <span class="col-counter" id="count-stage-PERDIDO">0</span>
           </div>
           <div class="col-cards" data-stage="PERDIDO"></div>
@@ -110,23 +165,46 @@
     <!-- VISTA 2: FICHA LEAD ACTIVO & LISTA PIPELINE-->
     <!-- ========================================== -->
     <main id="view-lead" class="view-panel">
-      <!-- Active Chat Banner -->
+      <!-- Active Chat Hero Card -->
       <section class="active-chat-card" id="active-chat-card">
         <div class="card-header">
-          <span class="badge-tag">CHAT ACTIVO</span>
+          <div class="chat-status-pill">
+            <span class="status-pulse-dot active"></span>
+            <span class="badge-tag" id="active-chat-status-label">CHAT ACTIVO EN WHATSAPP</span>
+          </div>
           <span id="active-contact-time" class="time-label"></span>
         </div>
-        <div class="active-contact-info">
-          <h2 id="active-contact-name">Selecciona un chat en WhatsApp</h2>
-          <span id="active-contact-phone" class="phone-label"></span>
+
+        <div class="active-contact-hero">
+          <div class="contact-avatar-circle" id="active-contact-avatar">RO</div>
+          <div class="active-contact-info">
+            <h2 id="active-contact-name">Selecciona un chat en WhatsApp</h2>
+            <div class="contact-sub-row">
+              <span id="active-contact-phone" class="phone-label"></span>
+              <span id="active-contact-zone" class="zone-pill hidden">📍 Santa Cruz</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Quick Lead Form -->
+        <!-- Acciones Directas del Lead Activo -->
+        <div id="active-lead-action-bar" class="lead-action-bar hidden">
+          <button id="btn-lead-act-wa" class="act-btn btn-wa" title="Escribir saludo a este prospecto">
+            <span>💬 Chatear</span>
+          </button>
+          <button id="btn-lead-act-schedule" class="act-btn btn-gold" title="Agendar visita en la pestaña Agenda">
+            <span>📅 Agendar</span>
+          </button>
+          <button id="btn-lead-act-delete" class="act-btn btn-danger" title="Eliminar este prospecto del CRM">
+            <span>🗑️ Eliminar</span>
+          </button>
+        </div>
+
+        <!-- Formulario Rápido de Gestión del Lead -->
         <div id="active-lead-controls" class="lead-controls hidden">
           <div class="control-row">
             <div class="control-group">
-              <label for="lead-stage">Etapa Embudo</label>
-              <select id="lead-stage">
+              <label for="lead-stage">Etapa del Embudo</label>
+              <select id="lead-stage" class="custom-select">
                 <option value="SOLICITUD">✨ Solicitud / Nuevo</option>
                 <option value="CONTACTADO">📞 Contactado</option>
                 <option value="VISITA_AGENDADA">📅 Visita Agendada</option>
@@ -136,8 +214,8 @@
               </select>
             </div>
             <div class="control-group">
-              <label for="lead-priority">Prioridad</label>
-              <select id="lead-priority">
+              <label for="lead-priority">Prioridad Comercial</label>
+              <select id="lead-priority" class="custom-select">
                 <option value="POTENCIAL">🔥 Potencial (Alta)</option>
                 <option value="INDECISO">⚡ Indeciso (Media)</option>
                 <option value="PASIVO">❄️ Pasivo (Baja)</option>
@@ -149,52 +227,74 @@
           <div class="control-row">
             <div class="control-group full-width">
               <label for="lead-realtor">e-Realtor Asignado</label>
-              <select id="lead-realtor">
-                <option value="">Sin Asignar</option>
+              <select id="lead-realtor" class="custom-select">
                 <option value="marcos_antezana" selected>Marcos Antezana Lenz (+591 60034649)</option>
-                <option value="carlos_rodriguez">Carlos Rodríguez (Venta de Lujo & Casas)</option>
-                <option value="valeria_suarez">Valeria Suárez (Alquileres & Deptos)</option>
-                <option value="andres_montano">Andrés Montaño (Terrenos & Parque Ind.)</option>
-                <option value="lucia_vaca">Lucía Vaca (Anticréticos & Asesoría Legal)</option>
-                <option value="robert_oliva">Robert Oliva (Master Broker / Inversión VIP)</option>
+                <option value="carlos_rodriguez">Carlos Rodríguez (Venta de Lujo & Casas Exclusivas)</option>
+                <option value="valeria_suarez">Valeria Suárez (Alquileres Corporativos & Departamentos)</option>
+                <option value="andres_montano">Andrés Montaño (Terrenos & Parque Industrial G77)</option>
+                <option value="lucia_vaca">Lucía Vaca (Anticréticos Seguros & Asesoría Legal DDRR)</option>
+                <option value="robert_oliva">Robert Oliva (Master Broker / Inversiones VIP)</option>
               </select>
             </div>
           </div>
 
-          <div class="note-box">
-            <input type="text" id="quick-note-input" placeholder="Guardar nota o registrar prospecto..." />
-            <button id="btn-save-note" class="gold-btn">Guardar</button>
+          <!-- Caja de notas con historial reciente -->
+          <div class="notes-wrapper">
+            <label class="section-micro-label">Historial de Notas del Asesor:</label>
+            <div id="lead-notes-history" class="notes-history-box"></div>
+            <div class="note-box">
+              <input type="text" id="quick-note-input" placeholder="Escribir nueva nota de seguimiento..." />
+              <button id="btn-save-note" class="gold-btn">Guardar</button>
+            </div>
           </div>
 
           <!-- Quick Response Templates Chips -->
           <div class="templates-section">
-            <span class="section-title">Respuestas Rápidas (Copiar y pegar en WhatsApp):</span>
+            <div class="templates-section-header">
+              <span class="section-title">Respuestas Rápidas (1-Clic en WhatsApp):</span>
+              <button class="link-btn-more" id="btn-view-all-templates">Ver todas (12) →</button>
+            </div>
             <div class="template-chips">
               <button class="chip-btn" data-template="bienvenida">👋 Bienvenida</button>
               <button class="chip-btn" data-template="agendar">📅 Agendar Visita</button>
               <button class="chip-btn" data-template="catalogo">🏠 Catálogo</button>
               <button class="chip-btn" data-template="requisitos">📋 Requisitos</button>
+              <button class="chip-btn" data-template="credito">🏦 Crédito</button>
             </div>
           </div>
         </div>
 
         <div id="no-contact-msg" class="no-contact-msg">
-          Abre una conversación en WhatsApp Web para ver o registrar el lead automáticamente aquí.
+          <div class="no-contact-icon">💬</div>
+          <h4>Sin Chat Seleccionado</h4>
+          <p>Abre cualquier chat en WhatsApp Web para ver su ficha, registrarlo como prospecto o calificarlo automáticamente.</p>
         </div>
       </section>
 
       <!-- Botón Excel Destacado -->
       <div class="excel-download-container">
-        <button id="btn-export-excel-banner" class="excel-banner-btn" title="Descargar todos los prospectos en Excel oficial">
-          <span class="excel-badge">📊 EXCEL</span>
-          <span>Exportar Prospectos a Excel (.xlsx)</span>
+        <button id="btn-export-excel-banner" class="excel-banner-btn" title="Descargar todos los prospectos en Excel oficial (.xlsx)">
+          <div class="excel-banner-content">
+            <span class="excel-badge">📊 EXCEL</span>
+            <div class="excel-banner-text">
+              <strong>Exportar Prospectos a Excel (.xlsx)</strong>
+              <span>Genera hoja de cálculo con todos los campos y notas</span>
+            </div>
+          </div>
+          <span class="excel-arrow">↓</span>
         </button>
       </div>
 
       <!-- Pipeline Tabs & Search -->
       <section class="pipeline-section">
+        <div class="pipeline-header-row">
+          <h3 class="pipeline-title">Directorio de Prospectos</h3>
+          <span class="pipeline-total" id="pipeline-total-badge">0 Registros</span>
+        </div>
+
         <div class="search-bar">
-          <input type="text" id="leads-search" placeholder="🔍 Buscar por nombre, celular o zona..." />
+          <input type="text" id="leads-search" placeholder="🔍 Buscar por nombre, celular, zona o asesor..." />
+          <button class="clear-search-btn hidden" id="leads-search-clear">✕</button>
         </div>
 
         <div class="filter-pills">
@@ -220,32 +320,46 @@
     <!-- ========================================== -->
     <main id="view-reminders" class="view-panel">
       <div class="section-card">
-        <h3 class="section-header-title">⏰ Programar Visita / Recordatorio</h3>
-        <p class="section-sub">Ningún cliente se pierde. Te avisa cuándo llamar o hacer seguimiento.</p>
+        <div class="section-header-row">
+          <h3 class="section-header-title">⏰ Programar Visita / Recordatorio</h3>
+          <span class="section-badge-info">Never Miss a Lead</span>
+        </div>
+        <p class="section-sub">Ningún cliente se pierde. Te avisa cuándo llamar, enviar fichas o visitar inmuebles.</p>
         
         <div class="reminder-form">
+          <!-- Atajos rápidos de fecha -->
+          <div class="quick-date-shortcuts">
+            <button class="qdate-btn" data-days="0">Hoy</button>
+            <button class="qdate-btn" data-days="1">Mañana</button>
+            <button class="qdate-btn" data-days="2">+2 días</button>
+            <button class="qdate-btn" data-days="7">En 1 semana</button>
+          </div>
+
           <div class="control-row">
             <div class="control-group">
               <label>Fecha de Visita / Seguimiento</label>
-              <input type="date" id="rem-date" />
+              <input type="date" id="rem-date" class="custom-input" />
             </div>
             <div class="control-group">
               <label>Hora</label>
-              <input type="time" id="rem-time" value="10:00" />
+              <input type="time" id="rem-time" value="10:00" class="custom-input" />
             </div>
           </div>
           <div class="control-row">
             <div class="control-group full-width">
               <label>Motivo o Nota del Recordatorio</label>
-              <input type="text" id="rem-note" placeholder="Ej: Confirmar visita a Casa Urubó / Pedir precalificación" />
+              <input type="text" id="rem-note" class="custom-input" placeholder="Ej: Confirmar visita a Casa Urubó / Enviar precalificación bancaria" />
             </div>
           </div>
-          <button id="btn-save-reminder" class="gold-btn full-btn">📅 Guardar Recordatorio</button>
+          <button id="btn-save-reminder" class="gold-btn full-btn">📅 Guardar Recordatorio en Agenda</button>
         </div>
       </div>
 
       <div class="reminders-list-container">
-        <h4 class="reminders-list-title">Próximos Recordatorios & Visitas:</h4>
+        <div class="reminders-list-header">
+          <h4 class="reminders-list-title">Próximos Recordatorios & Citas:</h4>
+          <span class="reminders-badge-count" id="reminders-list-counter">0 citas</span>
+        </div>
         <div id="reminders-list" class="reminders-items"></div>
       </div>
     </main>
@@ -255,8 +369,27 @@
     <!-- ========================================== -->
     <main id="view-templates" class="view-panel">
       <div class="section-card">
-        <h3 class="section-header-title">⚡ Catálogo de Respuestas Rápidas</h3>
-        <p class="section-sub">Haz clic para copiar o insertar directamente en el chat activo de WhatsApp.</p>
+        <div class="section-header-row">
+          <h3 class="section-header-title">⚡ Catálogo de Respuestas Rápidas</h3>
+          <span class="section-badge-info">One-Click Response</span>
+        </div>
+        <p class="section-sub">Haz clic para copiar o insertar directamente en el chat activo de WhatsApp Web.</p>
+
+        <!-- Buscador de Respuestas Rápidas -->
+        <div class="template-search-wrapper">
+          <input type="text" id="template-search-input" placeholder="🔍 Buscar por palabra clave (visita, crédito, precio, legal)..." />
+        </div>
+
+        <!-- Filtros por Categoría -->
+        <div class="template-category-pills" id="template-category-pills">
+          <button class="t-pill active" data-cat="TODAS">Todas (12)</button>
+          <button class="t-pill" data-cat="Atención Inicial">Atención Inicial</button>
+          <button class="t-pill" data-cat="Visitas">Visitas</button>
+          <button class="t-pill" data-cat="Inventario">Inventario</button>
+          <button class="t-pill" data-cat="Operación & Legal">Operación & Legal</button>
+          <button class="t-pill" data-cat="Financiamiento">Financiamiento</button>
+          <button class="t-pill" data-cat="Negociación">Negociación</button>
+        </div>
       </div>
 
       <div class="templates-full-grid" id="templates-full-grid">
@@ -269,25 +402,29 @@
     <!-- ========================================== -->
     <main id="view-broadcast" class="view-panel">
       <div class="section-card">
-        <h3 class="section-header-title">📢 Difusión Segmentada de Leads</h3>
-        <p class="section-sub">Envía mensajes de reactivación sin riesgo de baneo con 1 clic por chat.</p>
+        <div class="section-header-row">
+          <h3 class="section-header-title">📢 Difusión Segmentada de Leads</h3>
+          <span class="section-badge-info">Anti-Ban Flow</span>
+        </div>
+        <p class="section-sub">Envía mensajes de reactivación personalizados en 1 clic por chat sin riesgo de baneo.</p>
 
         <div class="control-row">
           <div class="control-group full-width">
             <label>Filtrar Audiencia Destino:</label>
-            <select id="broadcast-audience">
+            <select id="broadcast-audience" class="custom-select">
               <option value="ALL">Todos los Prospectos</option>
               <option value="POTENCIAL" selected>🔥 Prospectos Alta Prioridad</option>
               <option value="VISITA_AGENDADA">📅 Clientes con Visita</option>
               <option value="SOLICITUD">✨ Solicitudes Nuevas</option>
+              <option value="PROPIETARIO">💼 Captaciones & Propietarios</option>
             </select>
           </div>
         </div>
 
         <div class="control-row">
           <div class="control-group full-width">
-            <label>Plantilla del Mensaje (Variables: <code>{nombre}</code>, <code>{asesor}</code>):</label>
-            <textarea id="broadcast-message-text" rows="4" class="broadcast-textarea">¡Hola {nombre}! Le escribe {asesor} de Realty ONE Group. Tenemos nuevas propiedades disponibles que se ajustan a su búsqueda. ¿Le gustaría que le comparta las fichas técnicas actualizadas?</textarea>
+            <label>Plantilla del Mensaje (Variables: <code>{nombre}</code>, <code>{asesor}</code>, <code>{zona}</code>):</label>
+            <textarea id="broadcast-message-text" rows="4" class="broadcast-textarea">¡Hola {nombre}! Le escribe {asesor} de Realty ONE Group Bolivia. Tenemos nuevas propiedades exclusivas que se ajustan a su búsqueda en {zona}. ¿Le gustaría que le comparta las fichas técnicas y precios actualizados?</textarea>
           </div>
         </div>
 
@@ -297,10 +434,19 @@
       </div>
 
       <div class="broadcast-queue-container">
-        <h4 class="reminders-list-title">Cola de Envíos Preparada:</h4>
+        <div class="reminders-list-header">
+          <h4 class="reminders-list-title">Cola de Envíos Preparada:</h4>
+          <span class="broadcast-instruction">Haz clic en "Cargar Mensaje" para auto-escribir en WhatsApp</span>
+        </div>
         <div id="broadcast-queue-list" class="broadcast-queue-list"></div>
       </div>
     </main>
+
+    <!-- Modal Toast de Feedback en Tiempo Real -->
+    <div id="crm-toast" class="crm-toast hidden">
+      <span class="toast-icon" id="toast-icon">✓</span>
+      <span class="toast-message" id="toast-message">Operación completada</span>
+    </div>
   </div>
 
   <script src="panel.js"></script>
