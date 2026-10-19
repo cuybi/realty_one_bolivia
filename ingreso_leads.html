@@ -860,6 +860,7 @@
       <a href="qr_connect.html" class="btn btn-secondary"><i class="fa-brands fa-whatsapp"></i> Conectar QR</a>
       <button class="btn btn-excel" onclick="exportToExcel()"><i class="fa-solid fa-file-excel"></i> Exportar a Excel (.xlsx)</button>
       <button class="btn btn-gold" onclick="exportToCSV()"><i class="fa-solid fa-file-csv"></i> Descargar CSV</button>
+      <button class="btn btn-secondary" onclick="cerrarSesionAdmin()" style="border-color: rgba(239,68,68,0.5); color:#ef4444;" title="Cerrar Sesión Segura"><i class="fa-solid fa-right-from-bracket"></i> Salir</button>
     </div>
   </header>
 
@@ -1205,6 +1206,15 @@
         texto: '¡Hola! Recibimos tu interés para consignar tu propiedad en Realty ONE Group Bolivia. Te ofrecemos avalúo, sesión fotográfica y promoción 360° sin costo inicial.'
       }
     ];
+
+    async function cerrarSesionAdmin() {
+      if (!confirm('¿Deseas cerrar la sesión administrativa?')) return;
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (_) {}
+      localStorage.removeItem('rog_auth_token');
+      window.location.href = '/login.html';
+    }
 
     const IS_NODE_BACKEND = (
       !window.location.hostname.includes('e-techgroupbolivia.com') ||

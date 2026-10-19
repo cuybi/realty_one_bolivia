@@ -272,10 +272,11 @@
           <div class="subtitle">Realty ONE Group Bolivia • Conexión Directa en la Nube 24/7</div>
         </div>
       </div>
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:10px; align-items:center;">
         <a href="ingreso_leads.html" class="btn" style="border-color:#c69214; color:#c69214;"><i class="fas fa-users"></i> Ingreso Leads & Excel</a>
         <a href="publicidades.html" class="btn"><i class="fas fa-bullhorn"></i> Campañas Facebook</a>
         <a href="whatsapp_test.html" class="btn"><i class="fas fa-comments"></i> Simulador</a>
+        <button onclick="cerrarSesionAdmin()" class="btn" style="border-color:#ef4444; color:#ef4444; background:none; cursor:pointer;"><i class="fas fa-sign-out-alt"></i> Salir</button>
       </div>
     </div>
 
@@ -528,6 +529,13 @@
       } catch(e) {
         alert('Error al desconectar: ' + e.message);
       }
+    async function cerrarSesionAdmin() {
+      if (!confirm('¿Deseas cerrar la sesión administrativa?')) return;
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+      } catch (_) {}
+      localStorage.removeItem('rog_auth_token');
+      window.location.href = '/login.html';
     }
 
     // Consultar cada 3 segundos

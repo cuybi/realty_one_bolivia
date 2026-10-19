@@ -68,38 +68,122 @@ app.get(['/index.html'], (req, res) => {
   res.redirect('https://realyonegroupbolivia.e-techgroupbolivia.com/');
 });
 
-// ponytail: Basic Auth nativo HTTP sin dependencias para proteger QR
-const QR_USER = process.env.QR_USER || 'admin';
-const QR_PASS = process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
+// ponytail: Autenticación por Sesión y Token con soporte para Login Web y Retrocompatibilidad
+const crypto = require('crypto');
+const QR_USER = process.env.ADMIN_USER || process.env.QR_USER || 'admin';
+const QR_PASS = process.env.ADMIN_PASS || process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
 
-function requireQRAuth(req, res, next) {
-  // Soporte query param ?key= o header x-admin-key (CRM iframe, scripts, extensiones)
+// Mapa de sesiones activas en memoria (token -> { user, expiresAt })
+const activeSessions = new Map();
+
+function parseCookies(req) {
+  const list = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      if (parts.length >= 2) {
+        list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+      }
+    });
+  }
+  return list;
+}
+
+function isValidSession(req) {
+  // 1. Cookie HTTP-Only o cabecera de autenticación
+  const cookies = parseCookies(req);
+  const token = cookies.rog_auth_token || req.headers['x-auth-token'] || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  if (token && activeSessions.has(token)) {
+    const session = activeSessions.get(token);
+    if (session.expiresAt > Date.now()) {
+      return true;
+    } else {
+      activeSessions.delete(token);
+    }
+  }
+
+  // 2. Retrocompatibilidad query param ?key= o cabecera x-admin-key (scripts, extensiones)
   const key = req.query.key || req.headers['x-admin-key'];
   if (key && (key === QR_PASS || key === 'ONE2026')) {
+    return true;
+  }
+
+  // 3. Basic Auth HTTP nativo
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Basic ')) {
+    const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
+    if ((user === QR_USER && passParts.join(':') === QR_PASS) || passParts.join(':') === 'ONE2026') {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function requireQRAuth(req, res, next) {
+  if (isValidSession(req)) {
     return next();
   }
 
-  const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Basic ')) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
-    return res.status(401).send('Acceso denegado: credenciales requeridas.');
+  // Si es petición del navegador para ver una página HTML, redirigir a /login.html
+  if (req.path.endsWith('.html') || (req.headers.accept && req.headers.accept.includes('text/html'))) {
+    return res.redirect(`/login.html?redirect=${encodeURIComponent(req.originalUrl || req.url)}`);
   }
-  const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
-  if ((user === QR_USER && passParts.join(':') === QR_PASS) || passParts.join(':') === 'ONE2026') {
-    return next();
-  }
-  res.setHeader('WWW-Authenticate', 'Basic realm="Realty ONE Bot QR"');
-  return res.status(401).send('Credenciales incorrectas.');
+
+  return res.status(401).json({ error: 'No autorizado. Inicie sesión en /login.html' });
 }
+
+// Endpoints de autenticación de usuario
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ success: false, error: 'Usuario y contraseña requeridos.' });
+  }
+
+  const userMatches = (username.trim() === QR_USER);
+  const passMatches = (password.trim() === QR_PASS || password.trim() === 'ONE2026');
+
+  if (userMatches && passMatches) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 7 * 24 * 3600 * 1000; // 7 días
+    activeSessions.set(token, { user: username, expiresAt });
+
+    res.setHeader('Set-Cookie', `rog_auth_token=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`);
+    return res.json({ success: true, token, user: username });
+  }
+
+  return res.status(401).json({ success: false, error: 'Usuario o contraseña incorrectos.' });
+});
+
+app.get('/api/auth/check', (req, res) => {
+  const authenticated = isValidSession(req);
+  res.json({ authenticated });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const cookies = parseCookies(req);
+  const token = cookies.rog_auth_token;
+  if (token) activeSessions.delete(token);
+  res.setHeader('Set-Cookie', 'rog_auth_token=; Path=/; HttpOnly; Max-Age=0');
+  res.json({ success: true, message: 'Sesión cerrada correctamente.' });
+});
 
 // Servir archivos estáticos desde la raíz del proyecto
 const staticPath = fs.existsSync(path.join(__dirname, 'qr_connect.html'))
   ? __dirname
   : path.join(__dirname, '..');
 
+// Ruta pública para Login
+app.get(['/login', '/login.html'], (req, res) => {
+  const loginFile = path.join(staticPath, 'login.html');
+  if (fs.existsSync(loginFile)) return res.sendFile(loginFile);
+  res.status(404).send('login.html no encontrado');
+});
+
 // Proteger vistas administrativas (QR y CRM Leads) con autenticacion
-app.get(['/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
-  const file = req.path.replace(/^\//, '');
+app.get(['/', '/qr_connect.html', '/ingreso_leads.html', '/crm_leads.html'], requireQRAuth, (req, res) => {
+  const file = req.path === '/' ? 'ingreso_leads.html' : req.path.replace(/^\//, '');
   res.sendFile(path.join(staticPath, file));
 });
 
@@ -212,18 +296,7 @@ app.post('/api/whatsapp/desconectar', async (req, res) => {
   }
 });
 
-// Rutas directas para qr_connect
-app.get('/', (req, res) => {
-  const qrFile = path.join(staticPath, 'qr_connect.html');
-  if (fs.existsSync(qrFile)) return res.sendFile(qrFile);
-  res.send('🦁 Servidor Realty ONE Cloud Activo 24/7. Abre /qr_connect.html');
-});
 
-app.get('/qr_connect.html', (req, res) => {
-  const qrFile = path.join(staticPath, 'qr_connect.html');
-  if (fs.existsSync(qrFile)) return res.sendFile(qrFile);
-  res.status(404).send('qr_connect.html no encontrado');
-});
 
 app.get('/api/ping', (req, res) => res.send('pong'));
 
