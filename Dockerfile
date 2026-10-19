@@ -15,8 +15,8 @@ RUN npm install --omit=dev
 # Copiar código del proyecto
 COPY . .
 
-# Crear directorio de logs
-RUN mkdir -p logs
+# Crear directorios y otorgar permisos para entornos no-root (Hugging Face Spaces UID 1000)
+RUN mkdir -p logs baileys_auth && chmod -R 777 /app
 
 # Exponer puerto del bot
 EXPOSE 3000
