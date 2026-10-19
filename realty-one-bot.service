@@ -1,0 +1,23 @@
+[Unit]
+Description=Realty ONE Group Bolivia - WhatsApp ChatBot & Leads 24/7
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/realty-one-bot
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5s
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=TZ=America/La_Paz
+
+# Resource Limits
+LimitNOFILE=65535
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=realty-one-bot
+
+[Install]
+WantedBy=multi-user.target

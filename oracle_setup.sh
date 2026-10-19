@@ -41,6 +41,13 @@ npm install --omit=dev
 # Directorio de logs
 mkdir -p /var/log/realty-one-bot
 
+# Abrir puerto 3000 en firewall iptables de Oracle Cloud VM
+echo "==> Abriendo puerto 3000 en firewall interno de Oracle Linux"
+iptables -I INPUT 6 -m state --state NEW -p tcp --dport 3000 -j ACCEPT 2>/dev/null || true
+if command -v netfilter-persistent >/dev/null 2>&1; then
+  netfilter-persistent save 2>/dev/null || true
+fi
+
 # Aviso si falta .env
 if [ ! -f "$APP_DIR/.env" ]; then
   echo ""

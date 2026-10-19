@@ -1207,12 +1207,10 @@
     ];
 
     const IS_NODE_BACKEND = (
+      !window.location.hostname.includes('e-techgroupbolivia.com') ||
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.includes('koyeb.app') ||
-      window.location.hostname.includes('railway.app') ||
-      window.location.hostname.includes('fly.dev') ||
-      window.location.hostname.includes('onrender.com')
+      window.location.port === '3000'
     );
 
     let allLeads = [];
@@ -1493,6 +1491,11 @@
           } catch(e) {}
         }
 
+        const hasCity = Boolean(l.ciudad && l.ciudad.length >= 2);
+        const displayCity = l.ciudad || (l.zona_interes && !l.zona_interes.includes('(General)') ? l.zona_interes : 'Santa Cruz');
+        const displayZone = (l.zona_interes && l.zona_interes !== displayCity && !l.zona_interes.includes('(General)')) ? ` • ${l.zona_interes}` : '';
+        const cleanPresupuesto = (l.presupuesto && l.presupuesto !== '600' && l.presupuesto !== 'Por definir') ? l.presupuesto : 'Por definir';
+
         tr.innerHTML = `
           <td>
             <span class="badge ${badgeClass}">${l.prioridad_label || l.prioridad}</span>
@@ -1507,13 +1510,14 @@
               <span class="check-item ${hasName ? 'ok' : ''}" title="Nombre">👤 ${hasName ? '✓' : '...'}</span>
               <span class="check-item ${hasPhone ? 'ok' : ''}" title="Teléfono">📱 ${hasPhone ? '✓' : '...'}</span>
               <span class="check-item ${hasEmail ? 'ok' : ''}" title="Email">✉️ ${hasEmail ? '✓' : '...'}</span>
+              <span class="check-item ${hasCity ? 'ok' : ''}" title="Ciudad (${l.ciudad || 'Pendiente'})">🏙️ ${hasCity ? '✓' : '...'}</span>
               <span class="check-item ${hasVisit ? 'ok' : ''}" title="Visita">📅 ${hasVisit ? '✓' : '...'}</span>
             </div>
           </td>
           <td>
-            <div style="font-weight:700; font-size:0.84rem; color:#fff;">${l.tipo_interes || 'General'}</div>
-            <div style="font-size:0.74rem; color:var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:var(--gold-primary);"></i> ${l.zona_interes || 'Santa Cruz'}</div>
-            <div style="font-size:0.78rem; color:var(--gold-primary); font-weight:600; margin-top:2px;">${l.presupuesto || 'Por definir'}</div>
+            <div style="font-weight:700; font-size:0.84rem; color:#fff;">${l.tipo_interes || 'Consulta General'}</div>
+            <div style="font-size:0.74rem; color:var(--text-muted);"><i class="fa-solid fa-location-dot" style="color:var(--gold-primary);"></i> ${displayCity}${displayZone}</div>
+            <div style="font-size:0.78rem; color:var(--gold-primary); font-weight:600; margin-top:2px;">${cleanPresupuesto}</div>
           </td>
           <td>
             <div class="time-badge">
@@ -1563,7 +1567,8 @@
       document.getElementById('editPriority').value = lead.prioridad || 'PASIVO';
       document.getElementById('editStage').value = lead.etapa_embudo || 'SOLICITUD';
       document.getElementById('editStatus').value = lead.estado_comercial || 'Nuevo';
-      document.getElementById('editBudget').value = `${lead.tipo_interes || ''} | ${lead.presupuesto || ''} | ${lead.zona_interes || ''}`;
+      const cleanBudget = (lead.presupuesto && lead.presupuesto !== '600' && lead.presupuesto !== 'Por definir') ? lead.presupuesto : 'Por definir';
+      document.getElementById('editBudget').value = `${lead.tipo_interes || 'Consulta General'} | Presupuesto: ${cleanBudget} | ${lead.ciudad || lead.zona_interes || 'Santa Cruz'}`;
       document.getElementById('editVisitSchedule').value = lead.horario_visita_solicitado || lead.horario_visita_solicitada || lead.formulario_datos?.horario_visita || '';
       document.getElementById('editNotes').value = lead.notas_asesor || '';
 
