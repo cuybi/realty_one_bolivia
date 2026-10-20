@@ -252,6 +252,46 @@ function syncQRStatusToDisk() {
   } catch (err) {}
 }
 
+// File-IPC para SiteGround: procesa comandos de qr_command.json enviados por qr_bridge.php
+setInterval(async () => {
+  const cmdFile = path.join(__dirname, 'qr_command.json');
+  if (fs.existsSync(cmdFile)) {
+    try {
+      const raw = fs.readFileSync(cmdFile, 'utf8');
+      const cmd = JSON.parse(raw);
+      try { fs.unlinkSync(cmdFile); } catch(_) {}
+
+      if (cmd.action === 'pairing') {
+        let cleanNumber = String(cmd.phoneNumber || '59160937050').replace(/[^0-9]/g, '');
+        if (cleanNumber.length === 8) cleanNumber = '591' + cleanNumber;
+        console.log(`\n📲 [File-IPC] Generando código para WhatsApp +${cleanNumber}...`);
+        if (activeSock && activeSock.requestPairingCode) {
+          const code = await activeSock.requestPairingCode(cleanNumber);
+          currentPairingCode = code;
+          syncQRStatusToDisk();
+          console.log(`🔑 [File-IPC] Código generado con éxito: ${code}`);
+        } else {
+          console.warn('⚠️ [File-IPC] Socket aún no está listo para pairing code. Reiniciando cliente...');
+          isConnecting = false;
+          setTimeout(startWhatsAppClient, 500);
+        }
+      } else if (cmd.action === 'desconectar') {
+        console.log('\n🔌 [File-IPC] Desconectando sesión...');
+        connectionStatus = 'desconectado';
+        connectedNumber = null;
+        currentQR = null;
+        currentPairingCode = null;
+        syncQRStatusToDisk();
+        if (activeSock) {
+          try { activeSock.logout(); } catch(_) {}
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ [File-IPC] Error:', e.message);
+    }
+  }
+}, 1000);
+
 // Endpoints QR para qr_connect.html
 app.get('/api/whatsapp/qr-real', (req, res) => {
   syncQRStatusToDisk();
@@ -540,6 +580,7 @@ async function startWhatsAppClient() {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
+        isConnecting = false;
         connectionStatus = 'esperando_qr';
         try {
           currentQR = await QRCode.toDataURL(qr);
@@ -557,6 +598,7 @@ async function startWhatsAppClient() {
         currentQR = null;
         currentPairingCode = null;
         activeSock = null;
+        isConnecting = false;
         syncQRStatusToDisk();
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
@@ -568,13 +610,24 @@ async function startWhatsAppClient() {
         if (shouldReconnect) {
           setTimeout(startWhatsAppClient, 3000);
         } else {
-          console.log('❌ Sesión cerrada por el usuario. Limpiando credenciales...');
-          if (typeof authDir !== 'undefined' && fs.existsSync(authDir)) {
-            fs.rmSync(authDir, { recursive: true, force: true });
+          console.log('❌ Sesión cerrada por el usuario o credenciales revocadas. Limpiando credenciales...');
+          connectedNumber = null;
+          const authFolder = fs.existsSync(path.join(__dirname, 'backend', 'baileys_auth'))
+            ? path.join(__dirname, 'backend', 'baileys_auth')
+            : path.join(__dirname, 'baileys_auth');
+          if (fs.existsSync(authFolder)) {
+            try { fs.rmSync(authFolder, { recursive: true, force: true }); } catch(_) {}
           }
+          if (global.mongoClientSingleton) {
+            try {
+              global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({}).catch(()=>{});
+            } catch (_) {}
+          }
+          syncQRStatusToDisk();
           setTimeout(startWhatsAppClient, 2000);
         }
       } else if (connection === 'open') {
+        isConnecting = false;
         connectionStatus = 'conectado';
         currentQR = null;
         currentPairingCode = null;

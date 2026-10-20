@@ -489,8 +489,15 @@
 
         if (data.status === 'desconectado') {
           statusDot.className = "status-dot disconnected";
-          statusText.innerText = "Reconectando con el servidor... Haz clic en 'Generar Código' para un código nuevo";
-          if (!data.pairingCode) {
+          statusText.innerText = "Bot desconectado. Presiona 'Generar Código' para vincular.";
+          if (!data.pairingCode && !data.qr) {
+            document.getElementById("qrcode").innerHTML = `
+              <div style="text-align:center; color:#c69214; padding:20px;">
+                <i class="fas fa-link-slash" style="font-size:3rem; margin-bottom:12px; color:#c69214;"></i>
+                <h3 style="color:#111b21; font-size:1rem; margin-bottom:6px;">Bot Desconectado</h3>
+                <p style="color:#555; font-size:0.82rem; line-height:1.5;">Ingresa el número de teléfono y presiona <strong>Generar Código</strong> para vincular WhatsApp.</p>
+              </div>
+            `;
             const resBox = document.getElementById("pairingCodeResult");
             if (resBox) resBox.style.display = 'none';
           }
