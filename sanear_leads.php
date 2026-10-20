@@ -29,7 +29,14 @@ foreach ($files as $file) {
     $leads = json_decode($content, true);
     if (!is_array($leads)) continue;
 
-    $dirtyNames = ['espero', 'buen día', 'buen dia', 'feliz cumpleaños amiga querida', 'feliz cumpleanos amiga querida', 'duc', 'cliente'];
+    $dirtyNames = [
+        'espero', 'buen día', 'buen dia', 'buenos días', 'buenos dias',
+        'buenas tardes', 'buenas noches', 'buenas', 'hola', 'hola buen dia',
+        'feliz cumpleaños amiga querida', 'feliz cumpleanos amiga querida',
+        'feliz cumpleaños', 'feliz cumpleanos', 'feliz cumple', 'felicidades',
+        'duc', 'cliente', 'desconocido', 'saludos', 'gracias', 'muchas gracias',
+        'amigo', 'amiga', 'por identificar'
+    ];
 
     foreach ($leads as &$l) {
         $nombre = strtolower(trim($l['cliente_nombre'] ?? ''));
