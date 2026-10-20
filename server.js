@@ -215,6 +215,22 @@ try {
   console.warn('Rutas de Marketing no cargadas:', e.message);
 }
 
+// Rutas del CMS y Portal Inmobiliario (/api/propiedades, /api/slides, etc.)
+try {
+  let cmsRoutes;
+  if (fs.existsSync(path.join(__dirname, 'backend', 'routes', 'cmsRoutes.js'))) {
+    cmsRoutes = require('./backend/routes/cmsRoutes');
+  } else if (fs.existsSync(path.join(__dirname, 'routes', 'cmsRoutes.js'))) {
+    cmsRoutes = require('./routes/cmsRoutes');
+  }
+  if (cmsRoutes) {
+    app.use('/api', cmsRoutes);
+    console.log('🏛️ [API REST] Rutas del CMS y Catálogo Inmobiliario montadas en /api');
+  }
+} catch (e) {
+  console.warn('Rutas de CMS no cargadas:', e.message);
+}
+
 // Variables de Estado de Conexión QR
 let currentQR = null;
 let currentPairingCode = null;
@@ -223,8 +239,22 @@ let connectedNumber = null;
 let isConnecting = false; // ponytail: guard contra race condition en reconexiones paralelas
 let activeSock = null;
 
+function syncQRStatusToDisk() {
+  try {
+    const data = {
+      status: connectionStatus,
+      qr: currentQR,
+      numeroConectado: connectedNumber,
+      pairingCode: currentPairingCode,
+      updatedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(path.join(__dirname, 'qr_status.json'), JSON.stringify(data, null, 2), 'utf8');
+  } catch (err) {}
+}
+
 // Endpoints QR para qr_connect.html
 app.get('/api/whatsapp/qr-real', (req, res) => {
+  syncQRStatusToDisk();
   res.json({
     status: connectionStatus,
     qr: currentQR,
@@ -257,6 +287,7 @@ app.post('/api/whatsapp/pairing-code', async (req, res) => {
     console.log(`\n📲 Solicitando código de emparejamiento para WhatsApp +${cleanNumber}...`);
     const code = await activeSock.requestPairingCode(cleanNumber);
     currentPairingCode = code;
+    syncQRStatusToDisk();
     console.log(`\n======================================================`);
     console.log(`🔑 CÓDIGO DE VINCULACIÓN GENERADO: ${code}`);
     console.log(`📱 En tu celular (+${cleanNumber}):`);
@@ -287,6 +318,7 @@ app.post('/api/whatsapp/desconectar', async (req, res) => {
     connectedNumber = null;
     currentQR = null;
     currentPairingCode = null;
+    syncQRStatusToDisk();
     res.json({ success: true, message: 'Sesión borrada. Reiniciando conector para nuevo QR / Código...' });
     setTimeout(() => {
       startWhatsAppClient();
@@ -321,14 +353,67 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n======================================================`);
-  console.log(`🦁 SERVIDOR REALTY ONE BOT CLOUD ACTIVO EN PUERTO: ${PORT}`);
-  console.log(`📱 Conector QR en vivo disponible en: /qr_connect.html`);
-  console.log(`======================================================\n`);
+// Escribir estado inicial en qr_status.json
+syncQRStatusToDisk();
 
-  // Anti-Sleep Heartbeat (Ping cada 4 minutos para mantener vivo en Koyeb/Render/Railway)
-  const externalUrl = process.env.EXTERNAL_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+// IPC por Archivo (File Bridge): Permite a qr_bridge.php enviar comandos al bot sin requerir puertos de red
+const CMD_FILE = path.join(__dirname, 'qr_command.json');
+setInterval(async () => {
+  if (!fs.existsSync(CMD_FILE)) return;
+  try {
+    const raw = fs.readFileSync(CMD_FILE, 'utf8');
+    if (!raw) return;
+    const cmd = JSON.parse(raw);
+    try { fs.unlinkSync(CMD_FILE); } catch (_) {}
+
+    if (cmd.action === 'pairing' && activeSock) {
+      console.log(`📲 [File-IPC] Generando pairing code para ${cmd.phoneNumber}...`);
+      const code = await activeSock.requestPairingCode(cmd.phoneNumber);
+      currentPairingCode = code;
+      syncQRStatusToDisk();
+    } else if (cmd.action === 'desconectar') {
+      console.log(`🔌 [File-IPC] Desconectando sesión...`);
+      if (global.mongoClientSingleton) {
+        try {
+          await global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth').deleteMany({});
+        } catch (_) {}
+      }
+      connectionStatus = 'desconectado';
+      connectedNumber = null;
+      currentQR = null;
+      currentPairingCode = null;
+      syncQRStatusToDisk();
+      setTimeout(startWhatsAppClient, 1500);
+    }
+  } catch (err) {
+    console.error('Error procesando qr_command.json:', err.message);
+  }
+}, 1000);
+
+// Iniciar SIEMPRE el cliente Baileys en segundo plano (no depende de ningún puerto de red)
+startWhatsAppClient();
+
+// Intentar levantar servidor HTTP en 127.0.0.1 (si el entorno lo permite).
+// En SiteGround compartido, si falla con EPERM, el bot funciona igual mediante File-Bridge (qr_status.json).
+try {
+  const server = app.listen(PORT, '127.0.0.1', () => {
+    console.log(`\n======================================================`);
+    console.log(`🦁 SERVIDOR REALTY ONE BOT ACTIVO EN: 127.0.0.1:${PORT}`);
+    console.log(`📱 Conector QR en vivo disponible en: /qr_connect.html`);
+    console.log(`======================================================\n`);
+  });
+
+  server.on('error', (err) => {
+    console.warn(`⚠️ [Servidor HTTP Opcional]: ${err.message}`);
+    console.log(`✅ [Modo Autónomo Activo]: WhatsApp Baileys 24/7 funcionando vía File-Bridge (qr_status.json).`);
+  });
+} catch (err) {
+  console.warn(`⚠️ [Servidor HTTP Opcional]: ${err.message}. Continuando en modo autónomo.`);
+}
+
+// Anti-Sleep Heartbeat (Ping cada 4 minutos para mantener vivo en VPS / Render / Railway)
+const externalUrl = process.env.EXTERNAL_URL || process.env.RENDER_EXTERNAL_URL;
+if (externalUrl) {
   console.log(`⏱️ Anti-Sleep Heartbeat activo para: ${externalUrl}`);
   setInterval(async () => {
     try {
@@ -336,9 +421,7 @@ app.listen(PORT, '0.0.0.0', () => {
       console.log(`💓 [Anti-Sleep Ping] Heartbeat exitoso a ${externalUrl}`);
     } catch (e) {}
   }, 4 * 60 * 1000);
-
-  startWhatsAppClient();
-});
+}
 
 /**
  * Inicia el cliente WebSocket de Baileys en la Nube
@@ -382,68 +465,66 @@ async function startWhatsAppClient() {
 
     let state, saveCreds;
     const mongoUri = process.env.MONGODB_URI;
+    const directMongoUri = 'mongodb://pixelbolivia_db_user:p15RQRIGZSavT37H@ac-5cybkoh-shard-00-00.qvkco9y.mongodb.net:27017,ac-5cybkoh-shard-00-01.qvkco9y.mongodb.net:27017,ac-5cybkoh-shard-00-02.qvkco9y.mongodb.net:27017/realty_one_bot?ssl=true&authSource=admin';
     let mongoLoaded = false;
+
     if (mongoUri) {
-      try {
-        const { MongoClient } = require('mongodb');
-        const mongoAuthModule = fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
-          ? './backend/services/mongoAuthState'
-          : './services/mongoAuthState';
-        const { useMongoAuthState } = require(mongoAuthModule);
+      const urisToTry = [mongoUri];
+      if (mongoUri.includes('+srv://') && !urisToTry.includes(directMongoUri)) {
+        urisToTry.push(directMongoUri);
+      }
 
-        // Ping con timeout específico si ya existe singleton
-        if (global.mongoClientSingleton) {
-          try {
+      const { MongoClient } = require('mongodb');
+      const mongoAuthModule = fs.existsSync(path.join(__dirname, 'backend', 'services', 'mongoAuthState.js'))
+        ? './backend/services/mongoAuthState'
+        : './services/mongoAuthState';
+      const { useMongoAuthState } = require(mongoAuthModule);
+
+      for (const uri of urisToTry) {
+        try {
+          if (!global.mongoClientSingleton) {
+            global.mongoClientSingleton = new MongoClient(uri, {
+              serverSelectionTimeoutMS: 6000,
+              socketTimeoutMS: 30000,
+              maxIdleTimeMS: 30000
+            });
+            await global.mongoClientSingleton.connect();
             await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
-          } catch (pingErr) {
-            console.warn('⚠️ [MongoDB] Singleton no responde, reconectando...', pingErr.message);
-            try { await global.mongoClientSingleton.close(); } catch (_) {}
-            global.mongoClientSingleton = null;
+            console.log('✅ [MongoDB Atlas] Conectado y verificado (ping: 1) para persistencia 24/7');
           }
+          const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
+          ({ state, saveCreds } = await useMongoAuthState(col));
+          mongoLoaded = true;
+          lastErrorMsg = null;
+          break;
+        } catch (mErr) {
+          console.warn(`⚠️ [MongoDB] Intento fallido con ${uri.slice(0, 25)}...: ${mErr.message}`);
+          try { await global.mongoClientSingleton?.close(); } catch (_) {}
+          global.mongoClientSingleton = null;
         }
-
-        if (!global.mongoClientSingleton) {
-          // Opciones explícitas sin mezclar flags TLS en conflicto
-          global.mongoClientSingleton = new MongoClient(mongoUri, {
-            serverSelectionTimeoutMS: 10000,
-            socketTimeoutMS: 45000,
-            maxIdleTimeMS: 30000
-          });
-          await global.mongoClientSingleton.connect();
-          // Verificación real con ping antes de cargar el auth state
-          await global.mongoClientSingleton.db('realty_one_bot').command({ ping: 1 });
-          console.log('✅ [MongoDB Atlas] Conectado y verificado (ping: 1) para persistencia de sesión Baileys 24/7');
-        }
-        const col = global.mongoClientSingleton.db('realty_one_bot').collection('baileys_auth');
-        ({ state, saveCreds } = await useMongoAuthState(col));
-        mongoLoaded = true;
-        lastErrorMsg = null;
-      } catch (mErr) {
-        console.error('❌ [MongoDB Atlas] Error conectando a Mongo:', mErr.message);
-        lastErrorMsg = 'Error MongoDB: ' + mErr.message;
-        global.mongoClientSingleton = null;
       }
     }
 
-    // PASO 2 OBLIGATORIO: Eliminar fallback silencioso a disco efímero en producción.
-    // Si MONGODB_URI fue configurado pero Mongo no conecta, no arrancar con disco efímero vacío.
-    if (mongoUri && !mongoLoaded) {
+    // Si falló MongoDB: solo abortar en Render (disco efímero).
+    // En SiteGround/VPS/Local el disco es PERSISTENTE, por lo que usamos ./baileys_auth con total seguridad.
+    const isEphemeral = Boolean(process.env.RENDER || process.env.KOYEB);
+    if (!mongoLoaded && isEphemeral) {
       connectionStatus = 'error_mongo';
-      console.error('⛔ [startWhatsAppClient] Falló conexión persistente a MongoDB. Abortando inicio con sesión efímera vacía para no desautenticar el número.');
+      console.error('⛔ [Render] Falló conexión persistente a MongoDB en entorno efímero. Reintentando en 15s...');
       isConnecting = false;
       setTimeout(startWhatsAppClient, 15000);
       return;
     }
 
     if (!mongoLoaded) {
-      // Solo en desarrollo local si NO se configuró MONGODB_URI
-      const authDir = fs.existsSync(path.join(__dirname, 'backend'))
-        ? path.join(__dirname, 'backend', 'baileys_auth')
-        : path.join(__dirname, 'baileys_auth');
+      const authDir = fs.existsSync(path.join(__dirname, 'baileys_auth'))
+        ? path.join(__dirname, 'baileys_auth')
+        : path.join(__dirname, 'backend', 'baileys_auth');
 
       if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
       ({ state, saveCreds } = await useMultiFileAuthState(authDir));
-      console.log('⚠️ [server.js] Modo Local: Usando disco local para credenciales Baileys');
+      console.log(`💾 [Modo Persistente]: Usando disco local persistente en ${authDir} (SiteGround / VPS 24/7).`);
+      lastErrorMsg = null;
     }
 
     const sock = makeWASocket({
@@ -465,6 +546,7 @@ async function startWhatsAppClient() {
         } catch (err) {
           currentQR = qr;
         }
+        syncQRStatusToDisk();
         console.log(`\n📲 ¡NUEVO CÓDIGO QR GENERADO! Escanéalo en ${process.env.EXTERNAL_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + PORT}/qr_connect.html\n`);
       }
 
@@ -475,6 +557,7 @@ async function startWhatsAppClient() {
         currentQR = null;
         currentPairingCode = null;
         activeSock = null;
+        syncQRStatusToDisk();
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
             ? require('./backend/services/marketingHub')
@@ -496,6 +579,7 @@ async function startWhatsAppClient() {
         currentQR = null;
         currentPairingCode = null;
         connectedNumber = sock.user?.id?.split(':')[0] || 'Conectado';
+        syncQRStatusToDisk();
         try {
           const mHub = fs.existsSync(path.join(__dirname, 'backend', 'services', 'marketingHub.js'))
             ? require('./backend/services/marketingHub')
