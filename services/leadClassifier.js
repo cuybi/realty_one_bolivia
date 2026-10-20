@@ -18,8 +18,8 @@ const LEADS_FILE = path.join(__dirname, '..', 'leads.json');
 const SG_HOSTNAME = 'realyonegroupbolivia.e-techgroupbolivia.com';
 const SG_SYNC_PATH = '/save_leads_sync.php';
 const SG_ADMIN_KEY = process.env.ADMIN_KEY || 'ONE2026';
-// UA navegador estándar: SiteGround Bot Protection bloquea UAs de bot (ej: RealtyONEBot/2.0 → 403)
-const SG_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+// UA estándar compatible: SiteGround WAF bloquea UAs con tokens de Chrome desalineados con TLS handshake
+const SG_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)';
 
 // Cache en memoria para evitar lecturas repetidas en el mismo proceso
 let _memoryCache = null;
@@ -111,7 +111,6 @@ function fetchLeadsFromSiteGround(attempt = 0) {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'X-Admin-Key': SG_ADMIN_KEY,
         'User-Agent': SG_UA
       },
       timeout: 8000
@@ -225,8 +224,7 @@ function syncLeadsToSiteGround(leads, attempt = 0) {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(payload),
           'User-Agent': SG_UA,
-          'Accept': 'application/json',
-          'X-Admin-Key': SG_ADMIN_KEY
+          'Accept': 'application/json'
         },
         timeout: 10000
       };
@@ -273,35 +271,46 @@ function syncLeadsToSiteGround(leads, attempt = 0) {
 }
 
 /**
- * Guarda leads: escribe cache local Y sincroniza con SiteGround (fuente de verdad).
+ * Guarda leads: escribe cache local, sincroniza con MongoDB Atlas Y sincroniza con SiteGround (fuente de verdad).
  * Retorna Promise<boolean>.
  */
 async function saveLeads(leads) {
-  // Actualizar cache en memoria inmediatamente
+  // 1. Cache en memoria — inmediato
   _memoryCache = leads;
   _memoryCacheTime = Date.now();
 
-  // Escribir cache local (best-effort, puede fallar en Render)
+  // 2. Disco local (raíz del proyecto) — best-effort
   try {
     fs.writeFileSync(LEADS_FILE, JSON.stringify(leads, null, 2), 'utf8');
   } catch (e) {
     console.warn('[saveLeads] No se pudo escribir archivo local:', e.message);
   }
   try {
-    const rootLeads = path.join(__dirname, '..', '..', 'leads.json');
+    const rootLeads = path.join(__dirname, '..', 'leads.json');
     fs.writeFileSync(rootLeads, JSON.stringify(leads, null, 2), 'utf8');
   } catch (e) {}
 
-  // Sincronizar con SiteGround de manera inmediata y consistente
-  try {
-    const ok = await syncLeadsToSiteGround(leads);
-    if (!ok) console.warn('[saveLeads] ⚠️ Sync a SiteGround reintentará en siguiente ciclo.');
-  } catch (e) {
-    console.warn('[saveLeads] ⚠️ Error background sync:', e.message);
+  // 3. MongoDB Atlas — fire-and-forget (no bloquea)
+  if (global.mongoClientSingleton) {
+    try {
+      const col = global.mongoClientSingleton.db('realty_one_bot').collection('leads');
+      if (Array.isArray(leads) && leads.length > 0) {
+        const ops = leads.map(l => ({
+          updateOne: { filter: { id: l.id }, update: { $set: l }, upsert: true }
+        }));
+        col.bulkWrite(ops).catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[MongoDB Atlas] Error guardando leads:', e.message);
+    }
   }
+
+  // 4. SiteGround — ponytail: fire-and-forget; captcha/WAF nunca congela respuesta
+  syncLeadsToSiteGround(leads).catch(() => {});
 
   return true;
 }
+
 
 /**
  * Normaliza texto para comparaciones de búsqueda
@@ -381,6 +390,17 @@ function formatTitleCase(str = '') {
  * Extrae posibles nombres de clientes del texto
  */
 function extractName(text = '') {
+  const notNames = [
+    'interesado', 'interesada', 'cliente', 'amigo', 'amiga', 'alguien', 'persona',
+    'comprador', 'compradora', 'hola', 'buenas', 'buen', 'buenos', 'realty', 'one',
+    'informacion', 'un', 'una', 'el', 'la', 'los', 'las', 'asesor', 'agente', 'nuevo', 'nueva',
+    'propietario', 'propietaria', 'inquilino', 'inversionista',
+    'por ahora no', 'por ahora no gracias', 'por ahora', 'no gracias', 'solo queria consultar', 'solo quería consultar',
+    'no deseo agendar', 'no deseo', 'no quiero', 'gracias', 'muchas gracias', 'chau', 'adios', 'adiós',
+    'de acuerdo', 'esta bien', 'está bien', 'perfecto', 'excelente', 'genial', 'dale', 'vale', 'listo', 'ok',
+    'si por favor', 'sí por favor', 'si', 'sí', 'no'
+  ];
+
   const patterns = [
     /(?:mi\s+nombre\s+es|me\s+llamo|soy|habla|atte:?|atentamente:?)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,3})/i,
     /(?:nombre:?)\s*([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,3})/i,
@@ -392,14 +412,9 @@ function extractName(text = '') {
     if (match && match[1]) {
       let candidate = match[1].trim();
       candidate = candidate.replace(/\s+(?:y(?:\s+mi)?|mi|con|del?|en|por|para|cel(?:ular)?|tel(?:efono)?|correo|email|whatsapp)\b.*$/i, '').trim();
+      const candLo = candidate.toLowerCase();
 
-      const notNames = [
-        'interesado', 'interesada', 'cliente', 'amigo', 'amiga', 'alguien', 'persona',
-        'comprador', 'compradora', 'hola', 'buenas', 'buen', 'buenos', 'realty', 'one',
-        'informacion', 'un', 'una', 'el', 'la', 'los', 'las', 'asesor', 'agente', 'nuevo', 'nueva',
-        'propietario', 'propietaria', 'inquilino', 'inversionista'
-      ];
-      if (!notNames.includes(candidate.toLowerCase()) && candidate.length > 2) {
+      if (!notNames.some(nn => candLo === nn || candLo.startsWith(nn + ' ') || candLo.includes('no gracias') || candLo.includes('por ahora') || candLo.includes('no deseo')) && candidate.length > 2) {
         candidate = candidate.replace(/\s+(?:y|e|o|de|del|en|a)$/i, '').trim();
         if (candidate.length > 2 && !notNames.includes(candidate.toLowerCase())) {
           return formatTitleCase(candidate);
@@ -413,11 +428,34 @@ function extractName(text = '') {
   if (commaParts.length >= 2) {
     let firstPart = commaParts[0].trim();
     firstPart = firstPart.replace(/^(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+/i, '').trim();
+    const fpLo = firstPart.toLowerCase();
     if (firstPart.length > 2 && firstPart.split(' ').length <= 4 && !firstPart.includes('@') && !/\d/.test(firstPart)) {
-      return formatTitleCase(firstPart);
+      if (!notNames.some(nn => fpLo === nn || fpLo.startsWith(nn + ' ') || fpLo.includes('no gracias') || fpLo.includes('por ahora') || fpLo.includes('no deseo'))) {
+        return formatTitleCase(firstPart);
+      }
     }
   }
 
+  return null;
+}
+
+/**
+ * Extrae la ciudad de residencia o interés del cliente
+ */
+function extractCity(text = '') {
+  if (!text || typeof text !== 'string') return null;
+  const cities = [
+    'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
+    'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
+    'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
+    'yacuiba', 'riberalta', 'madrid', 'barcelona', 'buenos aires', 'miami'
+  ];
+  const lower = text.toLowerCase();
+  for (const c of cities) {
+    if (new RegExp('(^|[^a-zA-ZáéíóúñÁÉÍÓÚÑ])' + c + '([^a-zA-ZáéíóúñÁÉÍÓÚÑ]|$)', 'i').test(lower)) {
+      return formatTitleCase(c);
+    }
+  }
   return null;
 }
 
@@ -441,7 +479,7 @@ function extractZone(text = '') {
 }
 
 /**
- * Extrae el tipo de operación inmobiliaria
+ * Extrae el tipo de operación o inmueble inmobiliario
  */
 function extractOperation(text = '') {
   const n = normalizeText(text);
@@ -451,13 +489,16 @@ function extractOperation(text = '') {
   if (n.includes('anticretico') || n.includes('anticret')) return 'Anticrético';
   if (n.includes('alquiler') || n.includes('alquilar') || n.includes('rentar')) return 'Alquiler';
   if (n.includes('terreno industrial') || n.includes('g77') || n.includes('parque industrial') || n.includes('16.800.000')) return 'Terreno Industrial (G77)';
-  if (n.includes('terreno') || n.includes('lote') || n.includes('hectarea')) return 'Terreno / Lote';
-  if (n.includes('comprar') || n.includes('venta') || n.includes('compro') || n.includes('mansion') || n.includes('penthouse') || n.includes('departamento') || n.includes('casa')) return 'Venta / Compra';
+  if (n.includes('terreno') || n.includes('lote') || n.includes('hectarea') || n.includes('hectárea')) return 'Terreno / Lote';
+  if (n.includes('oficina') || n.includes('local comercial') || n.includes('galpon') || n.includes('galpón') || n.includes('comercial')) return 'Oficina / Comercial';
+  if (n.includes('departamento') || n.includes('dpto') || n.includes('monoambiente') || n.includes('penthouse') || n.includes('duplex')) return 'Departamento';
+  if (n.includes('casa') || n.includes('mansion') || n.includes('vivienda') || n.includes('chalet')) return 'Casa';
+  if (n.includes('comprar') || n.includes('venta') || n.includes('compro')) return 'Venta / Compra';
   return 'Consulta General';
 }
 
 /**
- * Extrae presupuesto o monto consultado
+ * Extrae presupuesto o monto consultado, evitando capturar dígitos de teléfonos o fechas
  */
 function extractBudget(text = '') {
   const n = normalizeText(text);
@@ -470,11 +511,28 @@ function extractBudget(text = '') {
   if (n.includes('18.000') || n.includes('18000')) return '$18.000 (Anticrético)';
   if (n.includes('1.200') || n.includes('1200')) return '$1.200 /mes (Alquiler)';
 
-  const priceRegex = /(?:[$]|bs|us|usd|\$us)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:[$]|bs|us|usd|\$us|dolares|bolivianos)?/i;
-  const match = text.match(priceRegex);
-  if (match && match[1] && Number(match[1].replace(/[.,]/g, '')) > 100) {
-    return match[0].trim();
+  // Limpiar teléfonos, correos y fechas para que sus dígitos no se confundan con presupuestos
+  const clean = text
+    .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, ' ')
+    .replace(/(?:\+?591[\s.-]*)?[67]\d{7}\b/g, ' ')
+    .replace(/\b\d{7,15}\b/g, ' ')
+    .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ')
+    .replace(/\b202\d\b/g, ' ');
+
+  // 1. Patrón con moneda explícita ($us, Bs, USD, dólares, bolivianos)
+  const currencyRegex = /(?:[$]|bs|us|usd|\$us)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\b|\b(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\s*(?:[$]|bs|us|usd|\$us|dolares|dólares|bolivianos)\b/i;
+  const matchCurr = clean.match(currencyRegex);
+  if (matchCurr) {
+    return matchCurr[0].trim();
   }
+
+  // 2. Patrón con palabra clave de presupuesto (ej: "presupuesto de 120000", "hasta 80.000")
+  const keywordRegex = /\b(?:presupuesto|inversi[oó]n|monto|precio|hasta|rango)\s*(?:de|es|:)?\s*(?:[$]|bs|us|usd|\$us)?\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\b/i;
+  const matchKey = clean.match(keywordRegex);
+  if (matchKey && matchKey[1] && Number(matchKey[1].replace(/[.,]/g, '')) > 100) {
+    return matchKey[0].trim();
+  }
+
   return 'Por definir';
 }
 
@@ -485,8 +543,14 @@ function extractSchedule(text = '') {
   if (!text) return null;
   const n = normalizeText(text);
 
+  // Si el mensaje es una negativa explícita, rechazo o despedida, NO es horario
+  if (/\b(no\s+gracias|por\s+ahora\s+no|por\s+el\s+momento\s+no|todav[ií]a\s+no|despu[eé]s|luego|otro\s+d[ií]a|no\s+deseo|no\s+puedo|no\s+quiero)\b/i.test(text) ||
+      /^(no|nop|no\s+por\s+ahora|gracias|muchas\s+gracias|buenas\s+noches|hasta\s+luego|chau)$/i.test(text.trim())) {
+    return null;
+  }
+
   // Si el mensaje es solo un saludo o solo datos de contacto (con @), descartar
-  if (text.includes('@') && !n.includes('visita') && !n.includes('a las') && !n.includes('horas') && !n.includes('manana') && !n.includes('mañana')) {
+  if (text.includes('@') && !n.includes('visita') && !n.includes('a las') && !/\b(?:horas?|hrs?)\b/i.test(n) && !n.includes('manana') && !n.includes('mañana')) {
     return null;
   }
   if (/^(hola|buenas|buen d[ií]a|buenas tardes|buenas noches|saludos|1|2|3|4|5)$/i.test(text.trim())) {
@@ -494,22 +558,26 @@ function extractSchedule(text = '') {
   }
 
   const days = ['mañana', 'manana', 'hoy', 'lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo', 'fin de semana'];
-  const times = ['tarde', 'noche', 'mediodia', 'mediodía', '10:00', '11:00', '14:00', '15:00', '15:30', '16:00', '16:30', '17:00', '18:00', 'pm', 'am', 'horas', 'hora'];
+  const times = ['tarde', 'mediodia', 'mediodía', '10:00', '11:00', '14:00', '15:00', '15:30', '16:00', '16:30', '17:00', '18:00', 'pm', 'am'];
 
   const foundDay = days.some(d => n.includes(d));
-  const foundTime = times.some(t => n.includes(t));
+  // Usar regex con límite de palabra para 'hora' / 'horas' / 'hrs' para no coincidir con 'ahora'
+  const hasHourWord = /\b(?:horas?|hrs?)\b/i.test(n);
+  // 'noche' solo si no es saludo 'buenas noches'
+  const hasNightWord = /\b(?:noche)\b/i.test(n) && !/\b(?:buenas\s+noches)\b/i.test(n);
+  const foundTime = times.some(t => n.includes(t)) || hasHourWord || hasNightWord;
 
   if (foundDay || foundTime || n.includes('a las') || n.includes('visita') || n.includes('cita') || n.includes('agendar')) {
     // Si viene dentro de un texto largo con comas, extraer solo la parte de horario
     const parts = text.split(',');
     for (const part of parts) {
       const np = normalizeText(part);
-      if (days.some(d => np.includes(d)) || times.some(t => np.includes(t)) || np.includes('a las') || np.includes('visita')) {
+      if (days.some(d => np.includes(d)) || times.some(t => np.includes(t)) || /\b(?:horas?|hrs?)\b/i.test(np) || np.includes('a las') || np.includes('visita')) {
         const clean = part.trim();
-        if (clean.length <= 50 && !clean.includes('Bienvenido') && !clean.includes('Realty ONE')) return clean;
+        if (clean.length <= 50 && !clean.includes('Bienvenido') && !clean.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias)\b/i.test(clean)) return clean;
       }
     }
-    if (text.length <= 50 && !text.includes('Bienvenido') && !text.includes('Realty ONE')) return text.trim();
+    if (text.length <= 50 && !text.includes('Bienvenido') && !text.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias)\b/i.test(text)) return text.trim();
   }
   return null;
 }
@@ -739,6 +807,15 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
 
     if (leadIndex >= 0) {
       lead = leads[leadIndex];
+
+      // Eliminar duplicados viejos con el mismo número de teléfono
+      for (let i = leads.length - 1; i >= 0; i--) {
+        if (i !== leadIndex && leads[i].numero_celular === phone) {
+          leads.splice(i, 1);
+          if (i < leadIndex) leadIndex--;
+        }
+      }
+
       lead.historial = lead.historial || [];
       lead.historial.push({
         rol: 'usuario',
@@ -772,11 +849,19 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
         leadIndex = 0;
       }
     } else {
+      // Eliminar cualquier registro previo con mismo teléfono si existiera
+      for (let i = leads.length - 1; i >= 0; i--) {
+        if (leads[i].numero_celular === phone || leads[i].id === userId) {
+          leads.splice(i, 1);
+        }
+      }
+
       lead = {
         id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         numero_celular: phone,
         cliente_nombre: (metadata.pushName && metadata.pushName.length > 1) ? metadata.pushName : 'Por identificar',
-        email: 'Pendiente',
+        email: metadata.email || 'Pendiente',
+        ciudad: metadata.ciudad ? formatTitleCase(metadata.ciudad) : null,
         fecha_creacion: timeData.timestamp_iso,
         fecha_completa: timeData.fecha_completa,
         hora: timeData.hora,
@@ -787,7 +872,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
         anio: timeData.anio,
         canal_origen: metadata.canal || 'WhatsApp',
         campana: metadata.campana || 'Catálogo General',
-        estado_comercial: 'Nuevo',
+        estado_comercial: metadata.status || 'Nuevo',
         etapa_embudo: 'SOLICITUD',
         notas_asesor: '',
         ultimo_mensaje: incomingMessage,
@@ -812,57 +897,95 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       if (formData.name) lead.cliente_nombre = formData.name;
       if (formData.email) lead.email = formData.email;
       if (formData.phone) lead.numero_celular = formData.phone;
-      if (formData.city) lead.zona_interes = formData.city;
+      if (formData.city) {
+        lead.ciudad = formatTitleCase(formData.city);
+        lead.zona_interes = lead.ciudad;
+      }
     }
 
     // 0.1 Inyectar datos explícitos validados por la máquina de estados
     if (metadata.telefono) lead.numero_celular = normalizePhoneNumber(metadata.telefono);
     if (metadata.email) lead.email = metadata.email;
-    if (metadata.ciudad) lead.zona_interes = metadata.ciudad;
+    if (metadata.ciudad) {
+      lead.ciudad = formatTitleCase(metadata.ciudad);
+      lead.zona_interes = lead.ciudad;
+    }
+    if (metadata.status) {
+      lead.estado_comercial = metadata.status;
+    }
+
+    // 1. Extraer nombre: si el mensaje actual o metadata trae nombre, sobrescribir
     if (metadata.pushName && (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar' || lead.cliente_nombre.toLowerCase() === 'santa cruz')) {
       lead.cliente_nombre = metadata.pushName;
     }
+    const detectedName = extractName(incomingMessage);
+    if (detectedName) {
+      lead.cliente_nombre = detectedName;
+    } else if (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar') {
+      const histName = extractName(allUserTexts);
+      if (histName) lead.cliente_nombre = histName;
+    }
 
-    // 1. Extraer nombre si aún no está fijado
-    let detectedName = extractName(incomingMessage);
-    if (!detectedName) {
-      for (let i = lead.historial.length - 1; i >= 0; i--) {
-        if (lead.historial[i].rol === 'usuario') {
-          const nm = extractName(lead.historial[i].texto);
-          if (nm) { detectedName = nm; break; }
-        }
+    // 2. Extraer correo electrónico: si viene un nuevo email, DEBE sobrescribir al viejo
+    const detectedEmail = extractEmail(incomingMessage);
+    if (detectedEmail) {
+      lead.email = detectedEmail;
+    } else if (!lead.email || lead.email === 'Pendiente') {
+      const histEmail = extractEmail(allUserTexts);
+      if (histEmail) lead.email = histEmail;
+    }
+
+    // 3. Extraer ciudad: si viene nueva ciudad, DEBE sobrescribir
+    const detectedCity = extractCity(incomingMessage);
+    if (detectedCity) {
+      lead.ciudad = formatTitleCase(detectedCity);
+      lead.zona_interes = lead.ciudad.includes('Santa Cruz') ? 'Santa Cruz (General)' : `${lead.ciudad} (General)`;
+    } else if (!lead.ciudad) {
+      const histCity = extractCity(allUserTexts);
+      if (histCity) {
+        lead.ciudad = formatTitleCase(histCity);
+        lead.zona_interes = lead.ciudad.includes('Santa Cruz') ? 'Santa Cruz (General)' : `${lead.ciudad} (General)`;
       }
     }
-    if (!detectedName) detectedName = extractName(allUserTexts);
-    if (detectedName && (lead.cliente_nombre === 'Por identificar' || !lead.cliente_nombre)) {
-      lead.cliente_nombre = detectedName;
+
+    const specificZone = extractZone(allUserTexts);
+    if (specificZone && specificZone !== 'Santa Cruz (General)') {
+      lead.zona_interes = specificZone;
+    } else if (lead.ciudad) {
+      lead.zona_interes = lead.ciudad.includes('Santa Cruz') ? 'Santa Cruz (General)' : `${lead.ciudad} (General)`;
+    } else {
+      lead.zona_interes = 'Santa Cruz (General)';
     }
 
-    // 2. Extraer correo electrónico
-    const detectedEmail = extractEmail(incomingMessage) || extractEmail(allUserTexts);
-    if (detectedEmail && (lead.email === 'Pendiente' || !lead.email)) {
-      lead.email = detectedEmail;
-    }
-
-    // 3. Extraer zona, operación, presupuesto y horario de visita
-    lead.zona_interes = extractZone(allUserTexts);
     lead.tipo_interes = extractOperation(allUserTexts);
     lead.presupuesto = extractBudget(allUserTexts);
     
     // 3. Extraer fecha/horario de visita (mensaje actual primero, luego historial)
-    let detectedSchedule = extractSchedule(incomingMessage);
-    if (!detectedSchedule) {
-      for (let i = lead.historial.length - 1; i >= 0; i--) {
-        if (lead.historial[i].rol === 'usuario') {
-          const sch = extractSchedule(lead.historial[i].texto);
-          if (sch) { detectedSchedule = sch; break; }
+    const isVisitRefusal = metadata.status === 'Interesado - Sin Visita' ||
+      /\b(por\s+ahora\s+no|no\s+gracias|por\s+el\s+momento\s+no|todav[ií]a\s+no|no\s+deseo)\b/i.test(incomingMessage);
+
+    let detectedSchedule = null;
+    if (!isVisitRefusal) {
+      detectedSchedule = metadata.horarioVisita || extractSchedule(incomingMessage);
+      if (!detectedSchedule) {
+        for (let i = lead.historial.length - 1; i >= 0; i--) {
+          if (lead.historial[i].rol === 'usuario') {
+            const hText = lead.historial[i].texto;
+            if (/\b(por\s+ahora\s+no|no\s+gracias)\b/i.test(hText)) break;
+            const sch = extractSchedule(hText);
+            if (sch) { detectedSchedule = sch; break; }
+          }
         }
       }
     }
+
     if (detectedSchedule) {
       lead.horario_visita_solicitado = detectedSchedule;
       lead.etapa_embudo = 'VISITA_AGENDADA';
       lead.estado_comercial = 'Visita Agendada';
+    } else if (isVisitRefusal) {
+      lead.horario_visita_solicitado = null;
+      lead.estado_comercial = 'Interesado - Sin Visita';
     }
 
     // 4. Estado del Formulario de Datos
@@ -875,6 +998,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       nombre: hasName ? lead.cliente_nombre : null,
       telefono: hasPhone ? lead.numero_celular : null,
       email: hasEmail ? lead.email : null,
+      ciudad: lead.ciudad || null,
       zona: lead.zona_interes,
       operacion: lead.tipo_interes,
       presupuesto: lead.presupuesto,

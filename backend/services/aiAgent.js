@@ -640,12 +640,46 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     conversationSessions.delete(userId);
   }
 
-  // 3. RECUPERACIÓN DE ESTADOS PREVIOS:
-  // Si entra un nuevo saludo ("Hola", "Buenas") o pasaron más de 30 minutos de inactividad,
-  // reiniciamos sesión para no quedar atrapado en estados viejos ni silenciar al usuario:
-  const isNewGreeting = lo.startsWith('hola') || lo.startsWith('¡hola') || lo.startsWith('buenas') || lo.startsWith('buen dia') || lo.startsWith('buenos dias') || lo.startsWith('buen día');
+    const isFarewell = isFarewellOnly(raw) || isCourtesyExit(raw) || /\b(buenas noches|hasta ma[nñ]ana|que descanses|buen descanso|igualmente)\b/i.test(lo);
+
+  // Un saludo inicial solo se considera tal si NO es una frase de despedida o cortesía nocturna
+  const isNewGreeting = !isFarewell && (
+    lo.startsWith('hola') || lo.startsWith('¡hola') ||
+    lo.startsWith('buen dia') || lo.startsWith('buenos dias') || lo.startsWith('buen día') ||
+    lo.startsWith('buenas tardes') ||
+    lo === 'buenas' || lo === 'hola' || lo === 'buen día' || lo === 'buenos días'
+  );
+
+  // 3. Si la sesión anterior ya estaba concluida (despedida / cerrada):
   const prevSession = sessions.get(userId);
-  if (prevSession) {
+  if (prevSession && (prevSession.state === 'ESTADO_FAREWELL' || prevSession.isClosed)) {
+    // Si hace clic en un anuncio, saluda o hace una consulta inmobiliaria, reabrimos:
+    if (isRealAd || isNewGreeting || isInquiry) {
+      sessions.delete(userId);
+      userFlowSessions.delete(userId);
+      conversationSessions.delete(userId);
+    } else {
+      // Verificamos si envió datos rezagados (teléfono, correo o fecha)
+      const latePhone = extractPhone(raw);
+      const lateEmail = extractEmail(raw);
+      const lateDate  = hasValidDate(raw);
+      if (latePhone || lateEmail || lateDate) {
+        prevSession.state = 'ESTADO_3_DATA';
+        prevSession.isClosed = false;
+        // Permite procesar datos
+      } else {
+        // Ante cualquier despedida o cortesía ("buenas noches", "gracias", "igualmente", emojis)
+        // tras concluir la charla: EL ASISTENTE QUEDA EN RIGUROSO SILENCIO.
+        prevSession.lastActivity = Date.now();
+        return null;
+      }
+    }
+  }
+
+  // 4. RECUPERACIÓN DE ESTADOS PREVIOS (Para sesiones activas en curso):
+  // Si entra un nuevo saludo ("Hola", "Buen día") o pasaron más de 30 minutos de inactividad,
+  // reiniciamos sesión para no quedar atrapado en estados viejos:
+  if (prevSession && !prevSession.isClosed && prevSession.state !== 'ESTADO_FAREWELL') {
     const isStale = (Date.now() - (prevSession.lastActivity || 0)) > 30 * 60 * 1000;
     if (isRealAd || isNewGreeting || isStale) {
       sessions.delete(userId);
@@ -656,37 +690,26 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   let s = getSession(userId, pushName);
 
-  // 4. Si la conversación previa ya había concluido (despedida / cerrada):
-  if (s.state === 'ESTADO_FAREWELL' || s.isClosed) {
-    // Si el cliente hace clic en un anuncio o envía un nuevo saludo, reabrimos sesión fresca
-    if (isRealAd || isNewGreeting) {
-      sessions.delete(userId);
-      userFlowSessions.delete(userId);
-      conversationSessions.delete(userId);
-      s = getSession(userId, pushName);
-    } else {
-      // Verificamos si el cliente envió datos de contacto (teléfono, correo o fecha de visita)
-      const latePhone = extractPhone(raw);
-      const lateEmail = extractEmail(raw);
-      const lateDate  = hasValidDate(raw);
-      if (latePhone || lateEmail || lateDate) {
-        s.state = 'ESTADO_3_DATA';
-        s.isClosed = false;
-        // Permite que el flujo procese los datos a continuación
-      } else {
-        // Tras la despedida el asistente queda en silencio ante cualquier mensaje residual
-        // (cortesías, emojis, audios o texto genérico). Solo se reabre con un nuevo saludo o anuncio.
-        return null;
-      }
-    }
-  }
-
   // Actualizar nombre si viene en pushName y no lo teníamos
   if (pushName && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
     s.clientName = pushName.trim();
   }
   let name = s.clientName ? ` ${s.clientName}` : '';
   let nom  = s.clientName || '';
+
+  // ponytail: extraer datos si el usuario ya los incluyó en su primer mensaje
+  const initPhone = extractPhone(raw);
+  const initEmail = extractEmail(raw);
+  const initCity  = extractCity(raw);
+  const initName  = extractFullName(raw);
+  if (initPhone) s.phone = initPhone;
+  if (initEmail) s.email = initEmail;
+  if (initCity)  s.city  = initCity;
+  if (initName && initName.trim().split(/\s+/).length >= 2) {
+    s.clientName = initName;
+    name = ` ${s.clientName}`;
+    nom = s.clientName;
+  }
 
   // ── Filtro de relevancia ──────────────────────────────────────────────────
   // Evita responder como si fuera una consulta real a mensajes que no tienen
@@ -713,14 +736,32 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     if (isInquiry) {
       s.interestMsg = raw;
       s.state = 'ESTADO_3_DATA';
-      if (isSelling) {
-        return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
-      }
-      return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+      const rep = isSelling
+        ? `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
+        : `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: isSelling ? 'Venta de Propiedad' : 'Consulta Inmuebles',
+        canal: 'WhatsApp (+591 60937050)',
+        pushName: s.clientName,
+        status: 'Nuevo',
+        telefono: s.phone,
+        email: s.email,
+        ciudad: s.city
+      }).catch(() => {});
+
+      return rep;
     }
 
     s.state = 'ESTADO_2_INTEREST';
-    return `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+    const rep = `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+    leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+      campana: 'Atención General',
+      canal: 'WhatsApp (+591 60937050)',
+      pushName: s.clientName,
+      status: 'Nuevo'
+    }).catch(() => {});
+    return rep;
   }
 
   // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
@@ -733,12 +774,21 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     s.interestMsg = raw;
     s.state = 'ESTADO_3_DATA';
 
-    if (isSelling) {
-      return `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
-    }
+    const rep = isSelling
+      ? `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
+      : `¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
 
-    // Cliente busca casa, departamento, terreno, lote, monoambiente (comprar, alquilar, anticrético) o más información
-    return `¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+      campana: s.interestMsg || 'Consulta Inmuebles',
+      canal: 'WhatsApp (+591 60937050)',
+      pushName: s.clientName,
+      status: 'Interesado',
+      telefono: s.phone,
+      email: s.email,
+      ciudad: s.city
+    }).catch(() => {});
+
+    return rep;
   }
 
   // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
@@ -803,14 +853,28 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       else if (missingAll.length === 2) mtxt = missingAll[0] + ' y ' + missingAll[1];
       else mtxt = missingAll.slice(0, -1).join(', ') + ' y ' + missingAll[missingAll.length - 1];
       const dN = (s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' && snw2.length >= 2) ? s.clientName : 'estimado/a cliente';
-      return 'Por favor ' + dN + ', necesitamos que nos compartas ' + mtxt + '. 📲🏡';
+      const promptReply = 'Por favor ' + dN + ', necesitamos que nos compartas ' + mtxt + '. 📲🏡';
+
+      // Sincronizar en tiempo real el progreso parcial del formulario en cada mensaje
+      try {
+        leadClassifier.trackAndClassifyLead(userId, raw, promptReply, {
+          campana: s.interestMsg || 'Atención al Cliente',
+          canal: 'WhatsApp (+591 60937050)',
+          pushName: s.clientName,
+          status: 'Formulario en Progreso',
+          telefono: s.phone,
+          email: s.email,
+          ciudad: s.city
+        }).catch(() => {});
+      } catch (_) {}
+
+      return promptReply;
     }
 
     // Si también envió el agendamiento completo de visita en el mismo mensaje
     if (hasValidDate(raw)) {
       s.scheduledVisit = raw;
-      s.state = 'ESTADO_FAREWELL';
-      s.isClosed = true;
+      s.state = 'ESTADO_5_REMINDER';
       try {
         leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
           campana: s.interestMsg || 'Atención al Cliente',
@@ -823,7 +887,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
           horarioVisita: raw
         }).catch(() => {});
       } catch (_) {}
-      return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales y tu visita ha quedado coordinada para el ${raw}. ¡Muchas gracias por habernos elegido y por comunicarte con nosotros! 😊 Nuestro agente especializado te contactará para coordinar todos los detalles. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. ¿Desea que le hagamos recuerdo un día antes, para asegurar su visita? 🗓️🤝`;
     }
 
     // Datos principales recopilados -> Pasa a agendamiento
@@ -876,19 +940,59 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
     // Agendamiento con fecha y hora completa
     s.scheduledVisit = raw;
-    s.state = 'ESTADO_FAREWELL';
-    s.isClosed = true;
+    s.state = 'ESTADO_5_REMINDER';
     try {
       leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
         campana: s.interestMsg || 'Visita Agendada',
         canal: 'WhatsApp (+591 60937050)',
         pushName: s.clientName,
         status: 'Visita Agendada',
+        telefono: s.phone,
+        email: s.email,
+        ciudad: s.city,
         horarioVisita: raw
       }).catch(() => {});
     } catch (_) {}
 
-    return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. ¿Desea que le hagamos recuerdo un día antes, para asegurar su visita? 🗓️🤝`;
+  }
+
+  // ── ESTADO 5: Confirmación de recordatorio ─────────────────────────────────
+  if (s.state === 'ESTADO_5_REMINDER') {
+    const displayName = s.clientName || 'estimado cliente';
+    s.state = 'ESTADO_FAREWELL';
+    s.isClosed = true;
+
+    // Si confirma (si, ok, esta bien, por favor, claro, dale, etc.)
+    if (isAffirmative(raw) || /\b(ok|esta\s+bien|est[aá]\s+bien|por\s+favor|porfa|claro|dale|porfavor|excelente|perfecto|si|sí)\b/i.test(raw)) {
+      try {
+        leadClassifier.trackAndClassifyLead(userId, raw, 'Recordatorio confirmado', {
+          campana: s.interestMsg || 'Visita Agendada',
+          canal: 'WhatsApp (+591 60937050)',
+          pushName: s.clientName,
+          status: 'Visita Agendada',
+          recordatorio: true
+        }).catch(() => {});
+      } catch (_) {}
+      return `¡Será un placer! Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    }
+
+    // Si responde con cualquier negativa (no, no gracias, no es necesario, etc.)
+    if (isNegative(raw) || isRefusal(raw)) {
+      try {
+        leadClassifier.trackAndClassifyLead(userId, raw, 'Recordatorio declinado', {
+          campana: s.interestMsg || 'Visita Agendada',
+          canal: 'WhatsApp (+591 60937050)',
+          pushName: s.clientName,
+          status: 'Visita Agendada',
+          recordatorio: false
+        }).catch(() => {});
+      } catch (_) {}
+      return `Entendido ${displayName}. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    }
+
+    // Cualquier otra respuesta cordial o despedida
+    return `Muchas gracias ${displayName}. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
   }
 
   return null;
