@@ -12,13 +12,15 @@ const zlib = require('zlib');
 const ROOT_DIR = __dirname;
 const OUTPUT_ZIP = path.join(ROOT_DIR, 'siteground_deploy.zip');
 
-// Carpetas o archivos a omitir (solo node_modules pesados y .git)
+// Carpetas o archivos a omitir (node_modules, entornos virtuales y zips)
 const EXCLUDE = [
   '.git',
   'node_modules',
+  '.venv',
   'siteground_deploy.zip',
   '.DS_Store',
-  'thumbs.db'
+  'thumbs.db',
+  '__pycache__'
 ];
 
 console.log('\n🦁 ========================================================');
@@ -41,7 +43,19 @@ function collectAllFiles(dir, prefix = '') {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
 
   for (const entry of entries) {
-    if (EXCLUDE.includes(entry.name)) continue;
+    const nameLower = entry.name.toLowerCase();
+    if (
+      EXCLUDE.some(ex => ex.toLowerCase() === nameLower) ||
+      nameLower === 'node_modules' ||
+      nameLower === '.venv' ||
+      nameLower === 'baileys_auth' ||
+      nameLower === '__pycache__' ||
+      nameLower.endsWith('.zip') ||
+      nameLower.endsWith('.exe') ||
+      nameLower.endsWith('.pdf')
+    ) {
+      continue;
+    }
 
     const fullPath = path.join(dir, entry.name);
     const relPath = prefix ? `${prefix}/${entry.name}` : entry.name;

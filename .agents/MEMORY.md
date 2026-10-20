@@ -135,7 +135,14 @@ El motor de IA conversacional (`backend/services/aiAgent.js` y `services/aiAgent
 - **Filtro Visible de Presupuesto:** Campo `#f-precio-max` en `buscar.html` conectado a búsqueda reactiva y limpieza de filtros.
 - **ScrollSpy Dinámico:** Resaltado de enlaces en navegación superior mediante `IntersectionObserver`.
 - **Blindaje Total de Chatbot:** Cero modificaciones en el bot conversacional; `test_customer_service_flow.js` 100% verificado.
-- **Bóveda Karpathy LLM Wiki Activa:** Bóveda en `.agents/memory/` sincronizada con 12 páginas, esquema `WIKI_SCHEMA.md` e historial en `log.md`.
+- **Bóveda Karpathy LLM Wiki Activa:** Bóveda en `.agents/memory/` sincronizada con 13 páginas, esquema `WIKI_SCHEMA.md` e historial en `log.md`.
+
+## 11. Conectividad Externa por Túnel y Clasificador de Leads (18 Octubre 2026)
+- **Túnel Cloudflare para Acceso Remoto:** `iniciar_bot_con_tunel.bat` arranca `server.js` y `cloudflared.exe` generando un dominio HTTPS seguro (`trycloudflare.com`) y actualizando automáticamente [TUNNEL_ACTUAL.txt](file:///c:/Users/E-Tech%20Group/.gemini/antigravity-ide/scratch/realty_one_bolivia/TUNNEL_ACTUAL.txt) con los accesos protegidos para `ingreso_leads.html?key=ONE2026` y `qr_connect.html?key=ONE2026`.
+- **Extractor Robusto de Presupuesto:** `extractBudget` en `leadClassifier.js` depura teléfonos, fechas y marcas de tiempo para evitar falsos positivos y captura exclusivamente montos explícitos en USD / Bolivianos o rangos textuales.
+- **Detección de Ciudad y Tipo de Inmueble:** Nueva función `extractCity` y discriminación limpia de inmuebles (`Casa`, `Departamento`, `Terreno / Lote`, `Oficina / Comercial`).
+- **Sincronización en Tiempo Real en `ingreso_leads.html`:** Todos los leads recopilados por WhatsApp Baileys y el agente conversacional se renderizan con su detalle completo (nombre, teléfono, ciudad, zona, requerimiento, presupuesto y scoring).
+
 
 
 

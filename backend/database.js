@@ -170,13 +170,15 @@ const db = {
           let res = data.propiedades.filter(p => p.activo === 1);
           let paramIdx = 0;
 
+          const norm = str => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
           if (s.includes('LOWER(tipo) LIKE ?')) {
-            const val = params[paramIdx++].replace(/%/g, '').toLowerCase();
-            res = res.filter(p => p.tipo.toLowerCase().includes(val));
+            const val = norm(params[paramIdx++].replace(/%/g, ''));
+            res = res.filter(p => norm(p.tipo).includes(val));
           }
           if (s.includes('LOWER(ubicacion) LIKE ?')) {
-            const val = params[paramIdx++].replace(/%/g, '').toLowerCase();
-            res = res.filter(p => p.ubicacion && p.ubicacion.toLowerCase().includes(val));
+            const val = norm(params[paramIdx++].replace(/%/g, ''));
+            res = res.filter(p => norm(p.ubicacion).includes(val));
           }
           if (s.includes('habitaciones >= ?')) {
             const val = params[paramIdx++];
@@ -190,13 +192,13 @@ const db = {
             res = res.filter(p => p.destacado === 1);
           }
           if (s.includes('LOWER(titulo) LIKE ? OR')) {
-            const val = params[paramIdx++].replace(/%/g, '').toLowerCase();
+            const val = norm(params[paramIdx++].replace(/%/g, ''));
             paramIdx++; // skip duplicate params pushed for search
             paramIdx++;
             res = res.filter(p => 
-              p.titulo.toLowerCase().includes(val) || 
-              (p.ubicacion && p.ubicacion.toLowerCase().includes(val)) ||
-              (p.descripcion_larga && p.descripcion_larga.toLowerCase().includes(val))
+              norm(p.titulo).includes(val) || 
+              norm(p.ubicacion).includes(val) ||
+              norm(p.descripcion_larga).includes(val)
             );
           }
 

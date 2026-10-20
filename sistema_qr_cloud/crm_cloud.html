@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel CRM de Leads QR | Realty ONE Group Bolivia</title>
+    <!-- Google Fonts Outfit & Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase Client JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --bg-dark: #07090b;
+            --bg-card: rgba(17, 24, 30, 0.95);
+            --gold-primary: #caa65e;
+            --gold-gradient: linear-gradient(135deg, #d4af37, #caa65e, #aa8232);
+            --gold-light: #f3cf7a;
+            --text-main: #f0f4f8;
+            --text-muted: #8fa0ad;
+            --border-glass: rgba(202, 166, 94, 0.22);
+            --border-input: #23313d;
+            --input-bg: #0d151c;
+            --green-wa: #25d366;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: #07090b;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Topbar & Branding */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-glass);
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .brand-info h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-info p {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-gold {
+            background: var(--gold-gradient);
+            color: #07090b;
+        }
+
+        .btn-gold:hover {
+            filter: brightness(1.1);
+        }
+
+        .btn-outline {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-glass);
+            color: var(--text-main);
+        }
+
+        .btn-outline:hover {
+            background: rgba(202, 166, 94, 0.15);
+            color: var(--gold-light);
+        }
+
+        /* Tarjetas de Métricas */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .kpi-card .number {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--gold-light);
+        }
+
+        .kpi-card .label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .kpi-card .icon {
+            font-size: 32px;
+            opacity: 0.8;
+        }
+
+        /* Barra de Filtros y Búsqueda */
+        .filter-bar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 240px;
+        }
+
+        .filter-selects {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .form-control {
+            background: var(--input-bg);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius-md);
+            padding: 9px 12px;
+            font-size: 13px;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .form-control:focus {
+            border-color: var(--gold-primary);
+        }
+
+        /* Tabla de Leads */
+        .table-responsive {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        thead {
+            background: #0c141c;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        th {
+            padding: 14px 16px;
+            font-weight: 700;
+            color: var(--gold-light);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #16222c;
+            transition: background 0.15s;
+        }
+
+        tbody tr:hover {
+            background: rgba(202, 166, 94, 0.05);
+        }
+
+        td {
+            padding: 14px 16px;
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        .lead-name {
+            font-weight: 700;
+            color: #ffffff;
+            display: block;
+        }
+
+        .lead-phone {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: monospace;
+        }
+
+        .badge-status {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .badge-nuevo { background: rgba(52, 152, 219, 0.2); color: #3498db; border: 1px solid #3498db; }
+        .badge-contactado { background: rgba(241, 196, 15, 0.2); color: #f1c40f; border: 1px solid #f1c40f; }
+        .badge-visita { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+        .badge-cerrado { background: rgba(155, 89, 182, 0.2); color: #9b59b6; border: 1px solid #9b59b6; }
+
+        .btn-wa-table {
+            background: #25d366;
+            color: #07090b;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-wa-table:hover {
+            filter: brightness(1.1);
+        }
+
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* Modal Login Simple */
+        .auth-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(7, 9, 11, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .auth-card {
+            background: #111a24;
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+        }
+
+        .auth-card h2 {
+            font-size: 20px;
+            color: var(--gold-light);
+            margin-bottom: 8px;
+        }
+
+        .auth-card p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Modal de Protección con Clave -->
+    <div id="authModal" class="auth-overlay">
+        <div class="auth-card">
+            <h2>🦁 Realty ONE Group</h2>
+            <p>Acceso Administrativo al CRM de Leads QR</p>
+            <input type="password" id="inpPass" class="form-control" placeholder="Clave Maestra (ONE2026)" style="width: 100%; margin-bottom: 14px; text-align: center;">
+            <button class="btn btn-gold" style="width: 100%; justify-content: center;" onclick="verificarAcceso()">Desbloquear Panel</button>
+        </div>
+    </div>
+
+    <div class="container" id="mainDashboard" style="display: none;">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="brand-info">
+                <h1>Panel CRM de Leads QR (Cloud 24/7)</h1>
+                <p>Base de datos en tiempo real de prospectos capturados mediante escaneo de código QR.</p>
+            </div>
+            <div class="top-actions">
+                <a href="qr_generator.html" class="btn btn-outline" target="_blank">
+                    <span>🖨️ Generador QR</span>
+                </a>
+                <button class="btn btn-gold" onclick="exportarExcel()">
+                    <span>📊 Exportar a Excel</span>
+                </button>
+                <button class="btn btn-outline" onclick="cargarLeads()">
+                    <span>🔄 Actualizar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Métricas KPI -->
+        <section class="kpi-grid">
+            <div class="kpi-card">
+                <div>
+                    <div class="number" id="kpiTotal">0</div>
+                    <div class="label">Total Leads QR</div>
+                </div>
+                <div class="icon">👥</div>
+            </div>
+            <div class="kpi-card">
+                <div>
+                    <div class="number" id="kpiVisitas">0</div>
+                    <div class="label">Visitas Solicitadas</div>
+                </div>
+                <div class="icon">🗓️</div>
+            </div>
+            <div class="kpi-card">
+                <div>
+                    <div class="number" id="kpiHoy">0</div>
+                    <div class="label">Registrados Hoy</div>
+                </div>
+                <div class="icon">⚡</div>
+            </div>
+            <div class="kpi-card">
+                <div>
+                    <div class="number" id="kpiTopProp" style="font-size: 16px; margin-top: 6px;">-</div>
+                    <div class="label">Propiedad Líder</div>
+                </div>
+                <div class="icon">🏠</div>
+            </div>
+        </section>
+
+        <!-- Filtros y Búsqueda -->
+        <section class="filter-bar">
+            <div class="search-box">
+                <input type="text" id="inpSearch" class="form-control" style="width: 100%;" placeholder="🔍 Buscar por nombre, teléfono o propiedad..." oninput="filtrarTabla()">
+            </div>
+            <div class="filter-selects">
+                <select id="filtroEstado" class="form-control" onchange="filtrarTabla()">
+                    <option value="">Todos los Estados</option>
+                    <option value="NUEVO">Nuevos</option>
+                    <option value="CONTACTADO">Contactados</option>
+                    <option value="VISITA_PROGRAMADA">Visita Solicitada</option>
+                    <option value="CERRADO">Cerrados</option>
+                </select>
+                <select id="filtroTipo" class="form-control" onchange="filtrarTabla()">
+                    <option value="">Todas las Operaciones</option>
+                    <option value="Comprar">Comprar</option>
+                    <option value="Alquilar">Alquilar</option>
+                    <option value="Anticrético">Anticrético</option>
+                    <option value="Inversión">Inversión</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Tabla de Resultados -->
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha / Hora</th>
+                        <th>Cliente</th>
+                        <th>Interés / Propiedad</th>
+                        <th>Presupuesto</th>
+                        <th>Visita</th>
+                        <th>Origen QR</th>
+                        <th>Estado</th>
+                        <th>Acción Directa</th>
+                    </tr>
+                </thead>
+                <tbody id="leadsBody">
+                    <tr>
+                        <td colspan="8" class="empty-state">Cargando prospectos desde la nube...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Cargar Configuración -->
+    <script src="config.js"></script>
+
+    <script>
+        let todosLosLeads = [];
+
+        function verificarAcceso() {
+            const pass = document.getElementById('inpPass').value.trim();
+            const config = window.ROG_CONFIG || {};
+            const keyReal = config.CRM_ACCESS_KEY || 'ONE2026';
+
+            if (pass === keyReal) {
+                document.getElementById('authModal').style.display = 'none';
+                document.getElementById('mainDashboard').style.display = 'block';
+                cargarLeads();
+            } else {
+                alert('Clave incorrecta. La clave por defecto es ONE2026');
+            }
+        }
+
+        // Cargar Leads desde Supabase / Google Sheets / LocalStorage
+        async function cargarLeads() {
+            const config = window.ROG_CONFIG || {};
+            todosLosLeads = [];
+
+            // 1. Intentar desde Supabase
+            if (config.SUPABASE_URL && !config.SUPABASE_URL.includes('xyzcompany') && window.supabase) {
+                try {
+                    const sb = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                    const { data, error } = await sb.from('leads_qr').select('*').order('created_at', { ascending: false });
+                    if (!error && data) {
+                        todosLosLeads = data;
+                        console.log('✅ Leads cargados de Supabase:', data.length);
+                    }
+                } catch (e) {
+                    console.warn('Supabase no disponible:', e.message);
+                }
+            }
+
+            // 2. Intentar desde Google Apps Script si no hay datos de Supabase
+            if (todosLosLeads.length === 0 && config.GOOGLE_APPS_SCRIPT_URL) {
+                try {
+                    const res = await fetch(config.GOOGLE_APPS_SCRIPT_URL);
+                    const j = await res.json();
+                    if (j.success && j.data) {
+                        todosLosLeads = j.data.map(d => ({
+                            id: d.ID,
+                            created_at: d['Fecha y Hora (Bolivia)'],
+                            nombre_completo: d['Nombre Completo'],
+                            celular: d['Celular / WhatsApp'],
+                            email: d.Email,
+                            ciudad: d.Ciudad,
+                            tipo_interes: d['Tipo de Interés'],
+                            propiedad_campana: d['Propiedad / Campaña'],
+                            presupuesto: d.Presupuesto,
+                            fecha_visita_preferida: d['Fecha Visita'],
+                            hora_visita_preferida: d['Hora Visita'],
+                            origen_qr: d['Origen QR'],
+                            estado: d.Estado,
+                            notas: d.Notas
+                        }));
+                        console.log('✅ Leads cargados de Google Sheets:', todosLosLeads.length);
+                    }
+                } catch (e) {
+                    console.warn('Google Sheets GET error:', e.message);
+                }
+            }
+
+            // 3. Fallback a cola de LocalStorage
+            if (todosLosLeads.length === 0) {
+                try {
+                    const local = JSON.parse(localStorage.getItem('rog_offline_leads') || '[]');
+                    todosLosLeads = local;
+                } catch (_) {}
+            }
+
+            actualizarKPIs();
+            renderTabla(todosLosLeads);
+        }
+
+        function actualizarKPIs() {
+            document.getElementById('kpiTotal').textContent = todosLosLeads.length;
+
+            const hoyStr = new Date().toISOString().split('T')[0];
+            const leadsHoy = todosLosLeads.filter(l => (l.created_at || '').includes(hoyStr));
+            document.getElementById('kpiHoy').textContent = leadsHoy.length;
+
+            const conVisita = todosLosLeads.filter(l => l.fecha_visita_preferida);
+            document.getElementById('kpiVisitas').textContent = conVisita.length;
+
+            // Propiedad más frecuente
+            const propCounts = {};
+            todosLosLeads.forEach(l => {
+                const p = l.propiedad_campana || 'Catálogo General';
+                propCounts[p] = (propCounts[p] || 0) + 1;
+            });
+            let topProp = '-';
+            let maxCount = 0;
+            for (const [k, v] of Object.entries(propCounts)) {
+                if (v > maxCount) { maxCount = v; topProp = k; }
+            }
+            document.getElementById('kpiTopProp').textContent = topProp.length > 20 ? topProp.slice(0, 18) + '...' : topProp;
+        }
+
+        function renderTabla(leads) {
+            const tbody = document.getElementById('leadsBody');
+            tbody.innerHTML = '';
+
+            if (leads.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No hay prospectos registrados aún. Escanea un código QR para probar.</td></tr>`;
+                return;
+            }
+
+            leads.forEach(l => {
+                const tr = document.createElement('tr');
+
+                // Fecha
+                const fechaDisplay = (l.created_at || '').slice(0, 16).replace('T', ' ');
+
+                // Estado badge
+                let badgeClass = 'badge-nuevo';
+                if (l.estado === 'CONTACTADO') badgeClass = 'badge-contactado';
+                if (l.estado === 'VISITA_PROGRAMADA' || l.fecha_visita_preferida) badgeClass = 'badge-visita';
+                if (l.estado === 'CERRADO') badgeClass = 'badge-cerrado';
+
+                // WhatsApp Link
+                const cleanPhone = (l.celular || '').replace(/\D/g, '');
+                const waText = encodeURIComponent(`¡Hola ${l.nombre_completo}! 👋 Te escribo de Realty ONE Group Bolivia sobre tu consulta por ${l.propiedad_campana || 'inmuebles'}.`);
+                const waLink = `https://wa.me/${cleanPhone}?text=${waText}`;
+
+                tr.innerHTML = `
+                    <td style="color: var(--text-muted); font-size: 11px;">${fechaDisplay}</td>
+                    <td>
+                        <span class="lead-name">${l.nombre_completo || 'Sin Nombre'}</span>
+                        <span class="lead-phone">${l.celular || ''}</span>
+                        ${l.email ? `<br><small style="color: #6a7b8c;">${l.email}</small>` : ''}
+                    </td>
+                    <td>
+                        <strong>${l.propiedad_campana || 'General'}</strong>
+                        <br><small style="color: var(--gold-light);">${l.tipo_interes || 'Comprar'} • ${l.ciudad || 'Santa Cruz'}</small>
+                    </td>
+                    <td style="color: var(--gold-light); font-weight: 600;">${l.presupuesto || 'Por Definir'}</td>
+                    <td>
+                        ${l.fecha_visita_preferida ? `🗓️ ${l.fecha_visita_preferida}<br><small>${l.hora_visita_preferida || ''}</small>` : '<span style="color: #555;">No agendó</span>'}
+                    </td>
+                    <td style="font-size: 11px; color: var(--text-muted);">${l.origen_qr || 'Letrero Físico'}</td>
+                    <td>
+                        <span class="badge-status ${badgeClass}">${l.estado || 'NUEVO'}</span>
+                    </td>
+                    <td>
+                        <a href="${waLink}" class="btn-wa-table" target="_blank" rel="noopener">
+                            💬 WhatsApp
+                        </a>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filtrarTabla() {
+            const query = document.getElementById('inpSearch').value.toLowerCase();
+            const est = document.getElementById('filtroEstado').value;
+            const tipo = document.getElementById('filtroTipo').value;
+
+            const filtrados = todosLosLeads.filter(l => {
+                const matchQuery = (l.nombre_completo || '').toLowerCase().includes(query) ||
+                                   (l.celular || '').toLowerCase().includes(query) ||
+                                   (l.propiedad_campana || '').toLowerCase().includes(query);
+                const matchEst = !est || l.estado === est || (est === 'VISITA_PROGRAMADA' && l.fecha_visita_preferida);
+                const matchTipo = !tipo || l.tipo_interes === tipo;
+                return matchQuery && matchEst && matchTipo;
+            });
+
+            renderTabla(filtrados);
+        }
+
+        function exportarExcel() {
+            if (todosLosLeads.length === 0) {
+                alert('No hay prospectos para exportar.');
+                return;
+            }
+
+            let csv = '\uFEFF'; // UTF-8 BOM
+            csv += 'ID,Fecha y Hora,Nombre Completo,Celular,Email,Ciudad,Interes,Propiedad,Presupuesto,Fecha Visita,Hora Visita,Origen QR,Estado,Notas\n';
+
+            todosLosLeads.forEach(l => {
+                const row = [
+                    l.id || '',
+                    `"${(l.created_at || '').replace(/"/g, '""')}"`,
+                    `"${(l.nombre_completo || '').replace(/"/g, '""')}"`,
+                    `"${(l.celular || '').replace(/"/g, '""')}"`,
+                    `"${(l.email || '').replace(/"/g, '""')}"`,
+                    `"${(l.ciudad || '').replace(/"/g, '""')}"`,
+                    `"${(l.tipo_interes || '').replace(/"/g, '""')}"`,
+                    `"${(l.propiedad_campana || '').replace(/"/g, '""')}"`,
+                    `"${(l.presupuesto || '').replace(/"/g, '""')}"`,
+                    `"${(l.fecha_visita_preferida || '').replace(/"/g, '""')}"`,
+                    `"${(l.hora_visita_preferida || '').replace(/"/g, '""')}"`,
+                    `"${(l.origen_qr || '').replace(/"/g, '""')}"`,
+                    `"${(l.estado || '').replace(/"/g, '""')}"`,
+                    `"${(l.notas || '').replace(/"/g, '""')}"`
+                ];
+                csv += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Leads_RealtyONE_QR_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>

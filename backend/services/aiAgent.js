@@ -240,6 +240,31 @@ function extractFullName(text) {
   return null;
 }
 
+function cleanClientName(name = '') {
+  if (!name || typeof name !== 'string') return null;
+  let trimmed = name.replace(/[^\p{L}\s.'-]/gu, ' ').trim();
+  trimmed = trimmed.replace(/\s+/g, ' ');
+  if (trimmed.length < 3 || trimmed.length > 50) return null;
+  const lo = trimmed.toLowerCase();
+
+  const blacklisted = [
+    'por identificar', 'cliente', 'desconocido', 'buen dia', 'buen día', 'buenos dias', 'buenos días',
+    'buenas tardes', 'buenas noches', 'hola', 'saludos', 'espero', 'esperamos', 'esperando', 'espera',
+    'gracias', 'muchas gracias', 'amigo', 'amiga', 'amiga querida', 'amigo querido', 'feliz cumpleaños', 'feliz cumple',
+    'iphone', 'samsung', 'android', 'whatsapp', 'realty one', 'century 21', 'century21',
+    'asesor', 'asesora', 'propietario', 'propietaria', 'duc', 'santa cruz', 'la paz', 'cochabamba'
+  ];
+  if (blacklisted.some(b => lo === b || lo.startsWith(b + ' ') || lo.endsWith(' ' + b))) return null;
+
+  // Si es un acrónimo de 3 letras o menos en mayúsculas (ej: DUC)
+  if (trimmed.length <= 3 && trimmed === trimmed.toUpperCase()) return null;
+
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.some(w => blacklisted.includes(w.toLowerCase()))) return null;
+
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 function extractCity(text) {
   if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
   const cities = [
@@ -357,12 +382,18 @@ function getTopicDisposicion(text) {
 
 // ── Manejadores de Campañas y Anuncios Dinámicos ────────────────────────────
 function extractAdPropertyTopic(referralData, userMessage = '') {
-  const text = (referralData?.body || referralData?.headline || userMessage || '').trim();
-  if (!text) return 'la propiedad de nuestra publicación';
+  const refText = (referralData?.headline || referralData?.title || referralData?.description || referralData?.body || '').trim();
+  const rawText = refText || userMessage || '';
+  if (!rawText) return 'nuestra oferta inmobiliaria destacada';
 
-  const clean = text
+  const clean = rawText
     .replace(/^(realty one group itaguazu|realty one group bolivia)[|\s:—-]*/i, '')
     .trim();
+
+  // Si es solo el saludo genérico de Meta Ads
+  if (/^(¡?hola!?|quiero\s+m[aá]s\s+informaci[oó]n|m[aá]s\s+informaci[oó]n|saludos|buen\s+d[ií]a)/i.test(clean) && !refText) {
+    return 'nuestras opciones exclusivas en preventa y entrega inmediata en Santa Cruz';
+  }
 
   const dashParts = clean.split(/(?:—|-)/);
   if (dashParts.length > 1) {
@@ -377,6 +408,11 @@ function extractAdPropertyTopic(referralData, userMessage = '') {
     }
   }
 
+  const promoMatch = clean.match(/\b(westgate\s+tower[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,25}|torre\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|condominio\s+mar\s+adentro|condominio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|edificio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|urbanizaci[oó]n\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|parque\s+industrial[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,20}|departamento\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25})\b/i);
+  if (promoMatch) {
+    return promoMatch[0].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
+  }
+
   const hectMatch = clean.match(/(\d+\s*hect[aá]reas)/i);
   if (hectMatch) {
     const lugarMatch = clean.match(/en\s+([A-Za-zÁÉÍÓÚñáéíóú]{4,20})/i);
@@ -384,12 +420,10 @@ function extractAdPropertyTopic(referralData, userMessage = '') {
     return `${hectMatch[1].trim()}${sufijo}`.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
   }
 
-  const promoMatch = clean.match(/\b(torre\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|condominio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|edificio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|urbanizaci[oó]n\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|parque\s+industrial[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,20})\b/i);
-  if (promoMatch) {
-    return promoMatch[0].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
-  }
-
   const words = clean.split(/\s+/).slice(0, 5).join(' ');
+  if (/^(¡?hola!?|quiero)/i.test(words)) {
+    return 'nuestras opciones exclusivas en Santa Cruz';
+  }
   return words ? words.replace(/[🏢🌿🏖️🔥📍💰✨👉.,]/g, '').trim() : 'la propiedad de nuestra publicación';
 }
 
@@ -648,14 +682,22 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   // 2. REGLA DE ORO DE ANUNCIOS DE FACEBOOK:
   // Si el cliente hace clic en un anuncio de Facebook (CTWA, externalAdReply, fb.me, facebook.com),
-  // siempre es una NUEVA interacción publicitaria: se reinicia la sesión para evitar quedar atrapado en estados previos.
+  // siempre es una NUEVA interacción publicitaria: se atiende directamente con el flujo de campaña/anuncio.
   if (isRealAd) {
     sessions.delete(userId);
     userFlowSessions.delete(userId);
     conversationSessions.delete(userId);
+
+    const validAdPush = cleanClientName(pushName);
+    const nomAd = validAdPush ? ` ${validAdPush.split(/\s+/)[0]}` : '';
+    let adSession = { state: 'INIT' };
+    const adReply = handleGenericAdFlow(userId, raw, lo, referralData, pushName, adSession, nomAd);
+    if (adReply) {
+      return adReply;
+    }
   }
 
-    const isFarewell = isFarewellOnly(raw) || isCourtesyExit(raw) || /\b(buenas noches|hasta ma[nñ]ana|que descanses|buen descanso|igualmente)\b/i.test(lo);
+  const isFarewell = isFarewellOnly(raw) || isCourtesyExit(raw) || /\b(buenas noches|hasta ma[nñ]ana|que descanses|buen descanso|igualmente)\b/i.test(lo);
 
   // Un saludo inicial solo se considera tal si NO es una frase de despedida o cortesía nocturna
   const isNewGreeting = !isFarewell && (
@@ -705,12 +747,14 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   let s = getSession(userId, pushName);
 
-  // Actualizar nombre si viene en pushName y no lo teníamos
-  if (pushName && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
-    s.clientName = pushName.trim();
+  // Actualizar nombre SOLO si es un nombre humano válido (no DUC, no Buen día, no emojis)
+  const validPush = cleanClientName(pushName);
+  if (validPush && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
+    s.clientName = validPush;
   }
-  let name = s.clientName ? ` ${s.clientName}` : '';
-  let nom  = s.clientName || '';
+  let nom = cleanClientName(s.clientName) || '';
+  let nomSaludo = nom ? ` ${nom.split(/\s+/)[0]}` : '';
+  let name = nomSaludo;
 
   // ponytail: extraer datos si el usuario ya los incluyó en su primer mensaje
   const initPhone = extractPhone(raw);
@@ -720,16 +764,14 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   if (initPhone) s.phone = initPhone;
   if (initEmail) s.email = initEmail;
   if (initCity)  s.city  = initCity;
-  if (initName && initName.trim().split(/\s+/).length >= 2) {
-    s.clientName = initName;
-    name = ` ${s.clientName}`;
+  if (initName && cleanClientName(initName) && initName.trim().split(/\s+/).length >= 2) {
+    s.clientName = cleanClientName(initName);
     nom = s.clientName;
+    nomSaludo = ` ${nom.split(/\s+/)[0]}`;
+    name = nomSaludo;
   }
 
   // ── Filtro de relevancia ──────────────────────────────────────────────────
-  // Evita responder como si fuera una consulta real a mensajes que no tienen
-  // que ver (ej. "cocodrilo"). Saludo, consulta inmobiliaria, datos, fecha,
-  // negativa o cortesía sí se procesan; el resto pide aclaración al cliente.
   const isDataMsg = Boolean(
     extractPhone(raw) || extractEmail(raw) || extractCity(raw) || extractFullName(raw)
   );
@@ -739,7 +781,33 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
 
   const timeGreeting = getTimeGreeting();
   const timeFarewell = getTimeFarewell();
-  const saludoHora = nom ? `${timeGreeting.slice(0, -1)} ${nom}!` : timeGreeting;
+
+  // Detección de Colega / Asesor Inmobiliario B2B (Century21, Remax, etc.)
+  const isColleague = /\b(asesor\s+de\s+century|asesor\s+de\s+remax|asesor\s+inmobiliario|colega\s+inmobiliario|inmobiliaria\s+amiga|requerimiento\s+que\s+encaja|mi\s+cliente\s+requiere)\b/i.test(lo);
+  if (isColleague) {
+    s.state = 'ESTADO_FAREWELL';
+    s.isClosed = true;
+    const rep = `¡Hola colega! 🤝 Con mucho gusto colaboramos en co-brokering y compartimos cartera. Enseguida nuestro broker comercial (+591 60937050) se pondrá en contacto contigo a este número para coordinar las opciones de departamentos y la comisión compartida. 🦁🏡✨`;
+    leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+      campana: 'Co-Brokering / Colega Inmobiliario',
+      canal: 'WhatsApp (+591 60937050)',
+      pushName: s.clientName,
+      status: 'Interesado'
+    }).catch(() => {});
+    return rep;
+  }
+
+  // Si el usuario responde con espera cortés ("Espero, gracias!", "Quedo a la espera")
+  // o despedida en saludo inicial (sin nueva consulta ni negativa de datos)
+  const isWaitCourtesy = !isRefusal(raw) && !isNegative(raw) && (
+    /\b(espero|esperamos|quedo\s+a\s+la\s+espera|esperar[eé]|aguardo|esperando)\b/i.test(lo) ||
+    ((isFarewellOnly(raw) || isCourtesyExit(raw)) && s.state === 'ESTADO_1_GREETING')
+  );
+  if (isWaitCourtesy) {
+    s.state = 'ESTADO_FAREWELL';
+    s.isClosed = true;
+    return `¡Con mucho gusto${nomSaludo}! 🤝 Nuestro agente especializado ya tiene tu requerimiento y se pondrá en contacto contigo a la brevedad. ¡Que tengas un excelente día! 🦁✨`;
+  }
 
   // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
   if (s.state === 'ESTADO_1_GREETING') {
@@ -752,8 +820,8 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
       s.interestMsg = raw;
       s.state = 'ESTADO_3_DATA';
       const rep = isSelling
-        ? `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
-        : `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+        ? `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
+        : `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
 
       leadClassifier.trackAndClassifyLead(userId, raw, rep, {
         campana: isSelling ? 'Venta de Propiedad' : 'Consulta Inmuebles',
@@ -769,7 +837,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
     }
 
     s.state = 'ESTADO_2_INTEREST';
-    const rep = `¡Hola${name}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoHora} ¿En qué puedo ayudarte?`;
+    const rep = `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¿En qué puedo ayudarte?`;
     leadClassifier.trackAndClassifyLead(userId, raw, rep, {
       campana: 'Atención General',
       canal: 'WhatsApp (+591 60937050)',

@@ -1,6 +1,6 @@
 # Wiki Index — Realty ONE Group Bolivia
 
-> **Última Actualización:** 2026-10-16T02:15:00-04:00 | **Total de Páginas:** 12
+> **Última Actualización:** 2026-10-18T18:25:00-04:00 | **Total de Páginas:** 13
 
 ## Entities
 - [[realty-one-group-bolivia]]: Plataforma web inmobiliaria, CRM de e-Realtors, portal web de lujo y chatbot para Santa Cruz (Bolivia).
@@ -21,3 +21,5 @@
 ## Sources
 - [[session-2026-09-04-fixes-and-deployment]]: Bitácora de la revisión inicial del bot, 5 fixes aplicados y preparación para despliegue en Render.
 - [[session-2026-10-16-web-portal-modernization]]: Auditoría adversarial del portal web, corrección de filtrado, ScrollSpy reactivo y blindaje total del chatbot.
+- [[session-2026-10-18-bot-tunnel-and-lead-sync]]: Restauración de túnel Cloudflare, conectividad del bot y blindaje de extracción en clasificador de leads.
+

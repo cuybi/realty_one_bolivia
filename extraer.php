@@ -33,6 +33,11 @@ if ($zipFile && class_exists('ZipArchive')) {
         $zip->extractTo($dir);
         $zip->close();
         echo "✅ Archivos extraídos correctamente en $dir\n";
+        if (file_exists($dir . '/sanear_leads.php')) {
+            echo "🧹 Saneando base de datos de leads antiguos...\n";
+            include_once $dir . '/sanear_leads.php';
+            echo "\n✅ Leads antiguos saneados correctamente.\n";
+        }
     } else {
         echo "⚠️ Error al abrir $zipFile\n";
     }

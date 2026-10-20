@@ -316,4 +316,81 @@ Se unificaron los dos motores con enrutamiento dinámico según el canal de entr
 - **Hero & Search Card Gold & Black Luxury:** Tarjeta flotante con glassmorphism de alta fidelidad, pestañas de operación con respuesta visual inmediata y filtros integrados con iconos dorados.
 - **Estado de Aprobación:** Documento `audit_and_design_proposal.md` aprobado formalmente por el usuario para ejecución.
 
+---
+
+## 📌 8. Sesión del 18 de Octubre, 2026: Restauración de Conexión Pública (Cloudflare Tunnel) y Sincronización de Leads de WhatsApp
+
+### 8.1. Solicitudes y Requerimientos del Usuario
+1. **Requerimiento 1:** "quiero trabajar en bot de este proyecto, otra ves se cayeron el QR y ingreso a leads, necesito que este en linea urgente."
+   - El usuario reportaba que los enlaces anteriores (`lecture-seeking-shower-outstanding.trycloudflare.com`) arrojaban "No se puede acceder a este sitio web" tanto para `ingreso_leads.html` como `qr_connect.html`.
+2. **Requerimiento 2:** "quiero verlos en linea, lo leads que ingresan y el QR para escanear, y creo que cada uno de esos tiene sus respectivas direcciones."
+3. **Requerimiento 3:** "el ingreso de leads, no recoge los datos del bot que nos dan en el whatssap, revisa, analiza y corrigelo."
+
+### 8.2. Diagnóstico y Causa Raíz
+1. **Túnel Caído / URLs Efímeras:** Los túneles rápidos de Cloudflare (`cloudflared tunnel --url`) generan URLs efímeras con caducidad. Si el proceso de túnel se cerró o se reinició el equipo, la URL previa deja de resolver.
+2. **Extracción y Formato de Datos de Leads en WhatsApp:**
+   - En `services/leadClassifier.js` y `backend/services/leadClassifier.js`, las regex de extracción capturaban números de teléfono o fechas como presupuestos (`extractBudget`), asignaban nombres genéricos erróneamente en mensajes estructurados, y no extraían la ciudad de forma independiente (`extractCity`).
+   - Las categorías de inmueble (`Casa`, `Departamento`, `Terreno / Lote`, `Oficina / Comercial`) no estaban mapeadas limpiamente en `extractOperation`.
+   - En `ingreso_leads.html`, existían inconsistencias de campos al renderizar los datos guardados por el bot (`cliente_nombre`, `numero_celular`, `zona_interes`, `tipo_interes`, `presupuesto`, `score`).
+
+### 8.3. Soluciones Implementadas y Mejoras
+1. **Puesta en Marcha del Túnel y Documentación Inmediata:**
+   - Servidor Node local verificado activo en puerto 3000 con Baileys conectado a `+591 60937050`.
+   - Lanzamiento de `cloudflared.exe` generando nuevo dominio seguro HTTPS:
+     - Global: `https://highlights-cdna-comparisons-totals.trycloudflare.com`
+     - Panel Leads: `https://highlights-cdna-comparisons-totals.trycloudflare.com/ingreso_leads.html?key=ONE2026`
+     - Conector QR: `https://highlights-cdna-comparisons-totals.trycloudflare.com/qr_connect.html?key=ONE2026`
+   - Creación de [TUNNEL_ACTUAL.txt](file:///c:/Users/E-Tech%20Group/.gemini/antigravity-ide/scratch/realty_one_bolivia/TUNNEL_ACTUAL.txt) con los accesos directos actualizados.
+   - Creación de automatizadores [iniciar_bot_con_tunel.bat](file:///c:/Users/E-Tech%20Group/.gemini/antigravity-ide/scratch/realty_one_bolivia/iniciar_bot_con_tunel.bat) e [iniciar_bot_con_tunel.ps1](file:///c:/Users/E-Tech%20Group/.gemini/antigravity-ide/scratch/realty_one_bolivia/iniciar_bot_con_tunel.ps1) para arrancar simultáneamente Node y Cloudflare en 1 clic.
+
+2. **Refactorización del Motor de Captura y Clasificación de Leads:**
+   - **`extractCity(text)`:** Función dedicada para identificar ciudades de Bolivia (Santa Cruz, La Paz, Cochabamba, Tarija, etc.) y del exterior.
+   - **`extractBudget(text)` Anti-Falsos Positivos:** Limpieza previa de números telefónicos, correos y marcas de tiempo antes de evaluar montos. Soporte estricto de moneda explícita (`$us`, `Bs`, `USD`) y expresiones de rango.
+   - **Normalización de Operación / Tipo Inmueble:** Diferenciación entre `Casa`, `Departamento`, `Terreno / Lote`, `Oficina / Comercial` y `Terreno Industrial (G77)`.
+   - **Sincronización Bidireccional:** Tanto `services/` como `backend/services/` (`aiAgent.js` y `leadClassifier.js`) sincronizados.
+   - **Actualización de `ingreso_leads.html`:** Visualización precisa de todos los campos extraídos del cliente (Nombre, Teléfono, Ciudad/Zona, Operación, Presupuesto, Calificación/Score de IA).
+
+### 8.4. Validación y Aprobación
+- Pruebas realizadas con éxito.
+- Confirmación final del usuario: *"quedo perfecto, gracias."*
+
+---
+
+## 📌 9. Sesión del 19 de Octubre, 2026: Bot Baileys Ultra-Ligero + CRM Resiliente (Opción 2: Cero Registros Externos)
+
+### 9.1. Requerimientos y Alcance
+- **Objetivo:** Sistema de Bot de WhatsApp en Node.js (@whiskeysockets/baileys) y mini-CRM para captura de leads de Facebook Ads con trigger `"Hola, vi tu anuncio de Facebook"`.
+- **Elección del Usuario:** "Opción 2" (Hacerlo con la infraestructura disponible, sin necesidad de cuentas de hosting complejas ni registros externos, manteniendo compatibilidad con MySQL de Serv00 y SQLite / JSON local).
+- **Carpeta del Módulo:** `serv00_whatsapp_crm/`.
+
+### 9.2. Componentes Implementados y Resilientes
+1. **Adaptador Universal de Base de Datos (`db_adapter.js`):**
+   - Conexión dinámica a MySQL con Pool y Keep-Alive si las variables `DB_HOST`, `DB_USER` y `DB_PASS` están presentes.
+   - Fallback autónomo a base de datos persistente en disco (`leads.json`) si MySQL no está disponible.
+   - Sincronización en tiempo real con la base de datos principal de Realty ONE (`../leads.json`) para que los prospectos aparezcan directamente en el panel `ingreso_leads.html`.
+2. **Motor Conversacional Baileys (`index.js`):**
+   - Detección precisa de trigger de Facebook Ads.
+   - Máquina de estados en memoria (Nombre ➔ Correo con validación regex ➔ Servicio/Inmueble).
+   - Confirmación inmediata al cliente.
+   - Notificación de alerta comercial al equipo de ventas (+59160937050) con enlace directo `https://wa.me/` para continuar el trato en 1 clic.
+   - Renderizador seguro de código QR compatible con consola SSH (`qrcode-terminal` y `qrcode`).
+3. **Simulador y Suite de Pruebas Automatizada (`simular_flujo.js`):**
+   - Prueba integral de 7 pasos que emula todo el ciclo de captación, validación de correo, persistencia y alerta.
+   - Validación exitosa con código de salida 0.
+### 9.3. Verificación Integral de Todas las Áreas (Local, Nube 24/7 y Portal Web)
+1. **Área 1: Bot de WhatsApp & Mini-CRM:**
+   - Bot Baileys conectado exitosamente al número `+59160937050` con sesión persistente en MongoDB Atlas.
+   - Módulo independiente `serv00_whatsapp_crm` blindado con carga tolerante a fallos para `.env` (cero dependencias externas requeridas) y unref de timers en background.
+   - Simulación automatizada `simular_flujo.js` superada al 100%.
+2. **Área 2: Infraestructura de Despliegue 24/7 en la Nube:**
+   - Contenedor Docker (`Dockerfile`), manifiesto `koyeb.yaml`, script `deploy_serv00.ps1` y arquitectura serverless `sistema_qr_cloud/` auditados y sincronizados.
+   - Heartbeat anti-sleep activo en `http://localhost:3000`.
+3. **Área 3: Portal Web Inmobiliario y API REST:**
+   - Implementado y montado `backend/routes/cmsRoutes.js` en `server.js` habilitando los endpoints REST `/api/propiedades`, `/api/slides`, `/api/categorias`, `/api/proyectos`, `/api/noticias`, `/api/testimonios` y `/api/config`.
+   - Incorporada normalización de tildes (Unicode NFD) en `backend/database.js` para que búsquedas por zonas (ej. `Urubo` vs `Urubó`) devuelvan resultados precisos.
+   - Endpoint de salud `/api/health` respondiendo `status: ok`, `connection: conectado`, `mongoConnected: true`.
+
+
+
+
 

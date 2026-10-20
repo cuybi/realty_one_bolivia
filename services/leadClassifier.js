@@ -386,6 +386,32 @@ function formatTitleCase(str = '') {
   return str.split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+function cleanClientName(name = '') {
+  if (!name || typeof name !== 'string') return null;
+  let trimmed = name.replace(/[^\p{L}\s.'-]/gu, ' ').trim();
+  trimmed = trimmed.replace(/\s+/g, ' ');
+  if (trimmed.length < 3 || trimmed.length > 50) return null;
+  const lo = trimmed.toLowerCase();
+
+  const blacklisted = [
+    'por identificar', 'cliente', 'desconocido', 'buen dia', 'buen día', 'buenos dias', 'buenos días',
+    'buenas tardes', 'buenas noches', 'hola', 'saludos', 'espero', 'esperamos', 'esperando', 'espera',
+    'gracias', 'muchas gracias', 'amigo', 'amiga', 'amiga querida', 'amigo querido', 'feliz cumpleaños', 'feliz cumple',
+    'iphone', 'samsung', 'android', 'whatsapp', 'realty one', 'century 21', 'century21',
+    'asesor', 'asesora', 'propietario', 'propietaria', 'duc', 'santa cruz', 'la paz', 'cochabamba'
+  ];
+  if (blacklisted.some(b => lo === b || lo.startsWith(b + ' ') || lo.endsWith(' ' + b))) return null;
+
+  // Si es un acrónimo de 3 letras o menos en mayúsculas (ej: DUC)
+  if (trimmed.length <= 3 && trimmed === trimmed.toUpperCase()) return null;
+
+  // No aceptar si alguna palabra es palabra de festejo, cortesía o no-nombre
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.some(w => blacklisted.includes(w.toLowerCase()))) return null;
+
+  return formatTitleCase(trimmed);
+}
+
 /**
  * Extrae posibles nombres de clientes del texto
  */
@@ -400,14 +426,16 @@ function extractName(text = '') {
     'de acuerdo', 'esta bien', 'está bien', 'perfecto', 'excelente', 'genial', 'dale', 'vale', 'listo', 'ok',
     'si por favor', 'sí por favor', 'si', 'sí', 'no',
     'feliz cumpleaños', 'feliz cumpleanos', 'feliz cumple', 'felicidades', 'felicitaciones', 'bendiciones',
-    'querida', 'querido', 'abrazo', 'abrazos', 'beso', 'besos', 'saludos'
+    'querida', 'querido', 'abrazo', 'abrazos', 'beso', 'besos', 'saludos',
+    'espero', 'esperamos', 'esperando', 'espera', 'disculpe', 'disculpa', 'asesor', 'asesora'
   ];
 
   const stopWords = new Set([
     'feliz', 'cumpleaños', 'cumpleanos', 'cumple', 'felicidades', 'felicitaciones', 'bendiciones',
     'amiga', 'amigo', 'amigas', 'amigos', 'querida', 'querido', 'queridas', 'queridos',
     'ahora', 'no', 'si', 'sí', 'gracias', 'chau', 'adios', 'adiós', 'hola', 'buenas', 'tardes', 'noches', 'dias', 'días',
-    'despues', 'después', 'luego', 'momento', 'tiempo', 'solo', 'nada', 'nunca', 'paso', 'casa', 'terreno', 'lote', 'depto', 'departamento'
+    'despues', 'después', 'luego', 'momento', 'tiempo', 'solo', 'nada', 'nunca', 'paso', 'casa', 'terreno', 'lote', 'depto', 'departamento',
+    'espero', 'esperamos', 'esperando', 'espera', 'disculpe', 'disculpa', 'asesor', 'asesora'
   ]);
 
   const hasStopWord = (str) => {
@@ -431,8 +459,9 @@ function extractName(text = '') {
       if (!notNames.some(nn => candLo === nn || candLo.startsWith(nn + ' ') || candLo.includes('no gracias') || candLo.includes('por ahora') || candLo.includes('ahora no') || candLo.includes('no deseo')) &&
           !hasStopWord(candidate) && candidate.length > 2) {
         candidate = candidate.replace(/\s+(?:y|e|o|de|del|en|a)$/i, '').trim();
-        if (candidate.length > 2 && !notNames.includes(candidate.toLowerCase()) && !hasStopWord(candidate)) {
-          return formatTitleCase(candidate);
+        const cleaned = cleanClientName(candidate);
+        if (cleaned && !notNames.includes(cleaned.toLowerCase()) && !hasStopWord(cleaned)) {
+          return cleaned;
         }
       }
     }
@@ -444,10 +473,13 @@ function extractName(text = '') {
     let firstPart = commaParts[0].trim();
     firstPart = firstPart.replace(/^(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+/i, '').trim();
     const fpLo = firstPart.toLowerCase();
-    if (firstPart.length > 2 && firstPart.split(' ').length <= 4 && !firstPart.includes('@') && !/\d/.test(firstPart)) {
+    const words = firstPart.split(/\s+/).filter(Boolean);
+    // Un nombre real extraído con comas debe tener AL MENOS 2 palabras (Nombre y Apellido)
+    if (words.length >= 2 && words.length <= 4 && !firstPart.includes('@') && !/\d/.test(firstPart)) {
       if (!notNames.some(nn => fpLo === nn || fpLo.startsWith(nn + ' ') || fpLo.includes('no gracias') || fpLo.includes('por ahora') || fpLo.includes('ahora no') || fpLo.includes('no deseo')) &&
           !hasStopWord(firstPart)) {
-        return formatTitleCase(firstPart);
+        const cleaned = cleanClientName(firstPart);
+        if (cleaned) return cleaned;
       }
     }
   }
@@ -651,6 +683,31 @@ function assignERealtorByAI(leadData = {}) {
 function calculateLeadPriority(fullText = '', history = [], hasCompleteForm = false, hasSchedule = false) {
   const n = normalizeText(fullText);
   let score = 20;
+
+  // 0. Mensajes personales / festejos / felicitaciones -> PASIVO con Score bajo (15)
+  if (/\b(cumplea[ñn]os|felicidades|felicitaciones|bendiciones|amig[oa]s?|querid[oa]s?|abrazos?|besos?)\b/i.test(n) &&
+      !n.includes('comprar') && !n.includes('departamento') && !n.includes('casa') && !n.includes('terreno')) {
+    return {
+      prioridad: 'PASIVO',
+      prioridad_label: '❄️ Pasivo (Baja)',
+      prioridad_badge: 'badge-pasivo',
+      score: 15,
+      accion_sugerida: 'Mensaje personal recibido en la línea WhatsApp. No requiere acción comercial.',
+      resumen: 'Mensaje personal o salutación recibida en la línea corporativa de WhatsApp.'
+    };
+  }
+
+  // 0.1 Colega Asesor Inmobiliario / Co-brokering (Century21, Remax, colegas)
+  if (/\b(asesor\s+de\s+century|asesor\s+de\s+remax|asesor\s+inmobiliario|colega\s+inmobiliario|inmobiliaria\s+amiga|requerimiento\s+que\s+encaja|mi\s+cliente\s+requiere)\b/i.test(n)) {
+    return {
+      prioridad: 'POTENCIAL',
+      prioridad_label: '🔥 Potencial (Alta)',
+      prioridad_badge: 'badge-potencial',
+      score: 85,
+      accion_sugerida: 'Atención prioritaria de Master Broker para convenios de co-brokering y comisión compartida.',
+      resumen: 'Colega asesor inmobiliario con requerimiento puntual de cliente para compartir cartera.'
+    };
+  }
 
   // A) PROPIETARIO
   if (
@@ -875,10 +932,11 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
         }
       }
 
+      const cleanPush = cleanClientName(metadata.pushName);
       lead = {
         id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         numero_celular: phone,
-        cliente_nombre: (metadata.pushName && metadata.pushName.length > 1) ? metadata.pushName : 'Por identificar',
+        cliente_nombre: cleanPush || 'Por identificar',
         email: metadata.email || 'Pendiente',
         ciudad: metadata.ciudad ? formatTitleCase(metadata.ciudad) : null,
         fecha_creacion: timeData.timestamp_iso,
@@ -913,7 +971,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     // 0. Si el usuario envió formulario con comas (Ej: "Marcos Antezana, 60034649, pixelbolivia@gmail.com, Santa Cruz")
     const formData = extractFormData(incomingMessage);
     if (formData) {
-      if (formData.name) lead.cliente_nombre = formData.name;
+      if (formData.name && cleanClientName(formData.name)) lead.cliente_nombre = cleanClientName(formData.name);
       if (formData.email) lead.email = formData.email;
       if (formData.phone) lead.numero_celular = formData.phone;
       if (formData.city) {
@@ -933,16 +991,22 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       lead.estado_comercial = metadata.status;
     }
 
-    // 1. Extraer nombre: si el mensaje actual o metadata trae nombre, sobrescribir
-    if (metadata.pushName && (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar' || lead.cliente_nombre.toLowerCase() === 'santa cruz')) {
-      lead.cliente_nombre = metadata.pushName;
+    // 1. Extraer nombre: si el mensaje actual o metadata trae nombre legítimo, sobrescribir
+    const validPush = cleanClientName(metadata.pushName);
+    if (validPush && (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar' || lead.cliente_nombre.toLowerCase() === 'santa cruz')) {
+      lead.cliente_nombre = validPush;
     }
-    const detectedName = extractName(incomingMessage);
+    const detectedName = cleanClientName(extractName(incomingMessage));
     if (detectedName) {
       lead.cliente_nombre = detectedName;
     } else if (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar') {
-      const histName = extractName(allUserTexts);
+      const histName = cleanClientName(extractName(allUserTexts));
       if (histName) lead.cliente_nombre = histName;
+    }
+
+    // Si el nombre guardado previamente era un falso positivo (ej: "Espero" o "Buen Día"), sanearlo
+    if (!cleanClientName(lead.cliente_nombre)) {
+      lead.cliente_nombre = 'Por identificar';
     }
 
     // 2. Extraer correo electrónico: si viene un nuevo email, DEBE sobrescribir al viejo
@@ -978,6 +1042,13 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
 
     lead.tipo_interes = extractOperation(allUserTexts);
     lead.presupuesto = extractBudget(allUserTexts);
+
+    // Detección de Colega / Asesor Inmobiliario B2B (Century21, Remax, etc.)
+    const isColleague = /\b(asesor\s+de\s+century|asesor\s+de\s+remax|asesor\s+inmobiliario|colega\s+inmobiliario|inmobiliaria\s+amiga|requerimiento\s+que\s+encaja|mi\s+cliente\s+requiere)\b/i.test(incomingMessage) ||
+      /\b(asesor\s+de\s+century|asesor\s+de\s+remax|asesor\s+inmobiliario|colega\s+inmobiliario|inmobiliaria\s+amiga|requerimiento\s+que\s+encaja|mi\s+cliente\s+requiere)\b/i.test(allUserTexts);
+    if (isColleague) {
+      lead.notas_asesor = `Colega Asesor Inmobiliario - Requerimiento cliente. Mensaje: "${incomingMessage}"`;
+    }
     
     // 3. Extraer fecha/horario de visita (mensaje actual primero, luego historial)
     const isVisitRefusal = metadata.status === 'Interesado - Sin Visita' ||
@@ -1008,13 +1079,16 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     }
 
     // 4. Estado del Formulario de Datos
-    const hasName = lead.cliente_nombre && lead.cliente_nombre !== 'Por identificar';
-    const hasEmail = lead.email && lead.email !== 'Pendiente';
-    const hasPhone = Boolean(lead.numero_celular && lead.numero_celular !== 'Desconocido');
-    const isFormComplete = Boolean(hasName && (hasEmail || hasPhone));
+    // El formulario está completo SÓLO si el cliente proveyó nombre y apellido (≥2 palabras), teléfono real y (email o ciudad)
+    const validFullName = cleanClientName(lead.cliente_nombre);
+    const hasValidFullName = Boolean(validFullName && validFullName.split(/\s+/).length >= 2);
+    const hasEmail = Boolean(lead.email && lead.email !== 'Pendiente' && lead.email.includes('@'));
+    const hasPhone = Boolean(lead.numero_celular && lead.numero_celular !== 'Desconocido' && lead.numero_celular.replace(/\D/g, '').length >= 8);
+    const hasCity = Boolean(lead.ciudad && lead.ciudad !== 'Por definir');
+    const isFormComplete = Boolean(hasValidFullName && hasPhone && (hasEmail || hasCity));
 
     lead.formulario_datos = {
-      nombre: hasName ? lead.cliente_nombre : null,
+      nombre: hasValidFullName ? lead.cliente_nombre : null,
       telefono: hasPhone ? lead.numero_celular : null,
       email: hasEmail ? lead.email : null,
       ciudad: lead.ciudad || null,
@@ -1039,7 +1113,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       lead.etapa_embudo = 'VISITA_AGENDADA';
     } else if (isFormComplete) {
       lead.etapa_embudo = 'ASIGNADO_E_REALTOR';
-    } else if (hasName || hasEmail) {
+    } else if (hasValidFullName || hasEmail) {
       lead.etapa_embudo = 'FORMULARIO_EN_PROGRESO';
     } else {
       lead.etapa_embudo = 'SOLICITUD';

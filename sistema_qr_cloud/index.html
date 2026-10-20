@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Leads QR 24/7 | Realty ONE Group Bolivia</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #07090b;
+            --bg-card: rgba(17, 24, 30, 0.95);
+            --gold-primary: #caa65e;
+            --gold-gradient: linear-gradient(135deg, #d4af37, #caa65e, #aa8232);
+            --gold-light: #f3cf7a;
+            --text-main: #f0f4f8;
+            --text-muted: #8fa0ad;
+            --border-glass: rgba(202, 166, 94, 0.25);
+            --radius-lg: 16px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body {
+            background: radial-gradient(circle at 50% 0%, #15222e 0%, var(--bg-dark) 75%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .hub-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 35px 28px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        p { color: var(--text-muted); font-size: 14px; margin-bottom: 25px; }
+        .links-grid { display: flex; flex-direction: column; gap: 14px; }
+        .hub-link {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #0d151c;
+            border: 1px solid #23313d;
+            border-radius: 12px;
+            padding: 16px 18px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: all 0.2s;
+            text-align: left;
+        }
+        .hub-link:hover {
+            border-color: var(--gold-primary);
+            transform: translateY(-2px);
+            background: #121c26;
+        }
+        .hub-link .icon { font-size: 28px; }
+        .hub-link .text h3 { font-size: 15px; color: var(--gold-light); }
+        .hub-link .text p { font-size: 12px; color: var(--text-muted); margin-bottom: 0; }
+    </style>
+</head>
+<body>
+    <div class="hub-card">
+        <h1>🦁 Realty ONE Group Bolivia</h1>
+        <p>Suite de Captura de Leads mediante Códigos QR (Nube 24/7)</p>
+        <div class="links-grid">
+            <a href="registro_qr.html" class="hub-link">
+                <div class="icon">📲</div>
+                <div class="text">
+                    <h3>Formulario de Captura Móvil</h3>
+                    <p>La página que abre el cliente al escanear el QR.</p>
+                </div>
+            </a>
+            <a href="qr_generator.html" class="hub-link">
+                <div class="icon">🖨️</div>
+                <div class="text">
+                    <h3>Generador Oficial de QR</h3>
+                    <p>Crea, descarga e imprime códigos QR para letreros y folletos.</p>
+                </div>
+            </a>
+            <a href="crm_cloud.html" class="hub-link">
+                <div class="icon">📊</div>
+                <div class="text">
+                    <h3>Panel CRM de Leads 24/7</h3>
+                    <p>Gestiona, filtra y exporta los prospectos capturados a Excel.</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

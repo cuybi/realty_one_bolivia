@@ -1229,10 +1229,10 @@
     let isDeleting = false;
     let deletingTimer = null;
 
-    // Backoff exponencial cuando SiteGround devuelve 403/429 (bot protection / rate limit)
-    const POLL_INTERVAL_MS = 10000; // antes 2.5s — reduce disparos de bot-protection
-    let pollFailStreak = 0;         // 403/429 consecutivos
-    let rateLimitedUntil = 0;       // timestamp hasta el cual no se consulta
+    // Polling en tiempo real cada 3 segundos
+    const POLL_INTERVAL_MS = 3000;
+    let pollFailStreak = 0;
+    let rateLimitedUntil = 0;
 
     // Blacklist persistente en localStorage para que los prospectos eliminados no reaparezcan
     const DELETED_STORAGE_KEY = 'rog_deleted_leads_v5';
@@ -1272,7 +1272,6 @@
     // Cargar leads en tiempo real con sincronización
     async function loadLeads(isManual = false) {
       if ((isPolling || isDeleting) && !isManual) return;
-      // Si estamos en backoff por 403/429, no martillear el servidor
       if (!isManual && Date.now() < rateLimitedUntil) return;
       isPolling = true;
 
@@ -1289,7 +1288,6 @@
           candidateUrls.push(`/api/whatsapp/leads?key=ONE2026&${cacheBuster}`);
         }
         candidateUrls.push(`save_leads_sync.php?key=ONE2026&${cacheBuster}`);
-        candidateUrls.push(`https://realyonegroupbolivia.e-techgroupbolivia.com/save_leads_sync.php?key=ONE2026&${cacheBuster}`);
         candidateUrls.push(`leads.json?${cacheBuster}`);
         if (!IS_NODE_BACKEND) {
           candidateUrls.push(`/api/whatsapp/leads?key=ONE2026&${cacheBuster}`);
@@ -1297,13 +1295,15 @@
 
         for (const u of candidateUrls) {
           try {
-            const res = await fetch(u, { signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined, cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'x-admin-key': 'ONE2026' } });
+            const res = await fetch(u, {
+              signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined,
+              cache: 'no-store',
+              headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+            });
             if (res.status === 403 || res.status === 429) {
-              // SiteGround bot-protection / rate limit: backoff exponencial
               pollFailStreak++;
-              const backoff = Math.min(POLL_INTERVAL_MS * Math.pow(2, pollFailStreak), 60000);
+              const backoff = Math.min(POLL_INTERVAL_MS * Math.pow(2, pollFailStreak), 30000);
               rateLimitedUntil = Date.now() + backoff;
-              console.warn(`Rate limit (${res.status}) en ${u} — backoff ${backoff}ms (intento ${pollFailStreak})`);
               continue;
             }
             if (res.ok) {
@@ -1311,7 +1311,7 @@
               const items = d?.leads || d;
               if (Array.isArray(items) && items.length > 0) {
                 data = items;
-                pollFailStreak = 0; // éxito → reset backoff
+                pollFailStreak = 0;
                 rateLimitedUntil = 0;
                 break;
               }
@@ -1328,41 +1328,82 @@
 
         // Filtrar eliminados solo por ID puntual borrado
         const blacklist = getDeletedBlacklist();
-        const newLeads = rawLeads.filter(l => {
+        const activeLeads = rawLeads.filter(l => {
           if (!l || !l.id) return false;
           if (blacklist.ids && blacklist.ids.includes(l.id)) return false;
           return true;
         });
 
         // Asegurar que leads con visita tengan su etapa_embudo alineada si tienen visita
-        newLeads.forEach(l => {
+        activeLeads.forEach(l => {
           if (leadHasVisit(l) && (!l.etapa_embudo || l.etapa_embudo === 'SOLICITUD' || l.etapa_embudo === 'FORMULARIO_EN_PROGRESO')) {
             l.etapa_embudo = 'VISITA_AGENDADA';
           }
         });
 
-        // Ordenar leads: actividad o registro más reciente al inicio
-        newLeads.sort((a, b) => {
-          const tA = a.ultima_actividad ? new Date(a.ultima_actividad).getTime() : (a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0);
-          const tB = b.ultima_actividad ? new Date(b.ultima_actividad).getTime() : (b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0);
+        // Deduplicar prospectos por celular conservando el registro con interacción más reciente
+        const phoneMap = new Map();
+        const nonPhoneLeads = [];
+        activeLeads.forEach(l => {
+          const ph = l.numero_celular;
+          if (!ph || ph === 'Desconocido' || String(ph).replace(/\D/g, '').length < 8) {
+            nonPhoneLeads.push(l);
+            return;
+          }
+          const normPhone = ph.startsWith('+') ? ph : (ph.startsWith('591') ? `+${ph}` : `+591${ph}`);
+          if (!phoneMap.has(normPhone)) {
+            phoneMap.set(normPhone, l);
+          } else {
+            const cur = phoneMap.get(normPhone);
+            const tCur = Math.max(
+              cur.ultima_actividad ? new Date(cur.ultima_actividad).getTime() : 0,
+              cur.fecha_completa && cur.hora ? new Date(`${cur.fecha_completa}T${cur.hora}`).getTime() : 0,
+              cur.fecha_creacion ? new Date(cur.fecha_creacion).getTime() : 0
+            );
+            const tNew = Math.max(
+              l.ultima_actividad ? new Date(l.ultima_actividad).getTime() : 0,
+              l.fecha_completa && l.hora ? new Date(`${l.fecha_completa}T${l.hora}`).getTime() : 0,
+              l.fecha_creacion ? new Date(l.fecha_creacion).getTime() : 0
+            );
+            if (tNew > tCur) {
+              phoneMap.set(normPhone, l);
+            }
+          }
+        });
+        const dedupedLeads = [...Array.from(phoneMap.values()), ...nonPhoneLeads];
+
+        // Ordenar leads: interacción más reciente al inicio siempre
+        dedupedLeads.sort((a, b) => {
+          const tA = Math.max(
+            a.ultima_actividad ? new Date(a.ultima_actividad).getTime() : 0,
+            a.fecha_completa && a.hora ? new Date(`${a.fecha_completa}T${a.hora}`).getTime() : 0,
+            a.fecha_creacion ? new Date(a.fecha_creacion).getTime() : 0
+          );
+          const tB = Math.max(
+            b.ultima_actividad ? new Date(b.ultima_actividad).getTime() : 0,
+            b.fecha_completa && b.hora ? new Date(`${b.fecha_completa}T${b.hora}`).getTime() : 0,
+            b.fecha_creacion ? new Date(b.fecha_creacion).getTime() : 0
+          );
           return tB - tA;
         });
 
         const prevCount = allLeads.length;
-        // Comparar ids + ultimo mensaje + cantidad historial + etapa — detecta nuevos, borrados y actualizados
-        const snapshotFn = arr => arr.map(l => `${l.id}|${l.ultimo_mensaje || ''}|${(l.historial || []).length}|${l.etapa_embudo || ''}|${l.hora || ''}`).join(';;');
+        const snapshotFn = arr => arr.map(l => `${l.id}|${l.numero_celular || ''}|${l.email || ''}|${l.cliente_nombre || ''}|${l.ultimo_mensaje || ''}|${(l.historial || []).length}|${l.etapa_embudo || ''}|${l.hora || ''}|${l.fecha_completa || ''}`).join(';;');
         const prevSnapshot = snapshotFn(allLeads);
-        const newSnapshot  = snapshotFn(newLeads);
+        const newSnapshot  = snapshotFn(dedupedLeads);
         const hasChanged = prevSnapshot !== newSnapshot;
 
         if (hasChanged || isManual) {
-          allLeads = newLeads;
+          allLeads = dedupedLeads;
           updateKPIs();
           applyFilters();
 
           if (isManual) {
             showToast('🔄 Lista actualizada en tiempo real.');
-          } else if (prevCount > 0 && newLeads.length > prevCount) {
+          } else if (prevCount > 0 && dedupedLeads.length > prevCount) {
+            showToast(`💬 Nuevo prospecto: ${dedupedLeads[0].cliente_nombre || dedupedLeads[0].numero_celular}`);
+          }
+        }
             showToast(`💬 Nuevo prospecto: ${newLeads[0].cliente_nombre || newLeads[0].numero_celular}`);
           }
         }

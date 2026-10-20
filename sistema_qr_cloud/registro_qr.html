@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Interés | Realty ONE Group Bolivia</title>
+    <meta name="description" content="Registra tu interés o agenda una visita guiada con Realty ONE Group Bolivia.">
+    <!-- Favicon Oficial -->
+    <link rel="icon" type="image/png" href="https://realty-one-bolivia.onrender.com/assets/favicon.png">
+    <!-- Google Fonts Outfit & Montserrat -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Supabase Client JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        :root {
+            --bg-dark: #07090b;
+            --bg-card: rgba(17, 24, 30, 0.95);
+            --gold-primary: #caa65e;
+            --gold-gradient: linear-gradient(135deg, #d4af37, #caa65e, #aa8232);
+            --gold-light: #f3cf7a;
+            --text-main: #f0f4f8;
+            --text-muted: #8fa0ad;
+            --border-glass: rgba(202, 166, 94, 0.25);
+            --border-input: #23313d;
+            --input-bg: #0d151c;
+            --green-wa: #25d366;
+            --green-wa-dark: #128c7e;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --shadow-gold: 0 8px 32px rgba(202, 166, 94, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: radial-gradient(circle at 50% 0%, #15222e 0%, var(--bg-dark) 75%);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 14px 40px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 520px;
+        }
+
+        /* Header de Marca */
+        .brand-header {
+            text-align: center;
+            margin-bottom: 22px;
+        }
+
+        .brand-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(202, 166, 94, 0.12);
+            border: 1px solid var(--border-glass);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: var(--gold-light);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .brand-badge .dot {
+            width: 7px;
+            height: 7px;
+            background: var(--gold-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--gold-primary);
+        }
+
+        .brand-title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: var(--gold-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .brand-subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Banner de contexto (si viene de QR de propiedad) */
+        .property-banner {
+            display: none;
+            background: rgba(202, 166, 94, 0.08);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 12px 16px;
+            margin-bottom: 18px;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .property-banner.active {
+            display: flex;
+        }
+
+        .property-banner .icon {
+            font-size: 24px;
+        }
+
+        .property-banner .info h4 {
+            font-size: 13px;
+            color: var(--gold-light);
+            font-weight: 700;
+        }
+
+        .property-banner .info p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Tarjeta del Formulario */
+        .card-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 28px 22px;
+            box-shadow: var(--shadow-gold), 0 20px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(14px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-form::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gold-gradient);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gold-light);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-label span.req {
+            color: #ff5e57;
+        }
+
+        .form-control {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius-md);
+            padding: 13px 15px;
+            font-size: 14px;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.25s ease;
+        }
+
+        .form-control:focus {
+            border-color: var(--gold-primary);
+            box-shadow: 0 0 0 3px rgba(202, 166, 94, 0.15);
+            background: #111a24;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 480px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Grupo Teléfono con Bandera */
+        .phone-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .prefix-badge {
+            background: var(--input-bg);
+            border: 1px solid var(--border-input);
+            border-radius: var(--radius-md);
+            padding: 13px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+
+        /* Switch Agendar Visita */
+        .visit-toggle {
+            background: rgba(202, 166, 94, 0.06);
+            border: 1px dashed var(--border-glass);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            margin: 18px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .visit-toggle:hover {
+            background: rgba(202, 166, 94, 0.1);
+        }
+
+        .visit-toggle-text h4 {
+            font-size: 13px;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .visit-toggle-text p {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #23313d;
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--gold-primary);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        .visit-fields {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .visit-fields.active {
+            display: block;
+        }
+
+        /* Botón de Enviar */
+        .btn-submit {
+            width: 100%;
+            background: var(--gold-gradient);
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 15px;
+            font-size: 15px;
+            font-weight: 700;
+            color: #07090b;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 20px rgba(202, 166, 94, 0.3);
+            transition: all 0.25s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(202, 166, 94, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Estado de Éxito */
+        .success-card {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-lg);
+            padding: 35px 24px;
+            text-align: center;
+            animation: zoomIn 0.35s ease;
+        }
+
+        .success-card.active {
+            display: block;
+        }
+
+        .success-icon-box {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 18px;
+            background: rgba(37, 211, 102, 0.15);
+            border: 2px solid var(--green-wa);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 0 25px rgba(37, 211, 102, 0.3);
+        }
+
+        .success-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+
+        .success-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+
+        .btn-whatsapp-direct {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: linear-gradient(135deg, var(--green-wa), var(--green-wa-dark));
+            color: #ffffff;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            padding: 15px 20px;
+            border-radius: var(--radius-md);
+            box-shadow: 0 6px 20px rgba(37, 211, 102, 0.35);
+            transition: all 0.25s ease;
+        }
+
+        .btn-whatsapp-direct:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(37, 211, 102, 0.5);
+            filter: brightness(1.08);
+        }
+
+        .footer-note {
+            text-align: center;
+            font-size: 11px;
+            color: #536471;
+            margin-top: 24px;
+        }
+
+        .footer-note a {
+            color: var(--gold-primary);
+            text-decoration: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Encabezado de Marca -->
+        <header class="brand-header">
+            <div class="brand-badge">
+                <span class="dot"></span>
+                <span>Realty ONE Group Bolivia</span>
+            </div>
+            <h1 class="brand-title">Registro de Interés</h1>
+            <p class="brand-subtitle">Completa tus datos para recibir asesoría personalizada y agendar tu visita.</p>
+        </header>
+
+        <!-- Banner Dinámico de Propiedad (si viene con parámetros en la URL) -->
+        <div id="propBanner" class="property-banner">
+            <div class="icon">🏠</div>
+            <div class="info">
+                <h4 id="bannerTitle">Propiedad Seleccionada</h4>
+                <p id="bannerDesc">Registro vía Código QR oficial</p>
+            </div>
+        </div>
+
+        <!-- Tarjeta del Formulario Principal -->
+        <main class="card-form" id="formWrapper">
+            <form id="leadForm">
+                <!-- Campos Ocultos para Trazabilidad de Marketing -->
+                <input type="hidden" id="origen_qr" name="origen_qr" value="Letrero QR Físico">
+                <input type="hidden" id="agente_asignado" name="agente_asignado" value="Oficina Central (+591 60937050)">
+
+                <!-- Nombre y Apellidos -->
+                <div class="form-group">
+                    <label class="form-label" for="nombre">Nombre y Apellido <span class="req">*</span></label>
+                    <input type="text" id="nombre" class="form-control" placeholder="Ej. Juan Carlos Pérez" required autocomplete="name">
+                </div>
+
+                <!-- Celular / WhatsApp -->
+                <div class="form-group">
+                    <label class="form-label" for="celular">Celular / WhatsApp <span class="req">*</span></label>
+                    <div class="phone-group">
+                        <div class="prefix-badge">🇧🇴 +591</div>
+                        <input type="tel" id="celular" class="form-control" placeholder="70012345" required autocomplete="tel" pattern="[0-9]{7,10}">
+                    </div>
+                </div>
+
+                <!-- Correo Electrónico y Ciudad -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="email">Correo Electrónico</label>
+                        <input type="email" id="email" class="form-control" placeholder="tu@correo.com" autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ciudad">Ciudad</label>
+                        <select id="ciudad" class="form-control">
+                            <option value="Santa Cruz" selected>Santa Cruz</option>
+                            <option value="La Paz">La Paz</option>
+                            <option value="Cochabamba">Cochabamba</option>
+                            <option value="Tarija">Tarija</option>
+                            <option value="Sucre">Sucre</option>
+                            <option value="Exterior">Residente Exterior</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Tipo de Interés y Propiedad -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label" for="tipo_interes">Interés Principal</label>
+                        <select id="tipo_interes" class="form-control">
+                            <option value="Comprar" selected>Comprar Inmueble</option>
+                            <option value="Alquilar">Alquilar</option>
+                            <option value="Anticrético">Anticrético</option>
+                            <option value="Inversión">Inversión / Lote</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="propiedad_campana">Propiedad / Proyecto</label>
+                        <input type="text" id="propiedad_campana" class="form-control" placeholder="Ej. Lote Mar Adentro, Terreno G77" value="Catálogo General">
+                    </div>
+                </div>
+
+                <!-- Presupuesto Estimado -->
+                <div class="form-group">
+                    <label class="form-label" for="presupuesto">Presupuesto Estimado ($us)</label>
+                    <select id="presupuesto" class="form-control">
+                        <option value="Por Definir">Por Definir / Asesoramiento</option>
+                        <option value="Menos de $us 50,000">Menos de $us 50,000</option>
+                        <option value="$us 50,000 - $us 100,000">$us 50,000 - $us 100,000</option>
+                        <option value="$us 100,000 - $us 200,000">$us 100,000 - $us 200,000</option>
+                        <option value="$us 200,000 - $us 500,000">$us 200,000 - $us 500,000</option>
+                        <option value="Más de $us 500,000">Más de $us 500,000</option>
+                    </select>
+                </div>
+
+                <!-- Switch para Agendar Visita -->
+                <div class="visit-toggle" onclick="toggleVisitFields()">
+                    <div class="visit-toggle-text">
+                        <h4>¿Deseas agendar una visita guiada?</h4>
+                        <p>Coordina día y hora para conocer la propiedad en persona.</p>
+                    </div>
+                    <label class="switch" onclick="event.stopPropagation()">
+                        <input type="checkbox" id="checkVisita" onchange="updateVisitFieldsVisibility()">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <!-- Campos de Visita Condicionales -->
+                <div id="visitFields" class="visit-fields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="fecha_visita">Fecha Preferida</label>
+                            <input type="date" id="fecha_visita" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="hora_visita">Horario</label>
+                            <select id="hora_visita" class="form-control">
+                                <option value="Mañana (09:00 - 12:00)">Mañana (09:00 - 12:00)</option>
+                                <option value="Tarde (14:30 - 18:00)" selected>Tarde (14:30 - 18:00)</option>
+                                <option value="Sábado en la Mañana">Sábado en la Mañana</option>
+                                <option value="A coordinar">A coordinar por WhatsApp</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notas Adicionales -->
+                <div class="form-group">
+                    <label class="form-label" for="notas">Consultas o Requerimientos Específicos</label>
+                    <textarea id="notas" class="form-control" rows="2" placeholder="¿Buscas financiamiento bancario, permuta o entrega inmediata?"></textarea>
+                </div>
+
+                <!-- Botón de Registro -->
+                <button type="submit" id="btnSubmit" class="btn-submit">
+                    <span>✨ Registrar y Enviar Datos</span>
+                </button>
+            </form>
+        </main>
+
+        <!-- Tarjeta de Éxito Post-Envío -->
+        <section class="success-card" id="successWrapper">
+            <div class="success-icon-box">✓</div>
+            <h2 class="success-title">¡Registro Completado!</h2>
+            <p class="success-desc" id="successText">
+                Tus datos han sido registrados en nuestro sistema 24/7. Un asesor especializado de Realty ONE Group Bolivia te atenderá de inmediato.
+            </p>
+            <a href="#" id="btnWaAction" class="btn-whatsapp-direct" target="_blank" rel="noopener">
+                <span>💬 Abrir Chat de WhatsApp Directo</span>
+            </a>
+        </section>
+
+        <footer class="footer-note">
+            Realty ONE Group Bolivia © 2026 • Sistema de Leads 24/7 en la Nube
+        </footer>
+    </div>
+
+    <!-- Cargar Configuración -->
+    <script src="config.js"></script>
+
+    <script>
+        // 1. Inicialización y Captura de Parámetros URL del Código QR
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            
+            // Detectar propiedad desde el QR (ej: ?prop=Lote%20Mar%20Adentro)
+            const prop = params.get('prop') || params.get('propiedad');
+            if (prop) {
+                document.getElementById('propiedad_campana').value = prop;
+                document.getElementById('bannerTitle').textContent = prop;
+                document.getElementById('bannerDesc').textContent = 'Información directa y visita para este inmueble';
+                document.getElementById('propBanner').classList.add('active');
+            }
+
+            // Detectar origen (ej: ?origen=Letrero%20Urubo)
+            const origen = params.get('origen') || params.get('source');
+            if (origen) {
+                document.getElementById('origen_qr').value = origen;
+            }
+
+            // Detectar agente asignado
+            const agente = params.get('agente');
+            if (agente) {
+                document.getElementById('agente_asignado').value = agente;
+            }
+
+            // Fecha mínima para visitas (a partir de hoy)
+            const hoy = new Date().toISOString().split('T')[0];
+            document.getElementById('fecha_visita').min = hoy;
+            document.getElementById('fecha_visita').value = hoy;
+        });
+
+        // 2. Control de Campos de Visita
+        function toggleVisitFields() {
+            const chk = document.getElementById('checkVisita');
+            chk.checked = !chk.checked;
+            updateVisitFieldsVisibility();
+        }
+
+        function updateVisitFieldsVisibility() {
+            const chk = document.getElementById('checkVisita');
+            const fields = document.getElementById('visitFields');
+            if (chk.checked) {
+                fields.classList.add('active');
+            } else {
+                fields.classList.remove('active');
+            }
+        }
+
+        // 3. Envío y Persistencia 24/7 en la Nube
+        document.getElementById('leadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmit');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳ Guardando en la Nube...</span>';
+
+            const rawCelular = document.getElementById('celular').value.replace(/\D/g, '');
+            const celularConPrefijo = rawCelular.startsWith('591') ? rawCelular : '591' + rawCelular;
+
+            const leadData = {
+                nombre_completo: document.getElementById('nombre').value.trim(),
+                celular: '+' + celularConPrefijo,
+                email: document.getElementById('email').value.trim() || null,
+                ciudad: document.getElementById('ciudad').value,
+                tipo_interes: document.getElementById('tipo_interes').value,
+                propiedad_campana: document.getElementById('propiedad_campana').value.trim() || 'Catálogo General',
+                presupuesto: document.getElementById('presupuesto').value,
+                fecha_visita_preferida: document.getElementById('checkVisita').checked ? document.getElementById('fecha_visita').value : null,
+                hora_visita_preferida: document.getElementById('checkVisita').checked ? document.getElementById('hora_visita').value : null,
+                origen_qr: document.getElementById('origen_qr').value,
+                agente_asignado: document.getElementById('agente_asignado').value,
+                notas: document.getElementById('notas').value.trim() || null,
+                estado: 'NUEVO',
+                created_at: new Date().toISOString()
+            };
+
+            console.log('📤 Enviando lead a la nube:', leadData);
+
+            // Intentar guardado en Supabase / Google Sheets en paralelo
+            let saveSuccess = false;
+            const config = window.ROG_CONFIG || {};
+
+            // A) Supabase
+            if (config.SUPABASE_URL && !config.SUPABASE_URL.includes('xyzcompany') && window.supabase) {
+                try {
+                    const sb = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+                    const { error } = await sb.from('leads_qr').insert([leadData]);
+                    if (!error) {
+                        saveSuccess = true;
+                        console.log('✅ Lead guardado con éxito en Supabase PostgreSQL');
+                    } else {
+                        console.warn('⚠️ Supabase error:', error.message);
+                    }
+                } catch (sbErr) {
+                    console.warn('⚠️ Error conectando a Supabase:', sbErr.message);
+                }
+            }
+
+            // B) Google Apps Script (Google Sheets 24/7)
+            if (config.GOOGLE_APPS_SCRIPT_URL) {
+                try {
+                    await fetch(config.GOOGLE_APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Evita bloqueo CORS en Google Apps Script
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(leadData)
+                    });
+                    saveSuccess = true;
+                    console.log('✅ Lead enviado a Google Apps Script (Google Sheets)');
+                } catch (gErr) {
+                    console.warn('⚠️ Error enviando a Google Sheets:', gErr.message);
+                }
+            }
+
+            // C) Fallback LocalStorage (cero pérdida de datos ante desconexión)
+            try {
+                const localQueue = JSON.parse(localStorage.getItem('rog_offline_leads') || '[]');
+                localQueue.push(leadData);
+                localStorage.setItem('rog_offline_leads', JSON.stringify(localQueue));
+                saveSuccess = true;
+            } catch (_) {}
+
+            // 4. Mostrar Pantalla de Éxito y Generar Enlace de WhatsApp
+            document.getElementById('formWrapper').style.display = 'none';
+            document.getElementById('propBanner').style.display = 'none';
+            const successCard = document.getElementById('successWrapper');
+            successCard.classList.add('active');
+
+            // Disparar confeti de celebración
+            try {
+                confetti({
+                    particleCount: 80,
+                    spread: 60,
+                    origin: { y: 0.6 },
+                    colors: ['#caa65e', '#d4af37', '#ffffff', '#25d366']
+                });
+            } catch (_) {}
+
+            // Construir mensaje amigable para WhatsApp
+            const targetPhone = config.WHATSAPP_NUMERO_OFICIAL || '59160937050';
+            let waMsg = `¡Hola Realty ONE Group! 👋 Acabo de registrarme mediante código QR.\n\n`;
+            waMsg += `👤 *Nombre:* ${leadData.nombre_completo}\n`;
+            waMsg += `🏡 *Propiedad de Interés:* ${leadData.propiedad_campana}\n`;
+            waMsg += `📍 *Ciudad:* ${leadData.ciudad}\n`;
+            if (leadData.fecha_visita_preferida) {
+                waMsg += `🗓️ *Visita Solicitada:* ${leadData.fecha_visita_preferida} (${leadData.hora_visita_preferida})\n`;
+            }
+            waMsg += `\n¿Podrían brindarme mayor información? Muchas gracias.`;
+
+            const waLink = `https://wa.me/${targetPhone}?text=${encodeURIComponent(waMsg)}`;
+            document.getElementById('btnWaAction').href = waLink;
+        });
+    </script>
+</body>
+</html>

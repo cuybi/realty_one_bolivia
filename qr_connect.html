@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Vincular WhatsApp Business - Realty ONE Group Bolivia</title>
   <script>
     // Redirección automática desactivada: la página se sirve directamente desde el servidor Node (Koyeb/Railway/local).
@@ -407,57 +410,106 @@
 
     async function checkQRStatus() {
       try {
-        const res = await fetch('/api/whatsapp/qr-real?key=ONE2026');
-        if (res.ok) {
-          const data = await res.json();
-          const statusText = document.getElementById("statusText");
-          const statusDot = document.getElementById("statusDot");
-          const pairingBox = document.getElementById("pairingBox");
+        let data = null;
+        const now = Date.now();
 
-          if (data.status === 'conectado') {
-            document.getElementById("qrcode").innerHTML = `
-              <div style="text-align:center; color:#00a884; padding:20px;">
-                <i class="fas fa-check-circle" style="font-size:3.5rem; margin-bottom:12px;"></i>
-                <h3 style="color:#111b21; font-size:1.1rem; margin-bottom:4px;">¡Bot Conectado!</h3>
-                <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '59160937050'}</p>
-                <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real 24/7</p>
-                <button onclick="desconectarNumero()" class="btn" style="margin-top:14px; background:#dc3545; color:#fff; border:none; padding:6px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;">
-                  <i class="fas fa-sign-out-alt"></i> Desconectar para vincular otro número
-                </button>
-              </div>
-            `;
-            if (pairingBox) pairingBox.style.display = 'none';
-            statusDot.className = "status-dot connected";
-            statusText.innerText = "Conectado y Activo en Tiempo Real 24/7";
-            return;
+        // 1. Intento primario: qr_bridge.php (puente PHP a Node local 3000)
+        try {
+          const resBridge = await fetch('/qr_bridge.php?key=ONE2026&t=' + now, { cache: 'no-store' });
+          if (resBridge.ok) {
+            data = await resBridge.json();
           }
+        } catch (_) {}
 
-          if (pairingBox) pairingBox.style.display = 'block';
-
-          if (data.status === 'desconectado') {
-            statusDot.className = "status-dot disconnected";
-            statusText.innerText = "Reconectando con el servidor... Haz clic en 'Generar Código' para un código nuevo";
-            if (!data.pairingCode) {
-              const resBox = document.getElementById("pairingCodeResult");
-              if (resBox) resBox.style.display = 'none';
+        // 2. Intento secundario: endpoint directo /api/whatsapp/qr-real
+        if (!data) {
+          try {
+            const resDirect = await fetch('/api/whatsapp/qr-real?key=ONE2026&t=' + now, { cache: 'no-store' });
+            if (resDirect.ok) {
+              data = await resDirect.json();
             }
-          }
+          } catch (_) {}
+        }
 
-          if (data.pairingCode) {
-            const rawCode = String(data.pairingCode).replace(/[^a-zA-Z0-9]/g, '');
-            const formatted = rawCode.length === 8 ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : data.pairingCode;
-            document.getElementById("codeDisplay").innerText = formatted;
-            document.getElementById("codeDisplay").dataset.rawCode = rawCode;
-            document.getElementById("pairingCodeResult").style.display = 'block';
-            statusDot.className = "status-dot";
-            statusText.innerText = "Ingresa el código de 8 dígitos en WhatsApp (Dispositivos vinculados)";
-          }
+        // 3. Intento terciario: qr_status.json estático en disco
+        if (!data) {
+          try {
+            const resStatic = await fetch('/qr_status.json?t=' + now, { cache: 'no-store' });
+            if (resStatic.ok) {
+              data = await resStatic.json();
+            }
+          } catch (_) {}
+        }
 
-          if (data.qr) {
-            renderQR(data.qr);
-            statusDot.className = "status-dot";
-            statusText.innerText = "Escanea el código QR o usa el código de 8 dígitos";
+        const statusText = document.getElementById("statusText");
+        const statusDot = document.getElementById("statusDot");
+        const pairingBox = document.getElementById("pairingBox");
+
+        if (!data) {
+          statusText.innerText = "Esperando que el servidor responda...";
+          statusDot.className = "status-dot disconnected";
+          return;
+        }
+
+        if (data.status === 'servidor_apagado') {
+          document.getElementById("qrcode").innerHTML = `
+            <div style="text-align:center; color:#c69214; padding:16px;">
+              <i class="fas fa-power-off" style="font-size:3rem; margin-bottom:12px; color:#ffaa00;"></i>
+              <h3 style="color:#111b21; font-size:1.05rem; margin-bottom:6px;">Servidor Node.js detenido</h3>
+              <p style="color:#555; font-size:0.8rem; line-height:1.4;">El bot no está activo en SiteGround todavía.</p>
+              <a href="instalar.php?key=ONE2026" target="_blank" class="btn" style="margin-top:14px; background:#00a884; color:#fff; border:none; padding:8px 16px; font-weight:600; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                <i class="fas fa-play"></i> Activar Bot con 1 Clic
+              </a>
+            </div>
+          `;
+          statusDot.className = "status-dot disconnected";
+          statusText.innerText = "Servidor detenido. Haz clic en 'Activar Bot con 1 Clic'.";
+          return;
+        }
+
+        if (data.status === 'conectado') {
+          document.getElementById("qrcode").innerHTML = `
+            <div style="text-align:center; color:#00a884; padding:20px;">
+              <i class="fas fa-check-circle" style="font-size:3.5rem; margin-bottom:12px;"></i>
+              <h3 style="color:#111b21; font-size:1.1rem; margin-bottom:4px;">¡Bot Conectado!</h3>
+              <p style="color:#555; font-size:0.85rem;">Número: +${data.numeroConectado || '59160937050'}</p>
+              <p style="color:#00a884; font-weight:600; font-size:0.8rem; margin-top:8px;">Respondiendo en tiempo real 24/7</p>
+              <button onclick="desconectarNumero()" class="btn" style="margin-top:14px; background:#dc3545; color:#fff; border:none; padding:6px 12px; font-size:0.78rem; border-radius:6px; cursor:pointer;">
+                <i class="fas fa-sign-out-alt"></i> Desconectar para vincular otro número
+              </button>
+            </div>
+          `;
+          if (pairingBox) pairingBox.style.display = 'none';
+          statusDot.className = "status-dot connected";
+          statusText.innerText = "Conectado y Activo en Tiempo Real 24/7";
+          return;
+        }
+
+        if (pairingBox) pairingBox.style.display = 'block';
+
+        if (data.status === 'desconectado') {
+          statusDot.className = "status-dot disconnected";
+          statusText.innerText = "Reconectando con el servidor... Haz clic en 'Generar Código' para un código nuevo";
+          if (!data.pairingCode) {
+            const resBox = document.getElementById("pairingCodeResult");
+            if (resBox) resBox.style.display = 'none';
           }
+        }
+
+        if (data.pairingCode) {
+          const rawCode = String(data.pairingCode).replace(/[^a-zA-Z0-9]/g, '');
+          const formatted = rawCode.length === 8 ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : data.pairingCode;
+          document.getElementById("codeDisplay").innerText = formatted;
+          document.getElementById("codeDisplay").dataset.rawCode = rawCode;
+          document.getElementById("pairingCodeResult").style.display = 'block';
+          statusDot.className = "status-dot";
+          statusText.innerText = "Ingresa el código de 8 dígitos en WhatsApp (Dispositivos vinculados)";
+        }
+
+        if (data.qr) {
+          renderQR(data.qr);
+          statusDot.className = "status-dot";
+          statusText.innerText = "Escanea el código QR o usa el código de 8 dígitos";
         }
       } catch (err) {
         document.getElementById("statusText").innerText = "Conectando con el servidor local / nube...";
@@ -471,11 +523,23 @@
       btn.disabled = true;
       btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
       try {
-        const res = await fetch('/api/whatsapp/pairing-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber: phone })
-        });
+        let res = null;
+        try {
+          res = await fetch('/qr_bridge.php?action=pairing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber: phone })
+          });
+        } catch (_) {}
+
+        if (!res || !res.ok) {
+          res = await fetch('/api/whatsapp/pairing-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber: phone })
+          });
+        }
+
         const data = await res.json();
         if (data.success && data.code) {
           const rawCode = String(data.code).replace(/[^a-zA-Z0-9]/g, '');
@@ -505,7 +569,6 @@
           btn.innerHTML = '<i class="fas fa-copy"></i> Copiar Código';
         }, 2000);
       }).catch(() => {
-        // Fallback textarea
         const ta = document.createElement('textarea');
         ta.value = rawCode;
         document.body.appendChild(ta);
@@ -523,12 +586,20 @@
     async function desconectarNumero() {
       if (!confirm('¿Deseas desconectar esta sesión para escanear un nuevo código QR con otro número?')) return;
       try {
-        await fetch('/api/whatsapp/desconectar?key=ONE2026', { method: 'POST' });
+        let res = null;
+        try {
+          res = await fetch('/qr_bridge.php?action=desconectar', { method: 'POST' });
+        } catch (_) {}
+        if (!res || !res.ok) {
+          await fetch('/api/whatsapp/desconectar?key=ONE2026', { method: 'POST' });
+        }
         document.getElementById("qrcode").innerHTML = '<div style="padding:40px 20px; color:#c69214;"><i class="fas fa-spinner fa-spin fa-2x"></i><br><br>Reiniciando generador de QR...</div>';
         setTimeout(checkQRStatus, 2000);
       } catch(e) {
         alert('Error al desconectar: ' + e.message);
       }
+    }
+
     async function cerrarSesionAdmin() {
       if (!confirm('¿Deseas cerrar la sesión administrativa?')) return;
       try {

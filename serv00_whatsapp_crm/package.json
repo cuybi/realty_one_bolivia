@@ -1,0 +1,29 @@
+{
+  "name": "serv00-whatsapp-crm",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp Baileys con mini-CRM MySQL optimizado para Serv00.com",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "mysql",
+    "crm",
+    "serv00",
+    "facebook-ads"
+  ],
+  "author": "Realty ONE Group Bolivia",
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.11.3",
+    "pino": "^9.4.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
