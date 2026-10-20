@@ -391,15 +391,29 @@ function formatTitleCase(str = '') {
  */
 function extractName(text = '') {
   const notNames = [
-    'interesado', 'interesada', 'cliente', 'amigo', 'amiga', 'alguien', 'persona',
+    'interesado', 'interesada', 'cliente', 'amigo', 'amiga', 'amigos', 'amigas', 'alguien', 'persona',
     'comprador', 'compradora', 'hola', 'buenas', 'buen', 'buenos', 'realty', 'one',
     'informacion', 'un', 'una', 'el', 'la', 'los', 'las', 'asesor', 'agente', 'nuevo', 'nueva',
     'propietario', 'propietaria', 'inquilino', 'inversionista',
-    'por ahora no', 'por ahora no gracias', 'por ahora', 'no gracias', 'solo queria consultar', 'solo quería consultar',
+    'ahora no', 'ahora no gracias', 'por ahora no', 'por ahora no gracias', 'por ahora', 'no gracias', 'solo queria consultar', 'solo quería consultar',
     'no deseo agendar', 'no deseo', 'no quiero', 'gracias', 'muchas gracias', 'chau', 'adios', 'adiós',
     'de acuerdo', 'esta bien', 'está bien', 'perfecto', 'excelente', 'genial', 'dale', 'vale', 'listo', 'ok',
-    'si por favor', 'sí por favor', 'si', 'sí', 'no'
+    'si por favor', 'sí por favor', 'si', 'sí', 'no',
+    'feliz cumpleaños', 'feliz cumpleanos', 'feliz cumple', 'felicidades', 'felicitaciones', 'bendiciones',
+    'querida', 'querido', 'abrazo', 'abrazos', 'beso', 'besos', 'saludos'
   ];
+
+  const stopWords = new Set([
+    'feliz', 'cumpleaños', 'cumpleanos', 'cumple', 'felicidades', 'felicitaciones', 'bendiciones',
+    'amiga', 'amigo', 'amigas', 'amigos', 'querida', 'querido', 'queridas', 'queridos',
+    'ahora', 'no', 'si', 'sí', 'gracias', 'chau', 'adios', 'adiós', 'hola', 'buenas', 'tardes', 'noches', 'dias', 'días',
+    'despues', 'después', 'luego', 'momento', 'tiempo', 'solo', 'nada', 'nunca', 'paso', 'casa', 'terreno', 'lote', 'depto', 'departamento'
+  ]);
+
+  const hasStopWord = (str) => {
+    const words = str.toLowerCase().split(/\s+/).filter(Boolean);
+    return words.some(w => stopWords.has(w));
+  };
 
   const patterns = [
     /(?:mi\s+nombre\s+es|me\s+llamo|soy|habla|atte:?|atentamente:?)\s+([A-ZÁÉÍÓÚÑa-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]+){0,3})/i,
@@ -414,9 +428,10 @@ function extractName(text = '') {
       candidate = candidate.replace(/\s+(?:y(?:\s+mi)?|mi|con|del?|en|por|para|cel(?:ular)?|tel(?:efono)?|correo|email|whatsapp)\b.*$/i, '').trim();
       const candLo = candidate.toLowerCase();
 
-      if (!notNames.some(nn => candLo === nn || candLo.startsWith(nn + ' ') || candLo.includes('no gracias') || candLo.includes('por ahora') || candLo.includes('no deseo')) && candidate.length > 2) {
+      if (!notNames.some(nn => candLo === nn || candLo.startsWith(nn + ' ') || candLo.includes('no gracias') || candLo.includes('por ahora') || candLo.includes('ahora no') || candLo.includes('no deseo')) &&
+          !hasStopWord(candidate) && candidate.length > 2) {
         candidate = candidate.replace(/\s+(?:y|e|o|de|del|en|a)$/i, '').trim();
-        if (candidate.length > 2 && !notNames.includes(candidate.toLowerCase())) {
+        if (candidate.length > 2 && !notNames.includes(candidate.toLowerCase()) && !hasStopWord(candidate)) {
           return formatTitleCase(candidate);
         }
       }
@@ -430,7 +445,8 @@ function extractName(text = '') {
     firstPart = firstPart.replace(/^(?:mi\s+nombre\s+es|me\s+llamo|soy)\s+/i, '').trim();
     const fpLo = firstPart.toLowerCase();
     if (firstPart.length > 2 && firstPart.split(' ').length <= 4 && !firstPart.includes('@') && !/\d/.test(firstPart)) {
-      if (!notNames.some(nn => fpLo === nn || fpLo.startsWith(nn + ' ') || fpLo.includes('no gracias') || fpLo.includes('por ahora') || fpLo.includes('no deseo'))) {
+      if (!notNames.some(nn => fpLo === nn || fpLo.startsWith(nn + ' ') || fpLo.includes('no gracias') || fpLo.includes('por ahora') || fpLo.includes('ahora no') || fpLo.includes('no deseo')) &&
+          !hasStopWord(firstPart)) {
         return formatTitleCase(firstPart);
       }
     }
@@ -543,13 +559,18 @@ function extractSchedule(text = '') {
   if (!text) return null;
   const n = normalizeText(text);
 
-  // Si el mensaje es una negativa explícita, rechazo o despedida, NO es horario
-  if (/\b(no\s+gracias|por\s+ahora\s+no|por\s+el\s+momento\s+no|todav[ií]a\s+no|despu[eé]s|luego|otro\s+d[ií]a|no\s+deseo|no\s+puedo|no\s+quiero)\b/i.test(text) ||
+  // 1. Negativas explícitas, rechazo o despedida -> NO es horario
+  if (/\b(no\s+gracias|por\s+ahora\s+no|por\s+el\s+momento\s+no|todav[ií]a\s+no|despu[eé]s|luego|otro\s+d[ií]a|no\s+deseo|no\s+puedo|no\s+quiero|ahora\s+no)\b/i.test(text) ||
       /^(no|nop|no\s+por\s+ahora|gracias|muchas\s+gracias|buenas\s+noches|hasta\s+luego|chau)$/i.test(text.trim())) {
     return null;
   }
 
-  // Si el mensaje es solo un saludo o solo datos de contacto (con @), descartar
+  // 2. Festejos, felicitaciones o mensajes personales -> NO es visita
+  if (/\b(cumplea[ñn]os|felicidades|felicitaciones|bendiciones|feliz|amig[oa]s?|querid[oa]s?|abrazos?|besos?)\b/i.test(n)) {
+    return null;
+  }
+
+  // 3. Saludos solos o datos con @ solos -> descartar
   if (text.includes('@') && !n.includes('visita') && !n.includes('a las') && !/\b(?:horas?|hrs?)\b/i.test(n) && !n.includes('manana') && !n.includes('mañana')) {
     return null;
   }
@@ -558,26 +579,24 @@ function extractSchedule(text = '') {
   }
 
   const days = ['mañana', 'manana', 'hoy', 'lunes', 'martes', 'miercoles', 'miércoles', 'jueves', 'viernes', 'sabado', 'sábado', 'domingo', 'fin de semana'];
-  const times = ['tarde', 'mediodia', 'mediodía', '10:00', '11:00', '14:00', '15:00', '15:30', '16:00', '16:30', '17:00', '18:00', 'pm', 'am'];
+  const foundDay = days.some(d => new RegExp('\\b' + d + '\\b', 'i').test(n));
 
-  const foundDay = days.some(d => n.includes(d));
-  // Usar regex con límite de palabra para 'hora' / 'horas' / 'hrs' para no coincidir con 'ahora'
+  // 4. Regex estrictos de horario (IMPORTANTE: nunca hacer includes('am') para no atrapar 'amiga' o 'amigo')
+  const hasSpecificHour = /\b(?:\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)|mediod[ií]a|1[0-9]:[0-5][0-9]|0?[8-9]:[0-5][0-9])\b/i.test(n);
   const hasHourWord = /\b(?:horas?|hrs?)\b/i.test(n);
-  // 'noche' solo si no es saludo 'buenas noches'
   const hasNightWord = /\b(?:noche)\b/i.test(n) && !/\b(?:buenas\s+noches)\b/i.test(n);
-  const foundTime = times.some(t => n.includes(t)) || hasHourWord || hasNightWord;
+  const foundTime = hasSpecificHour || hasHourWord || hasNightWord || /\b(?:en\s+la\s+tarde|en\s+la\s+ma[ñn]ana|por\s+la\s+tarde|por\s+la\s+ma[ñn]ana)\b/i.test(n);
 
   if (foundDay || foundTime || n.includes('a las') || n.includes('visita') || n.includes('cita') || n.includes('agendar')) {
-    // Si viene dentro de un texto largo con comas, extraer solo la parte de horario
     const parts = text.split(',');
     for (const part of parts) {
       const np = normalizeText(part);
-      if (days.some(d => np.includes(d)) || times.some(t => np.includes(t)) || /\b(?:horas?|hrs?)\b/i.test(np) || np.includes('a las') || np.includes('visita')) {
+      if (days.some(d => new RegExp('\\b' + d + '\\b', 'i').test(np)) || hasSpecificHour || /\b(?:horas?|hrs?)\b/i.test(np) || np.includes('a las') || np.includes('visita')) {
         const clean = part.trim();
-        if (clean.length <= 50 && !clean.includes('Bienvenido') && !clean.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias)\b/i.test(clean)) return clean;
+        if (clean.length <= 50 && !clean.includes('Bienvenido') && !clean.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias|ahora\s+no)\b/i.test(clean)) return clean;
       }
     }
-    if (text.length <= 50 && !text.includes('Bienvenido') && !text.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias)\b/i.test(text)) return text.trim();
+    if (text.length <= 50 && !text.includes('Bienvenido') && !text.includes('Realty ONE') && !/\b(por\s+ahora\s+no|no\s+gracias|ahora\s+no)\b/i.test(text)) return text.trim();
   }
   return null;
 }

@@ -140,10 +140,12 @@ function isRefusal(text) {
     /\bno\s+doy\s+(mis\s+)?datos\b/,
     /\bno\s+insistas\b/,
     /\bdije\s+que\s+no\b/,
-    /\bno\s+quiero\s+dar\s+mis\s+datos\b/
+    /\bno\s+quiero\s+dar\s+mis\s+datos\b/,
+    /\bahora\s+no\b/,
+    /\bpor\s+ahora\s+no\b/
   ];
   if (patterns.some(p => p.test(lo))) return true;
-  return ['no', 'noi', 'nop', 'nope', 'noo', 'nel', 'non', 'no quiero', 'no gracias', 'no los daré', 'no los dare'].includes(lo);
+  return ['no', 'noi', 'nop', 'nope', 'noo', 'nel', 'non', 'no quiero', 'no gracias', 'ahora no', 'ahora no gracias', 'por ahora no', 'por ahora', 'no por ahora', 'no los daré', 'no los dare'].includes(lo);
 }
 
 function isCourtesyExit(text) {
@@ -172,6 +174,11 @@ function isAffirmative(text) {
 
 function extractFullName(text) {
   if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
+  // Descartar mensajes de festejo, felicitaciones o negativas
+  if (/\b(feliz|cumplea[ñn]os|felicidades|bendiciones|felicitaciones|amig[oa]s?|querid[oa]s?|abrazos?|besos?|ahora\s+no|no\s+gracias)\b/i.test(text)) {
+    return null;
+  }
+
   const cities = [
     'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
     'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
@@ -202,7 +209,15 @@ function extractFullName(text) {
     'vender', 'comprar', 'compra', 'precio', 'cuanto', 'cuánto', 'fotos',
     'foto', 'plano', 'planos', 'ubicacion', 'ubicación', 'visita', 'visitar',
     'hola', 'buenas', 'tardes', 'dias', 'días', 'noches', 'muchas', 'gracias',
-    'favor', 'quiero', 'tengo', 'busco', 'necesito', 'deseo', 'mas', 'más'
+    'favor', 'quiero', 'tengo', 'busco', 'necesito', 'deseo', 'mas', 'más',
+    'ahora', 'no', 'si', 'sí', 'ya', 'bueno', 'bien', 'feliz', 'cumpleaños',
+    'cumpleanos', 'cumple', 'felicidades', 'felicitaciones', 'bendiciones',
+    'amiga', 'amigo', 'amigas', 'amigos', 'querida', 'querido', 'queridos',
+    'queridas', 'abrazo', 'abrazos', 'beso', 'besos', 'dios', 'despues',
+    'después', 'luego', 'momento', 'tiempo', 'consulta', 'pregunta', 'ayuda',
+    'saludos', 'chau', 'adios', 'adiós', 'estimado', 'estimada', 'lindo',
+    'hermoso', 'excelente', 'perfecto', 'genial', 'solo', 'nada', 'nunca',
+    'quiza', 'quizas', 'quizás', 'paso', 'disculpe', 'perdon', 'perdón'
   ]);
 
   const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
@@ -214,7 +229,7 @@ function extractFullName(text) {
     if (/^[A-Za-zÁÉÍÓÚÑñáéíóú\s.'-]+$/.test(p) && p.length >= 4 && p.length <= 40) {
       const words = p.split(/\s+/).filter(w => w.length >= 2);
       if (words.length >= 2) {
-        // Verificar que ninguna palabra sea un término inmobiliario o preposición común
+        // Verificar que ninguna palabra sea un término inmobiliario, cortesía, festejo o preposición común
         const hasStopWord = words.some(w => nonNameWords.has(w.toLowerCase()));
         if (!hasStopWord) {
           return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
@@ -294,7 +309,7 @@ function isNegative(text) {
   const words = lo.split(/\s+/).filter(Boolean);
   if (['no', 'noi', 'nop', 'nope', 'noo', 'nooo', 'nel', 'non', 'noup'].includes(lo)) return true;
   if (words.length <= 4 && /^(?:no|noi|nop|nope)\b/i.test(lo)) return true;
-  return /\b(no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión|no me interesa|no insistas)\b/i.test(lo);
+  return /\b(ahora no|ahora no gracias|no por ahora|por ahora|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión|no me interesa|no insistas)\b/i.test(lo);
 }
 
 function hasValidDate(text) {
