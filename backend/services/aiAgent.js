@@ -1,121 +1,113 @@
 /**
- * Cerebro de Inteligencia Artificial para el Chatbot Inmobiliario
- * Realty ONE Group Bolivia
+ * Cerebro del Chatbot Inmobiliario WhatsApp - Realty ONE Group Bolivia
+ * Asistente Virtual Senior � Prompt v2 (Universal, multi-intencion, 6 fases)
  *
- * ARQUITECTURA HÍBRIDA UNIFICADA:
- * 1. Flujo de Campañas y Facebook Ads (CTWA / externalAdReply):
- *    - Respuestas automáticas por publicación (Mar Adentro, Terreno G77, Depto 4D, etc.).
- *    - Extracción dinámica para cualquier anuncio nuevo (Westgate Tower, Buenavista, etc.).
- *    - Asesoría sobre crédito bancario, permutas, expensas, planos y fotos.
- *    - Captura de datos, asignación de e-Realtors y confirmación de visitas.
- *
- * 2. Asistente Virtual de Atención al Cliente (Canal Orgánico / General):
- *    - 5 Estados (1. Saludo, 2. Interés -> Pedir datos, 3. Recopilar datos, 4. Agendamiento, 5. Recordatorio, 6. Despedida).
- *    - 6 Reglas estrictas:
- *      1. Sin listas de opciones ni menús ni viñetas. Preguntas abiertas y libres.
- *      2. Flujo secuencial paso a paso estricto.
- *      3. Validación de datos: teléfono, correo y ciudad antes de agendar.
- *      4. Manejo de objeciones a compartir datos.
- *      5. Validación de fecha: día de la semana, fecha exacta y hora.
- *      6. Tono cordial y directo con frase obligatoria de despedida: "Cualquier duda o inquietud no dude en llamar."
+ * Cambios respecto a v1:
+ *  - Flujo universal: responde a CUALQUIER saludo, no solo triggers de Westgate/Ads.
+ *  - Adaptacion horaria real (buenos dias / buenas tardes / buenas noches).
+ *  - Deteccion de intencion: comprar, alquilar, anticretico, vender/comercializar.
+ *  - Bloqueo de Fase: no avanza a Fase 3 sin los 4 datos completos; pide cada dato faltante individualmente.
+ *  - Fase 5: eventos INACTIVIDAD_1 / INACTIVIDAD_2 con mensajes diferenciados por estado.
+ *  - Fase 6: SILENCIO post-despedida (retorna '[SILENCIO]').
  */
 
+'use strict';
+
 const db = require('../database');
-const campaignService = require('./campaignService');
 const leadClassifier = require('./leadClassifier');
 
-const SYSTEM_INSTRUCTION = `
-Eres ONEBot, asistente virtual de atención al cliente de Realty ONE Group Bolivia.
-Tu objetivo es atender consultas sobre compra, alquiler y anticrético de propiedades en Santa Cruz de la Sierra y Urubó, asesorar sobre publicaciones de Facebook Ads, recopilar datos de contacto calificados y agendar visitas presenciales.
-Reglas:
-- Trato cordial, profesional y directo.
-- En atención general sin anuncio previo, recopila teléfono, correo y ciudad antes de agendar y finaliza con: "Cualquier duda o inquietud no dude en llamar."
-`;
+const SYSTEM_INSTRUCTION = `Asistente Virtual Senior de Realty ONE Group Bolivia.`;
 
-// ── Sesiones (TTL 24h, máx 500) ─────────────────────────────────────────────
-const MAX_SESSIONS = 500;
+// Sesiones en Memoria (TTL 24h)
+const MAX_SESSIONS = 1000;
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
-
-// Sesiones de Atención al Cliente (Orgánicas)
 const sessions = new Map();
-
-// Sesiones de Campañas / Facebook Ads
-const userFlowSessions = new Map();
-
-// Historial para Gemini
-const conversationSessions = new Map();
 
 const cleanupTimer = setInterval(() => {
   const now = Date.now();
   for (const [k, v] of sessions.entries()) {
-    if (now - v.lastActivity > SESSION_TTL_MS) sessions.delete(k);
-  }
-  for (const [k, v] of userFlowSessions.entries()) {
-    if (now - v.lastActivity > SESSION_TTL_MS) userFlowSessions.delete(k);
-  }
-  for (const [k, v] of conversationSessions.entries()) {
-    if (now - v.lastActivity > SESSION_TTL_MS) conversationSessions.delete(k);
+    if (now - (v.lastActivity || 0) > SESSION_TTL_MS) sessions.delete(k);
   }
 }, 60 * 60 * 1000);
 if (cleanupTimer.unref) cleanupTimer.unref();
 
-function getSession(userId, pushName = '') {
-  if (!sessions.has(userId)) {
-    if (sessions.size >= MAX_SESSIONS) {
-      sessions.delete(sessions.keys().next().value);
-    }
-    const name = (pushName && pushName !== 'Cliente' && pushName !== 'Por identificar')
-      ? pushName.trim() : '';
-    sessions.set(userId, {
-      state: 'ESTADO_1_GREETING',
-      clientName: name,
-      interestMsg: '',
-      phone: null,
-      email: null,
-      city: null,
-      dataRequested: false,
-      refusalCount: 0,
-      scheduledVisit: null,
-      lastActivity: Date.now()
-    });
-  }
-  const s = sessions.get(userId);
-  if (pushName && pushName !== 'Cliente' && !s.clientName) {
-    s.clientName = pushName.trim();
-  }
-  s.lastActivity = Date.now();
-  return s;
+// Adaptacion Horaria
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return 'buenos dias';
+  if (h >= 12 && h < 19) return 'buenas tardes';
+  return 'buenas noches';
 }
 
-function getSessionHistory(userId) {
-  const now = Date.now();
-  if (conversationSessions.has(userId)) {
-    const s = conversationSessions.get(userId);
-    s.lastActivity = now;
-    return s.history;
-  }
-  if (conversationSessions.size >= MAX_SESSIONS) {
-    const firstKey = conversationSessions.keys().next().value;
-    conversationSessions.delete(firstKey);
-  }
-  const newS = { history: [], lastActivity: now };
-  conversationSessions.set(userId, newS);
-  return newS.history;
+// Normalizacion
+const norm = (str) =>
+  (str || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+// Deteccion de Intencion del Cliente
+function detectIntent(msg) {
+  const n = norm(msg || '');
+  if (/\b(vend|quiero vender|poner en venta|comercializ|alquiler mi|alquilar mi|anticretico.*mi|dar en anticretico)\b/.test(n))
+    return 'vender';
+  if (/\b(anticretico|anticretico|anti\s*cr[e]tico|en anticretico)\b/.test(n))
+    return 'anticretico';
+  if (/\b(alquil|arrend|rent|alquiler)\b/.test(n))
+    return 'alquilar';
+  if (/\b(compr|adquir|casa|departamento|depto|lote|terreno|inmueble|propiedad|inversion|oficina|local|locales|bodega|proyecto|finca|edificio|vivienda|apartamento)\b/.test(n))
+    return 'comprar';
+  return null;
 }
 
+function isGenericGreeting(msg) {
+  const n = norm(msg || '').trim();
+  return /^(hola|buenos dias|buenas tardes|buenas noches|buen dia|buenas|hi|hey|saludos|como estas|como estan|como te va|que tal)[!?.]*$/.test(n);
+}
+
+// Nombre escrito suelto ("Juan Perez", "Ana Lopez"): 2-4 palabras con letras,
+// sin digitos ni correo, y que no sea un saludo ni una negativa.
+function looksLikeName(msg) {
+  const t = (msg || '').trim();
+  if (!t || /\d/.test(t) || t.includes('@')) return null;
+  const words = t.split(/\s+/);
+  if (words.length < 2 || words.length > 4) return null;
+  if (!/^[\p{L}][\p{L}'.-]*(\s+[\p{L}][\p{L}'.-]*)+$/u.test(t)) return null;
+  if (isGenericGreeting(t) || isNegativeResponse(t)) return null;
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// Limpieza de Nombre
+function cleanClientName(name) {
+  if (!name || typeof name !== 'string') return null;
+  let trimmed = name.replace(/[^\p{L}\s.'-]/gu, ' ').trim();
+  trimmed = trimmed.replace(/\s+/g, ' ');
+  if (trimmed.length < 2 || trimmed.length > 50) return null;
+  const lo = trimmed.toLowerCase();
+  const blacklisted = [
+    'por identificar', 'cliente', 'desconocido', 'buen dia', 'buen dia',
+    'buenos dias', 'buenos dias', 'buenas tardes', 'buenas noches',
+    'hola', 'saludos', 'espero', 'esperamos', 'esperando', 'espera',
+    'gracias', 'muchas gracias', 'amigo', 'amiga', 'feliz cumpleanos', 'feliz cumple',
+    'iphone', 'samsung', 'android', 'whatsapp', 'realty one', 'century 21', 'century21',
+    'asesor', 'asesora', 'propietario', 'propietaria', 'duc',
+    'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro'
+  ];
+  if (blacklisted.some(b => lo === b || lo.startsWith(b + ' ') || lo.endsWith(' ' + b))) return null;
+  if (trimmed.length <= 3 && trimmed === trimmed.toUpperCase()) return null;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.some(w => blacklisted.includes(w.toLowerCase()))) return null;
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+// Extraccion de Datos de Contacto
 function extractPhone(text) {
   if (!text) return null;
-  // 1. Número con formato internacional explícito (+ o 00 seguido de código de país y dígitos)
   const intl = text.match(/(?:\+|\b00)\s*\d{1,4}[-.\s]?(?:\(?\d{1,4}\)?[-.\s]?)?\d{2,4}[-.\s]?\d{2,4}(?:[-.\s]?\d{2,4})?/);
   if (intl) {
     const cleaned = intl[0].replace(/[\s().-]/g, '');
     const digits = cleaned.replace(/\D/g, '');
     if (digits.length >= 7 && digits.length <= 15) return cleaned;
   }
-  // 2. Número boliviano estándar (8 dígitos empezando en 6 o 7, con o sin +591)
   const bo = text.match(/(?:\+?591[\s.-]*)?[67]\d{7}\b/);
   if (bo) return bo[0].replace(/[\s().-]/g, '');
-  // 3. Cadena numérica con espacios o guiones que sume entre 7 y 15 dígitos (estándar global E.164)
   const chunks = text.match(/\b\d{3,4}[-.\s]\d{3,4}(?:[-.\s]\d{2,4})?\b|\b\d{7,15}\b/);
   if (chunks) {
     const cleaned = chunks[0].replace(/[\s.-]/g, '');
@@ -125,68 +117,57 @@ function extractPhone(text) {
 }
 
 function extractEmail(text) {
+  if (!text) return null;
   const m = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   return m ? m[0].trim() : null;
 }
 
-function isRefusal(text) {
-  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  const patterns = [
-    /\bno\s+(?:los\s+|mis\s+)?(?:quiero|voy|dar[eé]|dar|te\s+doy|deseo|pienso)\b/,
-    /\bprefiero\s+no\b/,
-    /\bpor\s+qu[eé]\s+(tengo|debo|quieren)\b/,
-    /\bpara\s+qu[eé]\s+quieren\b/,
-    /\bsin\s+dar\s+datos\b/,
-    /\bno\s+doy\s+(mis\s+)?datos\b/,
-    /\bno\s+insistas\b/,
-    /\bdije\s+que\s+no\b/,
-    /\bno\s+quiero\s+dar\s+mis\s+datos\b/,
-    /\bahora\s+no\b/,
-    /\bpor\s+ahora\s+no\b/
+function extractCity(text) {
+  if (!text) return null;
+  const cities = [
+    'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
+    'potosi', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
+    'warnes', 'urubo', 'el alto', 'quillacollo', 'sacaba',
+    'yacuiba', 'riberalta', 'villazon', 'llallagua', 'vacas', 'uncia',
+    'achacachi', 'copacabana', 'samaipata', 'bermejo', 'guayaramerin',
+    'puerto suarez', 'rurrenabaque', 'san borja', 'mizque', 'tarata',
+    'chulumani', 'aiquile', 'pomata', 'challapata', 'patacamaya', 'viacha',
+    'tiquipaya', 'chijini', 'yapacani', 'pailon', 'pocona', 'san juan de yungas'
   ];
-  if (patterns.some(p => p.test(lo))) return true;
-  return ['no', 'noi', 'nop', 'nope', 'noo', 'nel', 'non', 'no quiero', 'no gracias', 'ahora no', 'ahora no gracias', 'por ahora no', 'por ahora', 'no por ahora', 'no los daré', 'no los dare'].includes(lo);
-}
-
-function isCourtesyExit(text) {
-  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  if (/\b(gracias|muchas gracias|muchísimas gracias|muchisimas gracias|chau|adios|adiós|hasta luego|que tenga|que pases|saludos)\b/i.test(lo)) {
-    return true;
+  // Sin tildes: "Potosí" y "Potosi" son la misma ciudad.
+  const flat = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const lower = flat(text).toLowerCase();
+  for (const c of cities) {
+    if (new RegExp('(^|\\P{L})' + flat(c) + '(\\P{L}|$)', 'iu').test(lower)) {
+      return c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
   }
-  const exitWords = new Set(['gracias', 'chau', 'adios', 'adiós', 'listo', 'ok', 'vale', 'dale', 'bueno', 'ya']);
-  const words = lo.split(/\s+/).filter(Boolean);
-  return words.length > 0 && words.every(w => exitWords.has(w));
-}
-
-// Despedida/cortesía REAL (agradecimiento o despedida explícita). A diferencia de
-// isCourtesyExit, NO incluye respuestas ambiguas como "ok", "vale", "listo", "ya",
-// "bueno": esas pueden significar "sí, adelante" (p.ej. aceptar agendar una visita).
-function isFarewellOnly(text) {
-  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  return /\b(gracias|chau|adios|adiós|hasta luego|hasta pronto|hasta la proxima|hasta la próxima|nos vemos|que tenga|que tengas|que pases|saludos|bendiciones|cuídate|cuidate)\b/i.test(lo);
-}
-
-// Confirmaciones/afirmaciones ambiguas que NO deben tratarse como despedida.
-function isAffirmative(text) {
-  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  return /^(ok|okay|okey|dale|vale|listo|bueno|ya|si|sí|claro|perfecto|genial|excelente|de acuerdo|esta bien|está bien|por favor|si por favor|sí por favor|con gusto|de una|hagamoslo|hagámoslo)\b/.test(lo);
+  const vm = text.match(/(?:vivo en|ciudad de|desde la ciudad de|de la ciudad de)\s+([A-Za-z\u00C0-\u024F\s]{3,20})/i);
+  if (vm && !/(?:lunes|martes|mi[e]rcoles|miercoles|jueves|viernes|s[a]bado|sabado|domingo|gmail|hotmail)/i.test(vm[1])) {
+    return vm[1].trim();
+  }
+  return null;
 }
 
 function extractFullName(text) {
-  if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
-  // Descartar mensajes de festejo, felicitaciones o negativas
-  if (/\b(feliz|cumplea[ñn]os|felicidades|bendiciones|felicitaciones|amig[oa]s?|querid[oa]s?|abrazos?|besos?|ahora\s+no|no\s+gracias)\b/i.test(text)) {
-    return null;
-  }
-
+  if (!text || isNegativeResponse(text)) return null;
   const cities = [
     'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
-    'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
-    'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
-    'yacuiba', 'riberalta'
+    'potosi', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
+    'warnes', 'urubo', 'el alto', 'quillacollo', 'sacaba'
   ];
-  // 1. Patrón explícito "mi nombre es X", "me llamo X", "soy X" (evitando "soy de [ciudad]")
-  const m = text.match(/(?:mi nombre es|me llamo|soy\s+(?!de\b|del\b))\s*([A-Za-zÁÉÍÓÚÑñáéíóú\s]{3,35})/i);
+  const nonNameWords = new Set([
+    'no', 'quiero', 'puedo', 'dar', 'mis', 'datos', 'despues', 'luego',
+    'ahora', 'mas', 'adelante', 'aun', 'todavia', 'aviso', 'gracias',
+    'paso', 'prefiero', 'sobre', 'el', 'la', 'los', 'las', 'un', 'una',
+    'nombre', 'apellido', 'telefono', 'correo', 'email', 'ciudad', 'whatsapp', 'celular',
+    'hola', 'buenas', 'tardes', 'dias', 'noches', 'favor', 'por',
+    'ok', 'okay', 'okey', 'claro', 'dale', 'vale', 'listo', 'si', 'bien',
+    'perfecto', 'genial', 'excelente', 'entendido', 'de', 'acuerdo',
+    'supuesto', 'con', 'gusto', 'bueno', 'obvio', 'seguro'
+  ]);
+
+  const m = text.match(/(?:mi nombre es|me llamo|soy\s+(?!de\b|del\b))\s*([A-Za-z\u00C0-\u024F\s]{3,35})/i);
   if (m) {
     let cand = m[1].trim();
     cand = cand.replace(/\s+(?:y(?:\s+mi)?|mi|con|del?|en|por|para|cel(?:ular)?|tel(?:efono)?|correo|email|whatsapp)\b.*$/i, '').trim();
@@ -194,422 +175,157 @@ function extractFullName(text) {
     const isCity = cities.some(c => candLo.includes(c));
     if (!isCity && !extractEmail(cand) && !extractPhone(cand)) {
       const words = cand.split(/\s+/).filter(w => w.length >= 2);
-      if (words.length >= 1 && !words.some(w => ['de', 'del', 'en', 'el', 'la'].includes(w.toLowerCase()))) {
+      if (words.length >= 1 && !words.some(w => nonNameWords.has(w.toLowerCase()))) {
         return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
   }
-  // 2. Campo separado por coma / punto y coma / salto de línea
-  const nonNameWords = new Set([
-    'sobre', 'el', 'la', 'los', 'las', 'un', 'una', 'unos', 'unas',
-    'de', 'del', 'en', 'para', 'por', 'con', 'sin', 'al', 'a', 'es',
-    'terreno', 'lote', 'casa', 'departamento', 'dpto', 'vivienda', 'propia',
-    'familia', 'familiar', 'informacion', 'información', 'info', 'inversion',
-    'inversión', 'alquiler', 'alquilar', 'anticretico', 'anticrético', 'venta',
-    'vender', 'comprar', 'compra', 'precio', 'cuanto', 'cuánto', 'fotos',
-    'foto', 'plano', 'planos', 'ubicacion', 'ubicación', 'visita', 'visitar',
-    'hola', 'buenas', 'tardes', 'dias', 'días', 'noches', 'muchas', 'gracias',
-    'favor', 'quiero', 'tengo', 'busco', 'necesito', 'deseo', 'mas', 'más',
-    'ahora', 'no', 'si', 'sí', 'ya', 'bueno', 'bien', 'feliz', 'cumpleaños',
-    'cumpleanos', 'cumple', 'felicidades', 'felicitaciones', 'bendiciones',
-    'amiga', 'amigo', 'amigas', 'amigos', 'querida', 'querido', 'queridos',
-    'queridas', 'abrazo', 'abrazos', 'beso', 'besos', 'dios', 'despues',
-    'después', 'luego', 'momento', 'tiempo', 'consulta', 'pregunta', 'ayuda',
-    'saludos', 'chau', 'adios', 'adiós', 'estimado', 'estimada', 'lindo',
-    'hermoso', 'excelente', 'perfecto', 'genial', 'solo', 'nada', 'nunca',
-    'quiza', 'quizas', 'quizás', 'paso', 'disculpe', 'perdon', 'perdón'
-  ]);
-
   const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
   for (const p of parts) {
     if (extractEmail(p) || extractPhone(p)) continue;
     const pLo = p.toLowerCase();
     if (cities.some(c => pLo === c || pLo === `en ${c}` || pLo === `de ${c}`)) continue;
-    // Si contiene al menos 2 palabras (nombre y apellido) con solo letras
-    if (/^[A-Za-zÁÉÍÓÚÑñáéíóú\s.'-]+$/.test(p) && p.length >= 4 && p.length <= 40) {
+    if (/^[A-Za-z\u00C0-\u024F\s.'-]+$/.test(p) && p.length >= 4 && p.length <= 40) {
       const words = p.split(/\s+/).filter(w => w.length >= 2);
-      if (words.length >= 2) {
-        // Verificar que ninguna palabra sea un término inmobiliario, cortesía, festejo o preposición común
-        const hasStopWord = words.some(w => nonNameWords.has(w.toLowerCase()));
-        if (!hasStopWord) {
-          return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-        }
+      if (words.length >= 2 && !words.some(w => nonNameWords.has(w.toLowerCase()))) {
+        return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       }
     }
   }
   return null;
 }
 
-function cleanClientName(name = '') {
-  if (!name || typeof name !== 'string') return null;
-  let trimmed = name.replace(/[^\p{L}\s.'-]/gu, ' ').trim();
-  trimmed = trimmed.replace(/\s+/g, ' ');
-  if (trimmed.length < 3 || trimmed.length > 50) return null;
-  const lo = trimmed.toLowerCase();
-
-  const blacklisted = [
-    'por identificar', 'cliente', 'desconocido', 'buen dia', 'buen día', 'buenos dias', 'buenos días',
-    'buenas tardes', 'buenas noches', 'hola', 'saludos', 'espero', 'esperamos', 'esperando', 'espera',
-    'gracias', 'muchas gracias', 'amigo', 'amiga', 'amiga querida', 'amigo querido', 'feliz cumpleaños', 'feliz cumple',
-    'iphone', 'samsung', 'android', 'whatsapp', 'realty one', 'century 21', 'century21',
-    'asesor', 'asesora', 'propietario', 'propietaria', 'duc', 'santa cruz', 'la paz', 'cochabamba'
+// Respuestas Negativas y Fecha/Hora
+function isNegativeResponse(text) {
+  if (!text) return false;
+  const rawLo = norm(text).trim();
+  if (rawLo.includes('no hay problema') || rawLo.includes('sin problema')) return false;
+  if (/^(no|nop|noup|nel|negativo)$/.test(rawLo)) return true;
+  const negPhrases = [
+    'no quiero', 'no puedo', 'despues', 'no ahora', 'ahora no', 'luego',
+    'mas adelante', 'aun no', 'todavia no', 'luego te aviso', 'no se',
+    'no gracias', 'paso', 'por ahora no', 'por el momento no',
+    'en otra ocasion', 'en otra oportunidad', 'prefiero no',
+    'no dar mis datos', 'no doy mis datos', 'no voy a dar',
+    'no los dare'
   ];
-  if (blacklisted.some(b => lo === b || lo.startsWith(b + ' ') || lo.endsWith(' ' + b))) return null;
-
-  // Si es un acrónimo de 3 letras o menos en mayúsculas (ej: DUC)
-  if (trimmed.length <= 3 && trimmed === trimmed.toUpperCase()) return null;
-
-  const words = trimmed.split(/\s+/).filter(Boolean);
-  if (words.some(w => blacklisted.includes(w.toLowerCase()))) return null;
-
-  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  for (const phrase of negPhrases) {
+    if (rawLo.includes(phrase)) return true;
+  }
+  if (/^no\b/.test(rawLo) && !/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/.test(rawLo)) {
+    return true;
+  }
+  return false;
 }
 
-function extractCity(text) {
-  if (!text || isRefusal(text) || isCourtesyExit(text) || isNegative(text)) return null;
-  const cities = [
-    'santa cruz', 'la paz', 'cochabamba', 'tarija', 'sucre', 'oruro',
-    'potosi', 'potosí', 'beni', 'trinidad', 'pando', 'cobija', 'montero',
-    'warnes', 'urubo', 'urubó', 'el alto', 'quillacollo', 'sacaba',
-    'yacuiba', 'riberalta',
-    'madrid', 'barcelona', 'buenos aires', 'miami', 'sao paulo', 'santiago', 'iquique'
-  ];
-  const lower = text.toLowerCase();
-  for (const c of cities) {
-    if (new RegExp('(^|\\P{L})' + c + '(\\P{L}|$)', 'iu').test(lower)) {
-      return c.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    }
-  }
-  // Patrón explícito "vivo en X", "ciudad de X"
-  const vm = text.match(/(?:vivo en|ciudad de|desde la ciudad de|de la ciudad de)\s+([A-Za-zÁÉÍÓÚñáéíóú\s]{3,20})/i);
-  if (vm && !/(?:lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo|gmail|hotmail)/i.test(vm[1])) {
-    return vm[1].trim();
-  }
-  // Si viene en lista estructurada (con coma/salto de línea) Y el mensaje contiene email o teléfono:
-  // Solo se acepta una ciudad DESCONOCIDA si es una única palabra aislada (ej: "Cotoca", "Camiri"),
-  // nunca frases de relleno (ej: "quiero que me contacten").
-  if (extractEmail(text) || extractPhone(text)) {
-    const filler = new Set([
-      'gracias', 'contacto', 'contacten', 'contactenme', 'contáctenme', 'contactarme',
-      'info', 'informacion', 'información', 'precio', 'precios', 'foto', 'fotos',
-      'urgente', 'hola', 'buenas', 'listo', 'saludos', 'favor', 'ayuda', 'consulta'
-    ]);
-    const parts = text.split(/[,;\n]/).map(x => x.trim()).filter(Boolean);
-    for (const p of parts) {
-      if (extractEmail(p) || extractPhone(p)) continue;
-      if (!/^[A-Za-zÁÉÍÓÚÑñáéíóú]{3,25}$/.test(p)) continue;
-      if (filler.has(p.toLowerCase())) continue;
-      const fn = extractFullName(text);
-      if (fn && fn.toLowerCase() === p.toLowerCase()) continue;
-      return p.charAt(0).toUpperCase() + p.slice(1).toLowerCase();
-    }
-  }
-  return null;
+function hasDateTime(text) {
+  if (!text) return false;
+  const rawLo = norm(text).trim();
+  if (isNegativeResponse(text)) return false;
+  const hasDay = /\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy|pasado manana)\b/.test(rawLo);
+  const hasMonth = /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/.test(rawLo);
+  const hasDateNum = /\b\d{1,2}[\/\.-]\d{1,2}\b/.test(rawLo) || (/\b\d{1,2}\b/.test(rawLo) && hasMonth);
+  const hasTime = /\b\d{1,2}:\d{2}\b/.test(rawLo)
+    || /\b\d{1,2}\s*(am|pm|hrs|horas)\b/.test(rawLo)
+    || /\ba\s+las?\s+\d{1,2}\b/.test(rawLo)
+    || /\b(en\s+la\s+tarde|en\s+la\s+manana|al\s+mediodia)\b/.test(rawLo);
+  return (hasDay || hasMonth || hasDateNum) && hasTime;
 }
 
-function getBoliviaHour() {
-  const options = { timeZone: 'America/La_Paz', hour: 'numeric', hour12: false };
-  return parseInt(new Intl.DateTimeFormat('en-US', options).format(new Date()), 10);
+// Verificacion de Completitud de los 4 Datos
+function getMissingData(session) {
+  const missing = [];
+  const hasValidName = session.nombre &&
+    typeof session.nombre === 'string' &&
+    session.nombre.trim().split(/\s+/).filter(Boolean).length >= 2;
+  if (!hasValidName) missing.push('*nombre y apellido*');
+  if (!session.phone || session.phone === session.userId) missing.push('*numero de telefono o WhatsApp*');
+  if (!session.email) missing.push('*correo electronico*');
+  if (!session.city) missing.push('*ciudad*');
+  return missing;
 }
 
-function getTimeGreeting() {
-  const h = getBoliviaHour();
-  if (h >= 5 && h < 12) return '¡Muy buenos días!';
-  if (h >= 12 && h < 19) return '¡Muy buenas tardes!';
-  return '¡Muy buenas noches!';
+function isFormComplete(session) {
+  return getMissingData(session).length === 0;
 }
 
-function getTimeFarewell() {
-  const h = getBoliviaHour();
-  if (h >= 5 && h < 12) return '¡Que tengas buenos días!';
-  if (h >= 12 && h < 19) return '¡Que tengas buenas tardes!';
-  return '¡Que tengas buenas noches!';
+// Nombres de Display
+function displayName(session, prefix) {
+  prefix = prefix !== undefined ? prefix : ' ';
+  const n = session.nombre || session.nombre_perfil || '';
+  return n ? (prefix + n) : '';
 }
 
-function isNegative(text) {
-  const lo = (text || '').toLowerCase().replace(/[\/\\.,!?;:'"()\-]/g, '').trim();
-  if (/\b(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)\b/i.test(lo)) return false;
-  if (/\b(no hay problema|no te preocupes|no pasa nada)\b/i.test(lo)) return false;
-  if (/\b(no tengo|no uso|no poseo)\s+(correo|email|mail|telefono|teléfono|celular|whatsapp)\b/i.test(lo)) return false;
-  const words = lo.split(/\s+/).filter(Boolean);
-  if (['no', 'noi', 'nop', 'nope', 'noo', 'nooo', 'nel', 'non', 'noup'].includes(lo)) return true;
-  if (words.length <= 4 && /^(?:no|noi|nop|nope)\b/i.test(lo)) return true;
-  return /\b(ahora no|ahora no gracias|no por ahora|por ahora|no gracias|todav[ií]a no|todavia no|a[uú]n no|aun no|por ahora no|por el momento no|paso|m[aá]s adelante|mas adelante|despu[eé]s|despues|ninguna|prefiero no|no quiero|no deseo|en otra oportunidad|en otra ocasion|en otra ocasión|no me interesa|no insistas)\b/i.test(lo);
+function displayNameComma(session) {
+  const n = session.nombre || session.nombre_perfil || '';
+  return n ? (', ' + n) : '';
 }
 
-function hasValidDate(text) {
-  const lo = text.toLowerCase();
-  const day  = /(lunes|martes|mi[eé]rcoles|miercoles|jueves|viernes|s[aá]bado|sabado|domingo)/i.test(lo);
-  const date = /\b\d{1,2}\s+(de\s+)?(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(lo)
-            || /\b\d{1,2}[\/\-]\d{1,2}([\/-]\d{2,4})?\b/.test(lo)
-            || /\b(el\s+)?\d{1,2}\b/.test(lo);
-  const hour = /\b\d{1,2}(:\d{2})?\s*(am|pm|hrs|horas|h)\b/i.test(lo)
-            || /a\s+las\s+\d{1,2}/i.test(lo)
-            || /\b\d{1,2}:\d{2}\b/.test(lo)
-            || /\b\d{1,2}\s*(de la ma[nñ]ana|de la tarde|de la noche)\b/i.test(lo);
-  return day && date && hour;
+// Constructores de Mensajes
+function buildDataRequestMessage(session) {
+  const greeting = getGreeting();
+  const np = displayName(session);
+  const intent = session.intent;
+  let intro;
+  if (intent === 'vender') {
+    intro = `!Muy ${greeting}${np}! Sera un placer ayudarte. En *Realty ONE Group Bolivia* contamos con el equipo ideal para comercializar tu propiedad de forma segura y efectiva. Edificio\nEn breve, un agente especializado se comunicara contigo para asesorarte. Para coordinarlo, me ayudas por favor con estos datos?`;
+  } else {
+    intro = `!Muy ${greeting}${np}! !Claro que si! Contamos con una excelente variedad de opciones disponibles que se adaptan a lo que buscas.\nEn breve, uno de nuestros agentes especializados se pondra en contacto contigo para mostrarte las mejores alternativas. Para coordinarlo, me compartes por favor los siguientes datos?`;
+  }
+  return `${intro} Edificio\n- *Nombre y apellido:*\n- *Numero de telefono o WhatsApp:*\n- *Correo electronico:*\n- *Ciudad:*`;
 }
 
-function getTopicDisposicion(text) {
-  const lo = (text || '').toLowerCase();
-  if (lo.includes('vender') || lo.includes('consignar')) {
-    return 'asesoría y comercialización para vender su propiedad';
+function buildIncompleteDataMessage(session) {
+  const missing = getMissingData(session);
+  const nom = session.nombre || session.nombre_perfil || '';
+  const nomStr = nom ? `!Gracias, ${nom}! ` : '!Gracias! ';
+  if (missing.length === 1) {
+    return `${nomStr}Para dejar tu registro completo y asignarte al agente de tu zona, solo me faltaria que me indiques tu ${missing[0]}.`;
   }
-  if (lo.includes('anticretico') || lo.includes('anticrético')) {
-    return 'opciones en anticrético';
-  }
-  if (lo.includes('alquiler') || lo.includes('alquilar')) {
-    if (lo.includes('casa')) return 'casas en alquiler';
-    if (lo.includes('departamento') || lo.includes('dpto') || lo.includes('condominio')) return 'departamentos en alquiler';
-    return 'excelentes opciones en alquiler';
-  }
-  if (lo.includes('terreno') || lo.includes('lote') || lo.includes('industrial')) {
-    return 'terrenos y lotes disponibles';
-  }
-  if (lo.includes('casa')) {
-    if (lo.includes('venta') || lo.includes('comprar')) return 'casas en venta';
-    return 'hermosas casas disponibles';
-  }
-  if (lo.includes('departamento') || lo.includes('dpto') || lo.includes('condominio')) {
-    if (lo.includes('venta') || lo.includes('comprar')) return 'departamentos en venta';
-    return 'departamentos disponibles';
-  }
-  if (lo.includes('venta') || lo.includes('comprar') || lo.includes('compra')) {
-    return 'propiedades en venta';
-  }
-  return 'excelentes opciones';
+  const lista = missing.join(', ');
+  return `${nomStr}Para dejar tu registro completo y asignarte al agente de tu zona, me faltarian: ${lista}.`;
 }
 
-// ── Manejadores de Campañas y Anuncios Dinámicos ────────────────────────────
-function extractAdPropertyTopic(referralData, userMessage = '') {
-  const refText = (referralData?.headline || referralData?.title || referralData?.description || referralData?.body || '').trim();
-  const rawText = refText || userMessage || '';
-  if (!rawText) return 'nuestra oferta inmobiliaria destacada';
-
-  const clean = rawText
-    .replace(/^(realty one group itaguazu|realty one group bolivia)[|\s:—-]*/i, '')
-    .trim();
-
-  // Si es solo el saludo genérico de Meta Ads
-  if (/^(¡?hola!?|quiero\s+m[aá]s\s+informaci[oó]n|m[aá]s\s+informaci[oó]n|saludos|buen\s+d[ií]a)/i.test(clean) && !refText) {
-    return 'nuestras opciones exclusivas en preventa y entrega inmediata en Santa Cruz';
-  }
-
-  const dashParts = clean.split(/(?:—|-)/);
-  if (dashParts.length > 1) {
-    const afterDash = dashParts[1].trim();
-    const capsAfter = afterDash.match(/^([A-ZÁÉÍÓÚÑ0-9\s]{3,35})\b/);
-    if (capsAfter && capsAfter[1].trim().length >= 3) {
-      return capsAfter[1].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
-    }
-    const wordsAfter = afterDash.split(/\s+/).slice(0, 4).join(' ');
-    if (wordsAfter && wordsAfter.length >= 3 && wordsAfter.length <= 35) {
-      return wordsAfter.replace(/[🏢🌿🏖️🔥📍💰✨👉.,]/g, '').trim();
-    }
-  }
-
-  const promoMatch = clean.match(/\b(westgate\s+tower[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,25}|torre\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|condominio\s+mar\s+adentro|condominio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|edificio\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|urbanizaci[oó]n\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25}|parque\s+industrial[A-Za-z0-9ÁÉÍÓÚÑñ\s]{0,20}|departamento\s+[A-Za-z0-9ÁÉÍÓÚÑñ\s]{3,25})\b/i);
-  if (promoMatch) {
-    return promoMatch[0].replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
-  }
-
-  const hectMatch = clean.match(/(\d+\s*hect[aá]reas)/i);
-  if (hectMatch) {
-    const lugarMatch = clean.match(/en\s+([A-Za-zÁÉÍÓÚñáéíóú]{4,20})/i);
-    const sufijo = lugarMatch ? ` en ${lugarMatch[1].trim()}` : '';
-    return `${hectMatch[1].trim()}${sufijo}`.replace(/[🏢🌿🏖️🔥📍💰✨👉]/g, '').trim();
-  }
-
-  const words = clean.split(/\s+/).slice(0, 5).join(' ');
-  if (/^(¡?hola!?|quiero)/i.test(words)) {
-    return 'nuestras opciones exclusivas en Santa Cruz';
-  }
-  return words ? words.replace(/[🏢🌿🏖️🔥📍💰✨👉.,]/g, '').trim() : 'la propiedad de nuestra publicación';
+function buildFarewellScheduled(session, fechaHora) {
+  const greeting = getGreeting();
+  const nom = displayName(session);
+  return `!Excelente${nom}! Queda registrada tu solicitud para el *${fechaHora}*.\n!Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Cualquier duda o inquietud adicional, no dudes en llamarnos. !Que tengas ${greeting}!`;
 }
 
-function handleGenericAdFlow(userId, rawMsg, lowerMsg, referralData, pushName, session, nomSaludo) {
-  // A. Inversión
-  if (lowerMsg.includes('inversion') || lowerMsg.includes('inversión') || lowerMsg.includes('invertir') || lowerMsg.includes('renta') || lowerMsg.includes('plusvalia') || lowerMsg.includes('plusvalía') || lowerMsg.includes('negocio') || lowerMsg.includes('retorno')) {
-    session.state = 'AD_DISCUSSED';
-    userFlowSessions.set(userId, session);
-    const adTopic = session.adTopic || 'esta propiedad';
-    return `¡Excelente visión de inversión${nomSaludo}! 📈 *${adTopic}* cuenta con un gran atractivo de plusvalía y retorno en su zona.\n\n` +
-      `Para darte la información precisa, ¿te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que nuestro e-Realtor especialista te prepare la propuesta de rentabilidad y planos por aquí mismo? 🤝`;
-  }
-
-  // B. Vivienda familiar
-  if (lowerMsg.includes('vivienda') || lowerMsg.includes('vivir') || lowerMsg.includes('familiar') || lowerMsg.includes('mi familia') || lowerMsg.includes('propio') || lowerMsg.includes('para mi')) {
-    session.state = 'AD_DISCUSSED';
-    userFlowSessions.set(userId, session);
-    const adTopic = session.adTopic || 'esta propiedad';
-    return `¡Excelente elección${nomSaludo}! 🏡 *${adTopic}* es una excelente opción para disfrutar en familia por su comodidad, seguridad y comodidades.\n\n` +
-      `Será un verdadero gusto coordinar una visita presencial para que conozcas la propiedad en persona. ¿Qué día y horario te queda más cómodo (ej: *mañana por la tarde* o *este sábado por la mañana*)? 🤝`;
-  }
-
-  // C. Agendar visita
-  if (lowerMsg.includes('visita') || lowerMsg.includes('agendar') || lowerMsg.includes('coordinar') || lowerMsg.includes('ir a ver') || lowerMsg.includes('verla') || lowerMsg.includes('conocerla')) {
-    session.state = 'WAITING_VISIT_TIME';
-    userFlowSessions.set(userId, session);
-    const adTopic = session.adTopic || 'la propiedad';
-    return `¡Con mucho gusto${nomSaludo}! 🤝✨\n\n` +
-      `Será un placer coordinar tu visita presencial a *${adTopic}*.\n\n` +
-      `¿Qué día y hora te queda más cómodo pasar? (Por ejemplo: *este sábado a las 10:00 am* o *mañana por la tarde*).\n\n` +
-      `Nuestro e-Realtor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te esperará en el lugar.`;
-  }
-
-  // D. Horario de visita
-  const hasTimeIndicator = (
-    lowerMsg.includes('lunes') || lowerMsg.includes('martes') || lowerMsg.includes('miercoles') || lowerMsg.includes('miércoles') ||
-    lowerMsg.includes('jueves') || lowerMsg.includes('viernes') || lowerMsg.includes('sabado') || lowerMsg.includes('sábado') ||
-    lowerMsg.includes('domingo') || lowerMsg.includes('mañana') || lowerMsg.includes('manana') || lowerMsg.includes('hoy') ||
-    lowerMsg.includes('fin de semana') || lowerMsg.includes('a las') ||
-    /\b\d{1,2}:\d{2}\b/.test(lowerMsg) || /\b\d{1,2}\s*(am|pm|hrs|de la)\b/i.test(lowerMsg)
-  );
-
-  if ((session.state === 'WAITING_VISIT_TIME' || session.state === 'AD_DISCUSSED') && hasTimeIndicator) {
-    session.state = 'FINISHED';
-    userFlowSessions.set(userId, session);
-    const adTopic = session.adTopic || 'la propiedad';
-
-    try {
-      leadClassifier.trackAndClassifyLead(userId, rawMsg, `Visita confirmada para: ${adTopic}`, {
-        campana: adTopic,
-        canal: 'Facebook Ads (+591 60937050)',
-        pushName: pushName,
-        status: 'Visita Agendada',
-        zonaInteres: adTopic
-      }).catch(() => {});
-    } catch (_) {}
-
-    return `📅 *¡Perfecto${nomSaludo}! Cita agendada con éxito.* ✨\n\n` +
-      `Te esperamos el *${rawMsg}* en *${adTopic}*.\n\n` +
-      `El asesor de Realty ONE (+591 60937050) te enviará la ubicación exacta por GPS y te registrará el ingreso autorizado.\n\n` +
-      `¡Muchas gracias y que tengas un excelente día! 🤝`;
-  }
-
-  // E. Fotos, planos o ficha técnica
-  if (lowerMsg.includes('foto') || lowerMsg.includes('imagen') || lowerMsg.includes('plano') || lowerMsg.includes('precio') || lowerMsg.includes('cuanto') || lowerMsg.includes('ficha') || lowerMsg.includes('carpeta')) {
-    const adTopic = session.adTopic || 'la propiedad';
-    return `¡Con mucho gusto${nomSaludo}! 📁✨\n\n` +
-      `Le estamos notificando a nuestro e-Realtor especialista de *${adTopic}* (+591 60937050) para que te envíe la carpeta digital con todos los detalles técnicos, planos y precios actualizados.\n\n` +
-      `¿Deseas que te lo comparta directamente por este chat o prefieres una breve llamada explicativa? 📲`;
-  }
-
-  // F. Entrada inicial del anuncio
-  const adTopic = extractAdPropertyTopic(referralData, rawMsg);
-  session.state = 'AD_QUALIFYING';
-  session.adTopic = adTopic;
-  userFlowSessions.set(userId, session);
-
-  const fullAdText = `${referralData?.body || ''} ${referralData?.headline || ''} ${rawMsg}`;
-  const priceMatch = fullAdText.match(/(?:us\$|\$|bs\.?)\s*[\d.,]+(?:\s*por\s*hect[aá]rea)?/i);
-  const precioTxt = priceMatch ? `\n💰 *Inversión anunciada:* ${priceMatch[0].trim()}` : '';
-
-  try {
-    leadClassifier.trackAndClassifyLead(userId, rawMsg, `Consulta de Anuncio: ${adTopic}`, {
-      campana: adTopic,
-      canal: 'Facebook Ads (+591 60937050)',
-      pushName: pushName || referralData?.pushName || '',
-      status: 'Nuevo',
-      zonaInteres: adTopic
-    }).catch(() => {});
-  } catch (_) {}
-
-  return `¡Hola${nomSaludo}! 👋 Gracias por comunicarte con *Realty ONE Group Bolivia* 🦁\n\n` +
-    `Con gusto te comparto información y la ficha técnica sobre *${adTopic}* ✨${precioTxt}\n\n` +
-    `Para conectarte con el e-Realtor especialista y brindarte la mejor asesoría, cuéntame:\n\n` +
-    `1. 🎯 *¿Buscas esta opción para uso propio / familiar o como inversión?*\n` +
-    `2. 📅 *¿Te gustaría que coordinemos una visita presencial para conocerla esta semana, o prefieres que te enviemos la carpeta técnica y planos?* 🤝`;
+function buildFarewellNoSchedule(session) {
+  const greeting = getGreeting();
+  const nom = displayNameComma(session);
+  return `!Comprendo perfectamente${nom}! No te preocupes.\n!Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos y con gusto te atenderemos cuando lo decidas. Cualquier duda o inquietud, no dudes en llamarnos. !Que tengas ${greeting}!`;
 }
 
-// ── Helpers de catálogo y Gemini ────────────────────────────────────────────
-function queryProperties({ tipo, operacion, ubicacion, minHabitaciones, search } = {}) {
-  try {
-    let rows = db.prepare('SELECT * FROM propiedades WHERE activo = 1').all();
-    const op = (operacion || tipo || '').toLowerCase();
-    if (op) {
-      rows = rows.filter(p => {
-        const pt = (p.tipo || '').toLowerCase();
-        if (op.includes('anticret')) return pt.includes('anticret');
-        if (op.includes('alquil') || op.includes('rent')) return pt.includes('alquil');
-        if (op.includes('terren') || op.includes('lote')) return pt.includes('terren');
-        if (op.includes('vent') || op.includes('compr')) return pt.includes('vent');
-        return pt.includes(op);
-      });
-    }
-    if (ubicacion) {
-      const u = ubicacion.toLowerCase();
-      rows = rows.filter(p => (p.ubicacion || '').toLowerCase().includes(u) || (p.titulo || '').toLowerCase().includes(u));
-    }
-    if (minHabitaciones && Number(minHabitaciones) > 0) {
-      rows = rows.filter(p => Number(p.habitaciones || 0) >= Number(minHabitaciones));
-    }
-    if (search) {
-      const s = search.toLowerCase();
-      rows = rows.filter(p =>
-        (p.titulo || '').toLowerCase().includes(s) ||
-        (p.descripcion_larga || '').toLowerCase().includes(s) ||
-        (p.ubicacion || '').toLowerCase().includes(s)
-      );
-    }
-    return rows.map(p => {
-      let imagenes = [];
-      try { imagenes = JSON.parse(p.imagenes || '[]'); } catch { imagenes = []; }
-      return { ...p, imagenes };
-    });
-  } catch { return []; }
+// Getters de Session
+function getBotSession(userId) {
+  return sessions.get(userId);
 }
 
-function formatPropertiesForWhatsApp(properties) {
-  if (!properties || properties.length === 0) {
-    return 'No encontré propiedades con esos filtros en este momento, pero contamos con nuevas opciones ingresando a diario. ¿Quieres que un agente te envíe opciones personalizadas?';
+function isSessionActive(userId) {
+  const s = sessions.get(userId);
+  if (!s) return false;
+  return ['BIENVENIDA', 'ESPERANDO_DATOS', 'ESPERANDO_CONFIRMACION_VISITA', 'ESPERANDO_FECHA_HORA'].includes(s.state);
+}
+
+// Disparadores Legado (Westgate / Ads)
+function hasActivationTrigger(msg, referralData) {
+  const nMsg = norm(msg || '');
+  if (nMsg.includes('quiero mas informacion')) return true;
+  if (nMsg.includes('westgate tower')) return true;
+  if (nMsg.includes('fb.me')) return true;
+  if (referralData) {
+    const refStr = norm(`${referralData.headline || ''} ${referralData.body || ''} ${referralData.sourceUrl || ''} ${referralData.description || ''}`);
+    if (refStr.includes('westgate tower') || refStr.includes('fb.me') || referralData.source === 'Facebook Ads (CTWA)') return true;
   }
-  let text = '🏡 *Opciones disponibles en One Comsys:*\n\n';
-  properties.slice(0, 3).forEach((p, idx) => {
-    text += `*${idx + 1}. ${p.titulo}*\n📍 ${p.ubicacion} | 💰 ${p.precio} (${p.tipo})\n`;
-    if (p.habitaciones > 0) text += `🛏️ ${p.habitaciones} dorm | 🚿 ${p.banos} baños\n`;
-    if (p.area) text += `📐 ${p.area}\n`;
-    text += `🔗 propiedad.html?id=${p.id}\n\n`;
-  });
-  return text;
+  return false;
 }
 
-function generateERealtorAssignmentResponse(lead) {
-  const clientName = lead.cliente_nombre && lead.cliente_nombre !== 'Por identificar'
-    ? lead.cliente_nombre : 'Estimado/a cliente';
-  return `🎉 *¡Datos registrados!* 🦁✨\n\nHola *${clientName}*, tus datos han sido registrados exitosamente. Un agente especializado se pondrá en contacto contigo a la brevedad.`;
-}
-
-async function callGeminiAI(userMessage, history = []) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
-  try {
-    const sampleProperties = queryProperties({});
-    const ctx = sampleProperties.slice(0, 5).map(p =>
-      `[ID: ${p.id}] ${p.titulo} | ${p.tipo} | ${p.ubicacion} | ${p.precio}`
-    ).join('\n');
-    const prompt = `${SYSTEM_INSTRUCTION}\n\nCATÁLOGO:\n${ctx}\n\nHISTORIAL:\n${history.map(h => `${h.role}: ${h.text}`).join('\n')}\n\nMENSAJE:\n"${userMessage}"`;
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.7, maxOutputTokens: 600 } }) }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch { return null; }
-}
-
-async function callGeminiCampaignAI(campaign, userMessage, history = []) {
-  return callGeminiAI(userMessage, history);
-}
-
-// ── PROCESADOR PRINCIPAL (Enrutamiento Híbrido Inteligente) ───────────────────
-
-async function processUserMessage(userId, userMessage, referralOrPushName = null, extraPushName = null) {
+// PROCESADOR PRINCIPAL (Fases 1-6)
+async function processUserMessage(userId, userMessage, referralOrPushName, extraPushName, specialEvent) {
   if (!userMessage || typeof userMessage !== 'string') return null;
 
-  // Extraer pushName y referralData
   let pushName = '';
   let referralData = null;
   if (typeof extraPushName === 'string' && extraPushName.trim()) {
@@ -623,463 +339,314 @@ async function processUserMessage(userId, userMessage, referralOrPushName = null
   }
 
   const raw = userMessage.trim();
-  const lo  = raw.toLowerCase();
-  const history = getSessionHistory(userId);
+  const lo = norm(raw);
 
-  const isSelling = (
-    lo.includes('vender') || lo.includes('consignar') ||
-    lo.includes('captacion') || lo.includes('captación') ||
-    lo.includes('poner en venta') || lo.includes('vender mi') ||
-    lo.includes('quiero vender') || lo.includes('tengo una casa') ||
-    lo.includes('tengo un dpto') || lo.includes('tengo un departamento') ||
-    lo.includes('tengo un terreno') || lo.includes('tengo un lote') ||
-    lo.includes('tengo un monoambiente')
-  );
-
-  const isInquiry = isSelling || (
-    lo.includes('departamento') || lo.includes('dpto') || lo.includes('casa') ||
-    lo.includes('terreno') || lo.includes('lote') || lo.includes('monoambiente') ||
-    lo.includes('alquiler') || lo.includes('alquilar') || lo.includes('anticretico') ||
-    lo.includes('anticrético') || lo.includes('venta') || lo.includes('vender') ||
-    lo.includes('comprar') || lo.includes('compra') ||
-    lo.includes('informacion') || lo.includes('información') || lo.includes('info') ||
-    lo.includes('opciones') || lo.includes('propiedad') || lo.includes('propiedades') ||
-    lo.includes('mas info') || lo.includes('más info') ||
-    lo.includes('visita') || lo.includes('agendar') || lo.includes('asesor') ||
-    lo.includes('hectárea') || lo.includes('hectarea') || lo.includes('hectáreas') ||
-    // Tipos de inmueble adicionales
-    lo.includes('oficina') || lo.includes('local comercial') || lo.includes('comercial') ||
-    lo.includes('galpon') || lo.includes('galpón') || lo.includes('deposito') || lo.includes('depósito') ||
-    lo.includes('almacen') || lo.includes('almacén') || lo.includes('garzonier') || lo.includes('garzónier') ||
-    lo.includes('duplex') || lo.includes('dúplex') || lo.includes('triplex') || lo.includes('tríplex') ||
-    lo.includes('penthouse') || lo.includes('suite') || lo.includes('consultorio') ||
-    lo.includes('edificio') || lo.includes('parqueo') || lo.includes('garaje') || lo.includes('garage') ||
-    lo.includes('finca') || lo.includes('chacra') || lo.includes('campo') || lo.includes('quinta') ||
-    // Intención de compra/alquiler
-    lo.includes('busco') || lo.includes('buscando') || lo.includes('quiero') || lo.includes('quisiera') ||
-    lo.includes('necesito') || lo.includes('deseo') || lo.includes('interesa') || lo.includes('interesado') ||
-    lo.includes('cotiza') || lo.includes('precio') || lo.includes('disponib') || lo.includes('oferta') ||
-    lo.includes('mayor informacion') || lo.includes('más información') || lo.includes('mas informacion')
-  );
-
-  const isRealAd = Boolean(
-    (referralData && (referralData.headline || referralData.body || referralData.sourceUrl || referralData.source === 'Facebook Ads (CTWA)')) ||
-    lo.includes('fb.me') ||
-    lo.includes('facebook.com')
-  );
-
-  // 1. Comando de reinicio explícito
-  if (['reiniciar', 'reset', 'inicio', 'menu', 'menú'].includes(lo)) {
+  if (['reiniciar', 'reset'].includes(lo)) {
     sessions.delete(userId);
-    userFlowSessions.delete(userId);
-    conversationSessions.delete(userId);
-    const sFresh = getSession(userId, pushName);
-    sFresh.state = 'ESTADO_2_INTEREST';
-    const nomReset = sFresh.clientName || '';
-    const saludoReset = nomReset ? `${getTimeGreeting().slice(0, -1)} ${nomReset}!` : getTimeGreeting();
-    return `¡Hola${sFresh.clientName ? ' ' + sFresh.clientName : ''}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${saludoReset} ¿En qué puedo ayudarte?`;
+    return null;
   }
 
-  // 2. REGLA DE ORO DE ANUNCIOS DE FACEBOOK:
-  // Si el cliente hace clic en un anuncio de Facebook (CTWA, externalAdReply, fb.me, facebook.com),
-  // siempre es una NUEVA interacción publicitaria: se atiende directamente con el flujo de campaña/anuncio.
-  if (isRealAd) {
-    sessions.delete(userId);
-    userFlowSessions.delete(userId);
-    conversationSessions.delete(userId);
+  const session = sessions.get(userId);
 
-    const validAdPush = cleanClientName(pushName);
-    const nomAd = validAdPush ? ` ${validAdPush.split(/\s+/)[0]}` : '';
-    let adSession = { state: 'INIT' };
-    const adReply = handleGenericAdFlow(userId, raw, lo, referralData, pushName, adSession, nomAd);
-    if (adReply) {
-      return adReply;
+  // FASE 6: SILENCIO TOTAL post-despedida
+  if (session && session.state === 'FINALIZADO') {
+    return '[SILENCIO]';
+  }
+
+  // FASE 5: INACTIVIDAD
+  if (specialEvent === 'INACTIVIDAD_1' && session) {
+    const nom = displayName(session);
+    if (session.state === 'ESPERANDO_DATOS') {
+      return `Hola de nuevo${nom}! Se que a veces estamos a mil en el dia. Te escribo rapidito por si aun deseas que un agente de *Realty ONE Group Bolivia* te contacte. Cuando tengas un minutito, comparteme tu *nombre y apellido, telefono, correo y ciudad* para asignarte al asesor de tu zona.`;
     }
-  }
-
-  const isFarewell = isFarewellOnly(raw) || isCourtesyExit(raw) || /\b(buenas noches|hasta ma[nñ]ana|que descanses|buen descanso|igualmente)\b/i.test(lo);
-
-  // Un saludo inicial solo se considera tal si NO es una frase de despedida o cortesía nocturna
-  const isNewGreeting = !isFarewell && (
-    lo.startsWith('hola') || lo.startsWith('¡hola') ||
-    lo.startsWith('buen dia') || lo.startsWith('buenos dias') || lo.startsWith('buen día') ||
-    lo.startsWith('buenas tardes') ||
-    lo === 'buenas' || lo === 'hola' || lo === 'buen día' || lo === 'buenos días'
-  );
-
-  // 3. Si la sesión anterior ya estaba concluida (despedida / cerrada):
-  const prevSession = sessions.get(userId);
-  if (prevSession && (prevSession.state === 'ESTADO_FAREWELL' || prevSession.isClosed)) {
-    // Si hace clic en un anuncio, saluda o hace una consulta inmobiliaria, reabrimos:
-    if (isRealAd || isNewGreeting || isInquiry) {
-      sessions.delete(userId);
-      userFlowSessions.delete(userId);
-      conversationSessions.delete(userId);
-    } else {
-      // Verificamos si envió datos rezagados (teléfono, correo o fecha)
-      const latePhone = extractPhone(raw);
-      const lateEmail = extractEmail(raw);
-      const lateDate  = hasValidDate(raw);
-      if (latePhone || lateEmail || lateDate) {
-        prevSession.state = 'ESTADO_3_DATA';
-        prevSession.isClosed = false;
-        // Permite procesar datos
-      } else {
-        // Ante cualquier despedida o cortesía ("buenas noches", "gracias", "igualmente", emojis)
-        // tras concluir la charla: EL ASISTENTE QUEDA EN RIGUROSO SILENCIO.
-        prevSession.lastActivity = Date.now();
-        return null;
-      }
+    if (session.state === 'ESPERANDO_CONFIRMACION_VISITA' || session.state === 'ESPERANDO_FECHA_HORA') {
+      return `Hola${nom}! Solo paso a avisarte que tus datos ya estan en manos de nuestro agente especializado. Si prefieres conversar primero con el antes de fijar un dia y hora para la visita, no hay ningun problema! Lo dejamos asi por ahora o te gustaria anotar una fecha tentativa?`;
     }
+    return null;
   }
 
-  // 4. RECUPERACIÓN DE ESTADOS PREVIOS (Para sesiones activas en curso):
-  // Si entra un nuevo saludo ("Hola", "Buen día") o pasaron más de 30 minutos de inactividad,
-  // reiniciamos sesión para no quedar atrapado en estados viejos:
-  if (prevSession && !prevSession.isClosed && prevSession.state !== 'ESTADO_FAREWELL') {
-    const isStale = (Date.now() - (prevSession.lastActivity || 0)) > 30 * 60 * 1000;
-    if (isRealAd || isNewGreeting || isStale) {
-      sessions.delete(userId);
-      userFlowSessions.delete(userId);
-      conversationSessions.delete(userId);
-    }
-  }
-
-  let s = getSession(userId, pushName);
-
-  // Actualizar nombre SOLO si es un nombre humano válido (no DUC, no Buen día, no emojis)
-  const validPush = cleanClientName(pushName);
-  if (validPush && (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar')) {
-    s.clientName = validPush;
-  }
-  let nom = cleanClientName(s.clientName) || '';
-  let nomSaludo = nom ? ` ${nom.split(/\s+/)[0]}` : '';
-  let name = nomSaludo;
-
-  // ponytail: extraer datos si el usuario ya los incluyó en su primer mensaje
-  const initPhone = extractPhone(raw);
-  const initEmail = extractEmail(raw);
-  const initCity  = extractCity(raw);
-  const initName  = extractFullName(raw);
-  if (initPhone) s.phone = initPhone;
-  if (initEmail) s.email = initEmail;
-  if (initCity)  s.city  = initCity;
-  if (initName && cleanClientName(initName) && initName.trim().split(/\s+/).length >= 2) {
-    s.clientName = cleanClientName(initName);
-    nom = s.clientName;
-    nomSaludo = ` ${nom.split(/\s+/)[0]}`;
-    name = nomSaludo;
-  }
-
-  // ── Filtro de relevancia ──────────────────────────────────────────────────
-  const isDataMsg = Boolean(
-    extractPhone(raw) || extractEmail(raw) || extractCity(raw) || extractFullName(raw)
-  );
-  const isRelevantMsg = isRealAd || isNewGreeting || isInquiry || isDataMsg ||
-    hasValidDate(raw) || isNegative(raw) || isRefusal(raw) || isCourtesyExit(raw);
-  const CLARIFY_MSG = 'No entendí bien 😅. ¿Estás buscando comprar, alquilar o vender una propiedad? Cuéntame tu consulta y con gusto te ayudo. 📲';
-
-  const timeGreeting = getTimeGreeting();
-  const timeFarewell = getTimeFarewell();
-
-  // Detección de Colega / Asesor Inmobiliario B2B (Century21, Remax, etc.)
-  const isColleague = /\b(asesor\s+de\s+century|asesor\s+de\s+remax|asesor\s+inmobiliario|colega\s+inmobiliario|inmobiliaria\s+amiga|requerimiento\s+que\s+encaja|mi\s+cliente\s+requiere)\b/i.test(lo);
-  if (isColleague) {
-    s.state = 'ESTADO_FAREWELL';
-    s.isClosed = true;
-    const rep = `¡Hola colega! 🤝 Con mucho gusto colaboramos en co-brokering y compartimos cartera. Enseguida nuestro broker comercial (+591 60937050) se pondrá en contacto contigo a este número para coordinar las opciones de departamentos y la comisión compartida. 🦁🏡✨`;
-    leadClassifier.trackAndClassifyLead(userId, raw, rep, {
-      campana: 'Co-Brokering / Colega Inmobiliario',
-      canal: 'WhatsApp (+591 60937050)',
-      pushName: s.clientName,
-      status: 'Interesado'
-    }).catch(() => {});
+  if (specialEvent === 'INACTIVIDAD_2' && session) {
+    const greeting = getGreeting();
+    const nom = displayName(session);
+    const rep = `Hola${nom}! Para no interrumpir tus actividades, dejare nuestra conversacion en pausa por ahora. !Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos para atenderte con mucho gusto cuando estes listo. Cualquier duda o inquietud, no dudes en llamarnos. !Que tengas ${greeting}!`;
+    if (session) session.state = 'FINALIZADO';
     return rep;
   }
 
-  // Si el usuario responde con espera cortés ("Espero, gracias!", "Quedo a la espera")
-  // o despedida en saludo inicial (sin nueva consulta ni negativa de datos)
-  const isWaitCourtesy = !isRefusal(raw) && !isNegative(raw) && (
-    /\b(espero|esperamos|quedo\s+a\s+la\s+espera|esperar[eé]|aguardo|esperando)\b/i.test(lo) ||
-    ((isFarewellOnly(raw) || isCourtesyExit(raw)) && s.state === 'ESTADO_1_GREETING')
-  );
-  if (isWaitCourtesy) {
-    s.state = 'ESTADO_FAREWELL';
-    s.isClosed = true;
-    return `¡Con mucho gusto${nomSaludo}! 🤝 Nuestro agente especializado ya tiene tu requerimiento y se pondrá en contacto contigo a la brevedad. ¡Que tengas un excelente día! 🦁✨`;
-  }
+  // FASE 1: Sin sesion activa - Bienvenida
+  if (!session) {
+    const greeting = getGreeting();
+    const cleanPush = cleanClientName(pushName) || '';
+    const isTrigger = hasActivationTrigger(raw, referralData);
+    const intent = detectIntent(raw);
+    const isGreeting = isGenericGreeting(raw);
 
-  // ── ESTADO 1: Saludo inicial ──────────────────────────────────────────────
-  if (s.state === 'ESTADO_1_GREETING') {
-    // Mensaje que no tiene relación: no lo tratamos como consulta.
-    if (!isRelevantMsg) {
-      return CLARIFY_MSG;
+    if (!isGreeting && !intent && !isTrigger) {
+      return null;
     }
-    // Si en el primer mensaje el usuario ya preguntó por inmuebles o venta:
-    if (isInquiry) {
-      s.interestMsg = raw;
-      s.state = 'ESTADO_3_DATA';
-      const rep = isSelling
-        ? `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
-        : `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
 
+    // Modo estricto: silencio absoluto ante saludos sin disparador de publicidad.
+    // El bot solo responde a leads que llegan por anuncio o con intencion clara.
+    // Se activa con BOT_SILENCIOS_SIN_DISPARADOR=true (util si el numero
+    // corporativo recibe chats personales).
+    const silencioEstricto = /^(1|true|si|yes)$/i.test(
+      String(process.env.BOT_SILENCIOS_SIN_DISPARADOR ?? 'false')
+    );
+    if (silencioEstricto && isGreeting && !intent && !isTrigger) {
+      return null;
+    }
+
+
+    const newSession = {
+      userId,
+      state: 'BIENVENIDA',
+      nombre_perfil: cleanPush,
+      nombre: cleanPush,
+      phone: extractPhone(raw) || null,
+      email: extractEmail(raw) || null,
+      city: extractCity(raw) || null,
+      intent: intent || null,
+      visitSchedule: null,
+      lastActivity: Date.now()
+    };
+    sessions.set(userId, newSession);
+
+    const np = cleanPush ? ` ${cleanPush}` : '';
+
+    // Escenario B: tiene intencion directa
+    if (intent || isTrigger) {
+      newSession.state = 'ESPERANDO_DATOS';
+      const rep = buildDataRequestMessage(newSession);
       leadClassifier.trackAndClassifyLead(userId, raw, rep, {
-        campana: isSelling ? 'Venta de Propiedad' : 'Consulta Inmuebles',
-        canal: 'WhatsApp (+591 60937050)',
-        pushName: s.clientName,
-        status: 'Nuevo',
-        telefono: s.phone,
-        email: s.email,
-        ciudad: s.city
+        campana: intent === 'vender' ? 'Captacion Vendedor' : `Busqueda: ${intent || 'Inmueble'}`,
+        canal: 'WhatsApp Bot',
+        pushName: cleanPush,
+        status: 'Nuevo'
       }).catch(() => {});
-
       return rep;
     }
 
-    s.state = 'ESTADO_2_INTEREST';
-    const rep = `¡Hola${nomSaludo}! 👋😊 Soy tu asistente de Realty ONE Group Bolivia 🦁\n\n${timeGreeting} ¿En qué puedo ayudarte?`;
+    // Escenario A: saludo generico
+    newSession.state = 'BIENVENIDA';
+    const rep = `Hola${np}! Soy tu asistente virtual de *Realty ONE Group Bolivia*.\n\n!Muy ${greeting}${np}! Que gusto saludarte. En que puedo ayudarte hoy? Cuentame si estas buscando *comprar, alquilar, tomar en anticretico* o si deseas *vender o comercializar* una propiedad.`;
     leadClassifier.trackAndClassifyLead(userId, raw, rep, {
-      campana: 'Atención General',
-      canal: 'WhatsApp (+591 60937050)',
-      pushName: s.clientName,
+      campana: 'Bienvenida Chat',
+      canal: 'WhatsApp Bot',
+      pushName: cleanPush,
       status: 'Nuevo'
     }).catch(() => {});
     return rep;
   }
 
-  // ── ESTADO 2: Consulta del cliente (Interés / Opciones o Venta) ─────────────
-  if (s.state === 'ESTADO_2_INTEREST') {
-    // Mensaje que no tiene relación con inmuebles: pedimos aclaración en vez de
-    // responder con "tenemos opciones" como si fuera una consulta real.
-    if (!isRelevantMsg) {
-      return CLARIFY_MSG;
+  session.lastActivity = Date.now();
+
+  // ESTADO: BIENVENIDA - esperar intencion
+  if (session.state === 'BIENVENIDA') {
+    const intent = detectIntent(raw);
+
+    if (isNegativeResponse(raw) && !intent) {
+      const rep = buildFarewellNoSchedule(session);
+      session.state = 'FINALIZADO';
+      return rep;
     }
-    s.interestMsg = raw;
-    s.state = 'ESTADO_3_DATA';
 
-    const rep = isSelling
-      ? `¡Con mucho gusto te ayudamos con la comercialización y venta de tu propiedad! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`
-      : `¡Sí, tenemos a disposición excelentes variedades de opciones! 🏡✨ En breve un agente especializado se pondrá en contacto contigo. Para coordinarlo, por favor dame tu nombre y apellido, tu número de teléfono o whatsapp, tu correo electrónico y ciudad. 📲`;
+    // Los datos se capturan ANTES de preguntar la intencion: un lead puede
+    // escribir sus datos sin decir que busca, y no se deben perder.
+    const ph0 = extractPhone(raw);
+    const em0 = extractEmail(raw);
+    const ct0 = extractCity(raw);
+    const nm0 = extractFullName(raw);
+    const nombreLibre = !session.nombre && !ph0 && !em0 && !ct0 ? looksLikeName(raw) : null;
+    const hayDatos = Boolean(ph0 || em0 || ct0 || nm0 || nombreLibre);
 
+    if (!intent && !isGenericGreeting(raw) && !hayDatos) {
+      const nom = displayNameComma(session);
+      return `Entiendo${nom}. Me podrias contar si estas buscando *comprar, alquilar, anticretico* o si deseas *vender/comercializar* una propiedad? Asi te conecto con el agente ideal.`;
+    }
+
+    if (intent) session.intent = intent;
+
+    const ph = ph0;
+    const em = em0;
+    const ct = ct0;
+    if (ph && !session.phone) session.phone = ph;
+    if (em && !session.email) session.email = em;
+    if (ct && !session.city) session.city = ct;
+    const nombreNuevo = nm0 && nm0.trim().split(/\s+/).length >= 2 ? nm0 : nombreLibre;
+    if (nombreNuevo && !session.nombre) session.nombre = nombreNuevo;
+
+    session.state = 'ESPERANDO_DATOS';
+    const rep = hayDatos ? buildIncompleteDataMessage(session) : buildDataRequestMessage(session);
     leadClassifier.trackAndClassifyLead(userId, raw, rep, {
-      campana: s.interestMsg || 'Consulta Inmuebles',
-      canal: 'WhatsApp (+591 60937050)',
-      pushName: s.clientName,
-      status: 'Interesado',
-      telefono: s.phone,
-      email: s.email,
-      ciudad: s.city
+      campana: intent ? `Busqueda: ${intent}` : 'Consulta General',
+      canal: 'WhatsApp Bot',
+      pushName: session.nombre_perfil,
+      status: 'Nuevo'
     }).catch(() => {});
-
     return rep;
   }
 
-  // ── ESTADO 3: Recopilar datos personales ──────────────────────────────────
-  if (s.state === 'ESTADO_3_DATA') {
-    // Extraer datos primero para saber si el usuario incluyó información de contacto
+  // ESTADO: ESPERANDO_DATOS - capturar los 4 datos
+  if (session.state === 'ESPERANDO_DATOS') {
     const phone = extractPhone(raw);
     const email = extractEmail(raw);
-    const city  = extractCity(raw);
-    const fullName = extractFullName(raw);
-    // Nombre válido = ≥2 palabras (nombre Y apellido)
-    const isFullNameValid = fullName && fullName.trim().split(/\s+/).length >= 2;
-    const hasData = !!(phone || email || city || (isFullNameValid && fullName !== s.clientName));
+    let city = extractCity(raw);
+    const isNeg = isNegativeResponse(raw);
 
-    // Si se niega a dar datos o envía despedida/cortesía REAL sin datos (ej. "gracias"),
-    // se despide. Si es una confirmación ambigua ("ok", "vale", "listo") sin datos, NO
-    // se despide: se le vuelve a pedir la información (GUARD más abajo).
-    if (isRefusal(raw) || isNegative(raw) || (!hasData && isFarewellOnly(raw))) {
-      s.state = 'ESTADO_FAREWELL';
-      s.isClosed = true;
-      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros${name}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    // Ciudad en texto libre: si ya tenemos nombre, telefono y correo, lo que
+    // llega es la ciudad (p.ej. "Urubó", "Potosí"), aunque no este en la lista.
+    if (!city && session.phone && session.email && session.nombre) {
+      const cand = raw.trim().replace(/[.,;!?]+$/, '');
+      if (
+        /^[\p{L}][\p{L}\s'.-]{1,28}$/u.test(cand) &&
+        !isGenericGreeting(cand) &&
+        !isNegativeResponse(cand)
+      ) {
+        city = cand.charAt(0).toUpperCase() + cand.slice(1);
+      }
     }
 
-    // GUARD: mensaje sin ningún dato de contacto (pregunta libre, emoji, texto genérico).
-    // El bot no avanza ni responde otra cosa: repite el recordatorio de datos faltantes.
-    if (!hasData) {
-      const missingGuard = [];
-      const nameWords = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
-      if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || nameWords.length < 2) missingGuard.push('tu nombre y apellido');
-      if (!s.phone) missingGuard.push('tu número de teléfono o WhatsApp');
-      if (!s.email) missingGuard.push('tu correo electrónico');
-      if (!s.city)  missingGuard.push('tu ciudad');
-      const dN = s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' ? s.clientName : 'estimado/a cliente';
-      const mgt = missingGuard.length === 1
-        ? missingGuard[0]
-        : missingGuard.length === 2
-          ? `${missingGuard[0]} y ${missingGuard[1]}`
-          : `${missingGuard.slice(0, -1).join(', ')} y ${missingGuard[missingGuard.length - 1]}`;
-      return `Por favor ${dN}, para poder atenderte mejor y coordinar con un agente especializado, necesitamos que nos compartas ${mgt}. 📲🏡`;
-    }
-
-    if (phone) s.phone = phone;
-    if (email) s.email = email;
-    if (city)  s.city  = city;
-    if (fullName) {
-      s.clientName = fullName;
-      name = ` ${s.clientName}`;
-      nom = s.clientName;
-    }
-
-    const displayName = s.clientName || 'estimado cliente';
-
-    // Forzar siempre todos los 4 datos: nombre y apellido, teléfono/whatsapp, correo electrónico y ciudad
-    const missingAll = [];
-    const snw2 = (s.clientName || '').trim().split(/\s+/).filter(Boolean);
-    if (!s.clientName || s.clientName === 'Cliente' || s.clientName === 'Por identificar' || snw2.length < 2) missingAll.push('tu nombre y apellido');
-    if (!s.phone) missingAll.push('tu número de teléfono o WhatsApp');
-    if (!s.email) missingAll.push('tu correo electrónico');
-    if (!s.city) missingAll.push('tu ciudad');
-    if (missingAll.length > 0) {
-      let mtxt = '';
-      if (missingAll.length === 1) mtxt = missingAll[0];
-      else if (missingAll.length === 2) mtxt = missingAll[0] + ' y ' + missingAll[1];
-      else mtxt = missingAll.slice(0, -1).join(', ') + ' y ' + missingAll[missingAll.length - 1];
-      const dN = (s.clientName && s.clientName !== 'Cliente' && s.clientName !== 'Por identificar' && snw2.length >= 2) ? s.clientName : 'estimado/a cliente';
-      const promptReply = 'Por favor ' + dN + ', necesitamos que nos compartas ' + mtxt + '. 📲🏡';
-
-      // Sincronizar en tiempo real el progreso parcial del formulario en cada mensaje
-      try {
-        leadClassifier.trackAndClassifyLead(userId, raw, promptReply, {
-          campana: s.interestMsg || 'Atención al Cliente',
-          canal: 'WhatsApp (+591 60937050)',
-          pushName: s.clientName,
-          status: 'Formulario en Progreso',
-          telefono: s.phone,
-          email: s.email,
-          ciudad: s.city
-        }).catch(() => {});
-      } catch (_) {}
-
-      return promptReply;
-    }
-
-    // Si también envió el agendamiento completo de visita en el mismo mensaje
-    if (hasValidDate(raw)) {
-      s.scheduledVisit = raw;
-      s.state = 'ESTADO_5_REMINDER';
-      try {
-        leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
-          campana: s.interestMsg || 'Atención al Cliente',
-          canal: 'WhatsApp (+591 60937050)',
-          pushName: s.clientName,
-          status: 'Visita Agendada',
-          telefono: s.phone,
-          email: s.email,
-          ciudad: s.city,
-          horarioVisita: raw
-        }).catch(() => {});
-      } catch (_) {}
-      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. ¿Desea que le hagamos recuerdo un día antes, para asegurar su visita? 🗓️🤝`;
-    }
-
-    // Datos principales recopilados -> Pasa a agendamiento
-    s.state = 'ESTADO_4_SCHEDULE';
-    try {
-      leadClassifier.trackAndClassifyLead(userId, raw, 'Datos recopilados', {
-        campana: s.interestMsg || 'Atención al Cliente',
-        canal: 'WhatsApp (+591 60937050)',
-        pushName: s.clientName,
-        status: 'Datos Completos',
-        telefono: s.phone,
-        email: s.email,
-        ciudad: s.city
+    if (isNeg && !phone && !email && !city) {
+      const rep = buildFarewellNoSchedule(session);
+      session.state = 'FINALIZADO';
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: 'Flujo Declinado (Datos)',
+        canal: 'WhatsApp Bot',
+        pushName: session.nombre_perfil,
+        status: 'Declinado'
       }).catch(() => {});
-    } catch (_) {}
+      return rep;
+    }
 
-    return `¡Perfecto ${displayName}! 🎉 Ya tengo tus datos principales. Si ya tienes clara tu decisión, ¿quieres agendar una visita? 🗓️ (Por favor indícame día, fecha y hora). 🤝`;
+    if (phone) session.phone = phone;
+    if (email) session.email = email;
+    if (city) session.city = city;
+
+    const extractedName = extractFullName(raw);
+    const validName = extractedName && extractedName.trim().split(/\s+/).length >= 2 ? extractedName : null;
+    if (validName) session.nombre = validName;
+
+    const hasAnyData = Boolean(phone || email || city || validName);
+
+    if (hasAnyData) {
+      if (isFormComplete(session)) {
+        session.state = 'ESPERANDO_CONFIRMACION_VISITA';
+        const nom = displayName(session);
+        const rep = `!Perfecto${nom}! Ya tengo tus datos principales registrados y nuestro agente los esta recibiendo.\nSi ya tienes clara tu decision y te gustaria adelantar camino, quieres que agendemos una visita o reunion?\nPor favor, indicame el *dia, fecha y hora* que mejor te convenga.`;
+        leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+          campana: 'Datos Completos Capturados',
+          canal: 'WhatsApp Bot',
+          pushName: session.nombre || session.nombre_perfil,
+          telefono: session.phone,
+          email: session.email,
+          ciudad: session.city,
+          status: 'Interesado'
+        }).catch(() => {});
+        return rep;
+      } else {
+        return buildIncompleteDataMessage(session);
+      }
+    }
+
+    // Sin dato nuevo: se repregunta solo lo que falta (no los cuatro de golpe).
+    return buildIncompleteDataMessage(session);
   }
 
-  // ── ESTADO 4: Agendamiento de visita ──────────────────────────────────────
-  if (s.state === 'ESTADO_4_SCHEDULE') {
-    const displayName = s.clientName || 'estimado cliente';
+  // ESTADO: ESPERANDO_CONFIRMACION_VISITA (Fase 3)
+  if (session.state === 'ESPERANDO_CONFIRMACION_VISITA') {
+    const nom = displayName(session);
+    const nomComa = displayNameComma(session);
 
-    // Si no quiere visita / responde negativamente (por ahora no, despues, noi, no, etc.)
-    // o despedida/cortesía REAL. Las confirmaciones ambiguas ("ok", "vale", "si") NO cierran.
-    if (isNegative(raw) || isRefusal(raw) || isFarewellOnly(raw)) {
-      s.state = 'ESTADO_FAREWELL';
-      s.isClosed = true;
-      try {
-        leadClassifier.trackAndClassifyLead(userId, raw, 'Visita declinada', {
-          campana: s.interestMsg || 'Atención al Cliente',
-          canal: 'WhatsApp (+591 60937050)',
-          pushName: s.clientName,
-          status: 'Interesado - Sin Visita'
-        }).catch(() => {});
-      } catch (_) {}
-      return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Estaremos atentos para cuando lo decidas. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
-    }
-
-    // Confirmación ambigua ("ok", "si", "dale", "vale", "listo"): el cliente quiere
-    // agendar pero no indicó cuándo. Insistimos pidiendo día, fecha y hora.
-    if (isAffirmative(raw) && !hasValidDate(raw)) {
-      return `¡Genial ${displayName}! 😊 Para agendar tu visita, indícame el día, la fecha y la hora que te queden mejor (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝`;
-    }
-
-    // Si responde pero no da día, fecha y hora exacta
-    if (!hasValidDate(raw)) {
-      return `Por favor indícame el día de la semana, la fecha exacta y la hora de tu visita (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🗓️🤝`;
-    }
-
-    // Agendamiento con fecha y hora completa
-    s.scheduledVisit = raw;
-    s.state = 'ESTADO_5_REMINDER';
-    try {
-      leadClassifier.trackAndClassifyLead(userId, raw, `Visita: ${raw}`, {
-        campana: s.interestMsg || 'Visita Agendada',
-        canal: 'WhatsApp (+591 60937050)',
-        pushName: s.clientName,
-        status: 'Visita Agendada',
-        telefono: s.phone,
-        email: s.email,
-        ciudad: s.city,
-        horarioVisita: raw
+    if (isNegativeResponse(raw)) {
+      const rep = buildFarewellNoSchedule(session);
+      session.state = 'FINALIZADO';
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: 'Visita Declinada',
+        canal: 'WhatsApp Bot',
+        pushName: session.nombre || session.nombre_perfil,
+        telefono: session.phone,
+        email: session.email,
+        ciudad: session.city,
+        status: 'Datos Registrados (Sin Visita)'
       }).catch(() => {});
-    } catch (_) {}
+      return rep;
+    }
 
-    return `¡Muchas gracias por habernos elegido y por comunicarte con nosotros ${displayName}! 😊 Tu visita ha quedado coordinada para el ${raw}. ¿Desea que le hagamos recuerdo un día antes, para asegurar su visita? 🗓️🤝`;
+    if (hasDateTime(raw)) {
+      const fechaHora = raw.trim();
+      session.visitSchedule = fechaHora;
+      session.state = 'FINALIZADO';
+      const rep = buildFarewellScheduled(session, fechaHora);
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: 'Visita Agendada',
+        canal: 'WhatsApp Bot',
+        pushName: session.nombre || session.nombre_perfil,
+        telefono: session.phone,
+        email: session.email,
+        ciudad: session.city,
+        fecha_visita: fechaHora,
+        status: 'Visita Agendada'
+      }).catch(() => {});
+      return rep;
+    }
+
+    session.state = 'ESPERANDO_FECHA_HORA';
+    return `!Genial${nom}! Para agendar tu visita, indicame el *dia, la fecha y la hora* que te queden mejor (por ejemplo: Lunes 15 de marzo a las 10:00 AM).`;
   }
 
-  // ── ESTADO 5: Confirmación de recordatorio ─────────────────────────────────
-  if (s.state === 'ESTADO_5_REMINDER') {
-    const displayName = s.clientName || 'estimado cliente';
-    s.state = 'ESTADO_FAREWELL';
-    s.isClosed = true;
+  // ESTADO: ESPERANDO_FECHA_HORA
+  if (session.state === 'ESPERANDO_FECHA_HORA') {
+    const nom = displayName(session);
+    const nomComa = displayNameComma(session);
 
-    // Si confirma (si, ok, esta bien, por favor, claro, dale, etc.)
-    if (isAffirmative(raw) || /\b(ok|esta\s+bien|est[aá]\s+bien|por\s+favor|porfa|claro|dale|porfavor|excelente|perfecto|si|sí)\b/i.test(raw)) {
-      try {
-        leadClassifier.trackAndClassifyLead(userId, raw, 'Recordatorio confirmado', {
-          campana: s.interestMsg || 'Visita Agendada',
-          canal: 'WhatsApp (+591 60937050)',
-          pushName: s.clientName,
-          status: 'Visita Agendada',
-          recordatorio: true
-        }).catch(() => {});
-      } catch (_) {}
-      return `¡Será un placer! Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    if (isNegativeResponse(raw)) {
+      const rep = buildFarewellNoSchedule(session);
+      session.state = 'FINALIZADO';
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: 'Coordinacion Visita Pendiente',
+        canal: 'WhatsApp Bot',
+        pushName: session.nombre || session.nombre_perfil,
+        telefono: session.phone,
+        email: session.email,
+        ciudad: session.city,
+        status: 'Pendiente Coordinacion Visita'
+      }).catch(() => {});
+      return rep;
     }
 
-    // Si responde con cualquier negativa (no, no gracias, no es necesario, etc.)
-    if (isNegative(raw) || isRefusal(raw)) {
-      try {
-        leadClassifier.trackAndClassifyLead(userId, raw, 'Recordatorio declinado', {
-          campana: s.interestMsg || 'Visita Agendada',
-          canal: 'WhatsApp (+591 60937050)',
-          pushName: s.clientName,
-          status: 'Visita Agendada',
-          recordatorio: false
-        }).catch(() => {});
-      } catch (_) {}
-      return `Entendido ${displayName}. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    if (hasDateTime(raw)) {
+      const fechaHora = raw.trim();
+      session.visitSchedule = fechaHora;
+      session.state = 'FINALIZADO';
+      const rep = buildFarewellScheduled(session, fechaHora);
+      leadClassifier.trackAndClassifyLead(userId, raw, rep, {
+        campana: 'Visita Agendada (Fecha)',
+        canal: 'WhatsApp Bot',
+        pushName: session.nombre || session.nombre_perfil,
+        telefono: session.phone,
+        email: session.email,
+        ciudad: session.city,
+        fecha_visita: fechaHora,
+        status: 'Visita Agendada'
+      }).catch(() => {});
+      return rep;
     }
 
-    // Cualquier otra respuesta cordial o despedida
-    return `Muchas gracias ${displayName}. Cualquier duda o inquietud no dude en llamar. 📞🤝 ${timeFarewell}`;
+    return `Entendido${nomComa}. Para confirmar tu cita, necesito el *dia, fecha y hora* exactos (ej: Martes 28 de octubre a las 3:00 PM).`;
   }
 
   return null;
 }
+
+// Metodos de Compatibilidad
+function queryProperties() { return []; }
+function formatPropertiesForWhatsApp() { return ''; }
+function generateERealtorAssignmentResponse(lead) {
+  const clientName = lead.cliente_nombre || 'Estimado/a cliente';
+  return `!Datos registrados!\n\nHola *${clientName}*, un agente especializado se pondra en contacto contigo a la brevedad.`;
+}
+async function callGeminiAI() { return null; }
+async function callGeminiCampaignAI() { return null; }
 
 module.exports = {
   processUserMessage,
@@ -1088,5 +655,14 @@ module.exports = {
   generateERealtorAssignmentResponse,
   callGeminiAI,
   callGeminiCampaignAI,
-  SYSTEM_INSTRUCTION
+  SYSTEM_INSTRUCTION,
+  getBotSession,
+  isSessionActive,
+  sessions,
+  getGreeting,
+  detectIntent,
+  isNegativeResponse,
+  hasDateTime,
+  isFormComplete,
+  getMissingData
 };
