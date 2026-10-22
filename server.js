@@ -72,6 +72,10 @@ app.get(['/index.html'], (req, res) => {
 const crypto = require('crypto');
 const QR_USER = process.env.ADMIN_USER || process.env.QR_USER || 'admin';
 const QR_PASS = process.env.ADMIN_PASS || process.env.QR_PASS || process.env.ADMIN_KEY || 'ONE2026';
+// Clave historica hardcodeada: la acepta el sitio y los scripts antiguos.
+// En despliegues publicos (Space/Render) poner ALLOW_LEGACY_KEY=false para que
+// nadie mas acceda al panel ni a los leads con una clave que esta en el repo.
+const LEGACY_KEY = process.env.ALLOW_LEGACY_KEY === 'false' ? null : 'ONE2026';
 
 // Mapa de sesiones activas en memoria (token -> { user, expiresAt })
 const activeSessions = new Map();
@@ -105,7 +109,7 @@ function isValidSession(req) {
 
   // 2. Retrocompatibilidad query param ?key= o cabecera x-admin-key (scripts, extensiones)
   const key = req.query.key || req.headers['x-admin-key'];
-  if (key && (key === QR_PASS || key === 'ONE2026')) {
+  if (key && (key === QR_PASS || (LEGACY_KEY && key === LEGACY_KEY))) {
     return true;
   }
 
@@ -113,7 +117,8 @@ function isValidSession(req) {
   const auth = req.headers.authorization;
   if (auth && auth.startsWith('Basic ')) {
     const [user, ...passParts] = Buffer.from(auth.slice(6), 'base64').toString('utf8').split(':');
-    if ((user === QR_USER && passParts.join(':') === QR_PASS) || passParts.join(':') === 'ONE2026') {
+    const pass = passParts.join(':');
+    if ((user === QR_USER && pass === QR_PASS) || (LEGACY_KEY && pass === LEGACY_KEY)) {
       return true;
     }
   }
@@ -142,7 +147,7 @@ app.post('/api/auth/login', (req, res) => {
   }
 
   const userMatches = (username.trim() === QR_USER);
-  const passMatches = (password.trim() === QR_PASS || password.trim() === 'ONE2026');
+  const passMatches = (password.trim() === QR_PASS || (LEGACY_KEY && password.trim() === LEGACY_KEY));
 
   if (userMatches && passMatches) {
     const token = crypto.randomBytes(32).toString('hex');
