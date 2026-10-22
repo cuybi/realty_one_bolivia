@@ -991,12 +991,29 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       lead.estado_comercial = metadata.status;
     }
 
-    // 1. Extraer nombre: si el mensaje actual o metadata trae nombre legítimo, sobrescribir
+    // 1. Extraer nombre: si el mensaje actual o metadata trae nombre legitimo, sobrescribir
     const validPush = cleanClientName(metadata.pushName);
-    if (validPush && (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar' || lead.cliente_nombre.toLowerCase() === 'santa cruz')) {
+    const detectedName = cleanClientName(extractName(incomingMessage));
+    const nombreGuardado = lead.cliente_nombre;
+    // El nombre del perfil de WhatsApp es la senal mas reciente: si el lead no
+    // escribio un nombre en este mensaje y el guardado difiere, manda el perfil.
+    const pushVenceAlGuardado = Boolean(
+      validPush &&
+        !detectedName &&
+        nombreGuardado &&
+        nombreGuardado !== 'Por identificar' &&
+        nombreGuardado.toLowerCase() !== 'santa cruz' &&
+        nombreGuardado.toLowerCase() !== validPush.toLowerCase(),
+    );
+    if (
+      validPush &&
+      (!nombreGuardado ||
+        nombreGuardado === 'Por identificar' ||
+        nombreGuardado.toLowerCase() === 'santa cruz' ||
+        pushVenceAlGuardado)
+    ) {
       lead.cliente_nombre = validPush;
     }
-    const detectedName = cleanClientName(extractName(incomingMessage));
     if (detectedName) {
       lead.cliente_nombre = detectedName;
     } else if (!lead.cliente_nombre || lead.cliente_nombre === 'Por identificar') {

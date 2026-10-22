@@ -272,7 +272,7 @@ function buildDataRequestMessage(session) {
   } else {
     intro = `!Muy ${greeting}${np}! !Claro que si! Contamos con una excelente variedad de opciones disponibles que se adaptan a lo que buscas.\nEn breve, uno de nuestros agentes especializados se pondra en contacto contigo para mostrarte las mejores alternativas. Para coordinarlo, me compartes por favor los siguientes datos?`;
   }
-  return `${intro} Edificio\n- *Nombre y apellido:*\n- *Numero de telefono o WhatsApp:*\n- *Correo electronico:*\n- *Ciudad:*`;
+  return `${intro}\n- *Nombre y apellido:*\n- *Numero de telefono o WhatsApp:*\n- *Correo electronico:*\n- *Ciudad:*`;
 }
 
 function buildIncompleteDataMessage(session) {
