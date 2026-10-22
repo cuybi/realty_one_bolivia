@@ -382,6 +382,10 @@ let lastInbound = null;
 let lastOutbound = null;
 
 app.get('/api/health', (req, res) => {
+  // El diagnostico (texto del ultimo mensaje del lead) solo para quien tenga la clave:
+  // en un despliegue publico el endpoint es accesible sin autenticar.
+  const key = req.query.key || req.headers['x-admin-key'];
+  const autorizado = Boolean(key && (key === QR_PASS || (LEGACY_KEY && key === LEGACY_KEY)));
   res.json({
     status: 'ok',
     service: 'Realty ONE Bot Cloud 24/7',
@@ -389,8 +393,8 @@ app.get('/api/health', (req, res) => {
     numeroConectado: connectedNumber,
     hasQR: Boolean(currentQR),
     lastError: lastErrorMsg,
-    lastInbound,
-    lastOutbound,
+    lastInbound: autorizado ? lastInbound : null,
+    lastOutbound: autorizado ? lastOutbound : null,
     uptime: Math.round(process.uptime()),
     hasMongoUri: Boolean(process.env.MONGODB_URI),
     mongoConnected: Boolean(global.mongoClientSingleton),
