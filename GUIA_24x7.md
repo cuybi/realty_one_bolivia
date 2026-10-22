@@ -34,7 +34,29 @@ Render y pulse *Upgrade*. No lo hagas.
 
 ---
 
-## 2. Lo que ya quedó hecho
+## 1.5 Opción "ya" — el bot corriendo en esta PC, con autoinicio y autorreparación
+
+Mientras la nube no esté lista, el bot puede vivir en esta PC de forma estable con dos
+tareas programadas de Windows (ya creadas en esta máquina):
+
+| Tarea | Qué hace | Cuándo corre |
+| --- | --- | --- |
+| `RealtyOneBot` | Arranca el bot (`keepalive_windows.ps1`) | Al iniciar sesión en Windows |
+| `RealtyOneBotWatchdog` | Comprueba `/api/health`; si el bot no responde, lo reinicia | Cada 5 minutos |
+
+```
+# Ver el estado
+Get-ScheduledTask -TaskName RealtyOneBot,RealtyOneBotWatchdog
+Start-ScheduledTask -TaskName RealtyOneBotWatchdog   # forzar revision
+Get-Content bot-keepalive.log -Tail 20              # bitacora
+```
+
+Requisitos: la PC encendida y con internet (el bot usa la sesión de WhatsApp Web por
+Baileys). Si la nube (Render / Space) queda activa, el **candado de instancia** hace
+que solo una de las dos conecte y la otra quede en espera: no se pelean, y hay
+failover automatico entre ambas.
+
+
 
 | Pieza | Archivo | Qué hace |
 |---|---|---|
