@@ -1,0 +1,31 @@
+name: KeepAlive Render (bot WhatsApp 24/7)
+
+# Render apaga los servicios "free" tras 15 minutos sin trafico entrante.
+# Este ping cada 10 minutos mantiene el bot de WhatsApp despierto 24/7.
+# Gratis: no usa tarjeta ni servicios de pago.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    name: Despertar el bot en Render
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Comprobar el bot
+        run: |
+          set -u
+          BASE="https://realty-one-bolivia.onrender.com"
+          CODE=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 60 "$BASE/api/health" || echo "000")
+          echo "HTTP $CODE"
+          head -c 600 /tmp/health.json 2>/dev/null || true
+          echo ""
+          if [ "$CODE" = "200" ]; then
+            echo "OK: bot despierto."
+          else
+            echo "AVISO: Render no respondio (HTTP $CODE). Puede estar compilando o el deploy fallo."
+            exit 1
+          fi

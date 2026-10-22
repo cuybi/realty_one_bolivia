@@ -567,6 +567,29 @@ async function startWhatsAppClient() {
       lastErrorMsg = null;
     }
 
+    // Candado de instancia unica: si otra instancia (PC o nube) ya tiene la
+    // sesion de WhatsApp, esta NO conecta (si no, WhatsApp expulsa a una de las
+    // dos con "440 conflict" y el bot deja de responder).
+    if (global.mongoClientSingleton) {
+      const leaseModule = fs.existsSync(path.join(__dirname, 'backend', 'services', 'instanceLease.js'))
+        ? './backend/services/instanceLease'
+        : './services/instanceLease';
+      const { acquireLease, startHeartbeat, ownerId } = require(leaseModule);
+      const owner = ownerId();
+      const lease = await acquireLease(global.mongoClientSingleton.db('realty_one_bot'), owner);
+      if (!lease.acquired) {
+        console.warn(
+          `🔒 [Instancia] Otra instancia tiene el candado (${lease.owner}). Esta instancia queda en espera para no corromper la sesion.`
+        );
+        connectionStatus = 'instancia_standby';
+        isConnecting = false;
+        setTimeout(startWhatsAppClient, 30000);
+        return;
+      }
+      global.instanceLeaseStop = startHeartbeat(global.mongoClientSingleton.db('realty_one_bot'), owner);
+      console.log(`🔓 [Instancia] Candado tomado por ${owner}.`);
+    }
+
     const sock = makeWASocket({
       auth: state,
       printQRInTerminal: true,

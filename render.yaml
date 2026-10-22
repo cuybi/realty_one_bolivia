@@ -1,12 +1,13 @@
 services:
   - type: web
-    name: realty-one-whatsapp-bot
+    name: realty-one-bolivia
     env: node
     plan: free
     region: oregon
     buildCommand: npm install; cd backend; npm install; cd ..
     startCommand: node server.js
     healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
       - key: PORT
         value: 10000
