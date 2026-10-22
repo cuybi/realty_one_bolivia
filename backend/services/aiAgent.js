@@ -459,7 +459,10 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     const nombreLibre = !session.nombre && !ph0 && !em0 && !ct0 ? looksLikeName(raw) : null;
     const hayDatos = Boolean(ph0 || em0 || ct0 || nm0 || nombreLibre);
 
-    if (!intent && !isGenericGreeting(raw) && !hayDatos) {
+    // Un clic en anuncio (CTWA) ya es intencion: se pasa a pedir los datos.
+    const isTrigger = hasActivationTrigger(raw, referralData);
+
+    if (!intent && !isGenericGreeting(raw) && !hayDatos && !isTrigger) {
       const nom = displayNameComma(session);
       return `Entiendo${nom}. Me podrias contar si estas buscando *comprar, alquilar, anticretico* o si deseas *vender/comercializar* una propiedad? Asi te conecto con el agente ideal.`;
     }
