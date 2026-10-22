@@ -68,6 +68,30 @@ Estado local: el bot está **corriendo y conectado** en esta máquina (instancia
 
 ---
 
+## 1.6 Aviso al asesor por Telegram (paso 6 del flujo Facebook → WhatsApp → CRM)
+
+El bot ya guarda el lead en el CRM (SiteGround) y lo asigna a un e-Realtor, pero
+el aviso al equipo se activa con Telegram: en cuanto se capta un lead (o queda
+listo para trabajar), el grupo recibe nombre, teléfono, correo, interés y el
+enlace al panel.
+
+**Configuración (una sola vez, gratis y sin tarjeta):**
+1. En Telegram abre **@BotFather** → `/newbot` → ponle nombre (ej. *ONE Bot Realty*) → te da un **token** (`123456789:AAE...`).
+2. Crea un grupo (o canal) para el equipo y **añade al bot** al grupo.
+3. Escríbele algo al grupo y pide el **chat id**: abre `https://api.telegram.org/bot<TOKEN>/getUpdates` en el navegador y busca `"chat":{"id":-1001234567890}` (los grupos empiezan por `-100`).
+4. Pega ambos valores en `.env` (las claves ya están preparadas):
+   ```
+   TELEGRAM_BOT_TOKEN=123456789:AAE...
+   TELEGRAM_CHAT_ID=-1001234567890
+   CRM_PANEL_URL=https://realyonegroupbolivia.e-techgroupbolivia.com/ingreso_leads.html?key=ONE2026
+   ```
+5. Reinicia el bot (tarea `RealtyOneBotWatchdog`) y listo.
+
+Si faltan las dos variables el bot **no avisa** pero sigue funcionando normal
+(nunca se cae por una alerta). Comprobación: `node backend/test_telegram_alert.js` (5/5) y en el log `[Telegram] Lead avisado al equipo`.
+
+---
+
 ## 3. Qué tienes que hacer en Render (3 pasos, una sola vez)
 
 1. Entra en <https://dashboard.render.com> → servicio **realty-one-bolivia**.

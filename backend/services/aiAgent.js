@@ -79,6 +79,8 @@ function looksLikeName(msg) {
   if (words.length < 2 || words.length > 4) return null;
   if (!/^[\p{L}][\p{L}'.-]*(\s+[\p{L}][\p{L}'.-]*)+$/u.test(t)) return null;
   if (isGenericGreeting(t) || isNegativeResponse(t)) return null;
+  // "Quiero info", "busco casa"... son intenciones, no nombres.
+  if (/\b(quiero|queremos|busco|buscamos|necesito|necesitamos|me interesa|me gustaria|tengo|vendo|compro|alquilo|arrindo|arriendo|buscando|necesitando|interesa)\b/i.test(t)) return null;
   return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 

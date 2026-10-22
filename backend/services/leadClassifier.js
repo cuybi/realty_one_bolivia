@@ -880,6 +880,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
 
     let leadIndex = leads.findIndex(l => l.numero_celular === phone || l.id === userId);
     let lead = null;
+    let esLeadNuevo = false;
 
     if (leadIndex >= 0) {
       lead = leads[leadIndex];
@@ -963,6 +964,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
       }
       leads.unshift(lead);
       leadIndex = 0;
+      esLeadNuevo = true;
     }
 
     // Concatenar todo el texto de la conversación
@@ -1126,6 +1128,7 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     lead.e_realtor_avatar = assignedRealtor.avatar;
 
     // 6. Etapa del Embudo (Pipeline)
+    const etapaPrevia = lead.etapa_embudo;
     if (lead.horario_visita_solicitado) {
       lead.etapa_embudo = 'VISITA_AGENDADA';
     } else if (isFormComplete) {
@@ -1152,6 +1155,22 @@ async function trackAndClassifyLead(userId, incomingMessage, botReply = '', meta
     lead.tipo_operacion_detectada = lead.tipo_interes;
 
     await saveLeads(leads);
+
+    // 8. Aviso al asesor (paso 6 del flujo): lead nuevo o lead ya listo para
+    // trabajar. Se dispara sin bloquear: si Telegram falla, el bot sigue.
+    const listoParaAsesor =
+      lead.etapa_embudo === 'ASIGNADO_E_REALTOR' || lead.etapa_embudo === 'VISITA_AGENDADA';
+    const yaEstabaListo =
+      etapaPrevia === 'ASIGNADO_E_REALTOR' || etapaPrevia === 'VISITA_AGENDADA';
+    if (esLeadNuevo || (listoParaAsesor && !yaEstabaListo)) {
+      try {
+        const { notifyNewLead } = require('./telegramAlert');
+        notifyNewLead(lead).catch(() => {});
+      } catch (e) {
+        console.warn('[Telegram] No se pudo cargar el modulo de alerta:', e && e.message);
+      }
+    }
+
     return lead;
   } catch (error) {
     console.error('Error al clasificar lead:', error);

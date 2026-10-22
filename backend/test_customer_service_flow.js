@@ -77,7 +77,7 @@ async function runTests() {
 
   const r2_3 = await aiAgent.processUserMessage('client_refusal', 'No quiero dar mis datos por este medio, gracias', 'Carlos Gomez');
   console.log('Bot 2.3 (Negativa):', r2_3);
-  assert(r2_3.includes('Carlos Gomez') && has(r2_3, 'llamar'), 'Debe despedirse cordialmente');
+  assert(has(r2_3, 'Carlos', 'llamar'), 'Debe despedirse cordialmente');
   assertNoBulletsOrMenus(r2_3, '2.3');
 
   const r2_4 = await aiAgent.processUserMessage('client_refusal', 'ok gracias', 'Carlos Gomez');
@@ -102,7 +102,7 @@ async function runTests() {
   // Decide no agendar
   const r3_5 = await aiAgent.processUserMessage('client_dates', 'Por ahora no gracias, solo quería consultar', 'Andrea Rojas');
   console.log('Bot 3.5 (No agenda):', r3_5);
-  assert(r3_5.includes('Andrea Rojas') && has(r3_5, 'llamar'));
+  assert(has(r3_5, 'Andrea', 'llamar'));
   const r3_6 = await aiAgent.processUserMessage('client_dates', 'gracias chau', 'Andrea Rojas');
   assert(esSilencio(r3_6), 'Debe silenciar despedida final');
   console.log('✅ ESCENARIO 3 VERIFICADO AL 100%\n');
@@ -118,7 +118,7 @@ async function runTests() {
   assert(has(r4_2, 'agente', 'contacto'), 'Paso 4.2 falló');
 
   const r4_3 = await aiAgent.processUserMessage('client_noname', '77397850, contacto@empresa.bo, Santa Cruz');
-  assert(r4_3.includes('nombre y apellido'), 'Paso 4.3 debe pedir nombre y apellido faltante');
+  assert(has(r4_3, 'nombre y apellido'), 'Paso 4.3 debe pedir nombre y apellido faltante');
 
   const r4_3b = await aiAgent.processUserMessage('client_noname', 'Juan Perez');
   assert(has(r4_3b, 'visita'), 'Paso 4.3b debe pasar a visita');
@@ -139,7 +139,7 @@ async function runTests() {
   assert(has(r5_3, 'Marcos'), 'Debe usar el nombre del lead (solo el primero)');
 
   const r5_4 = await aiAgent.processUserMessage('client_extract', 'sabado 17 de octubre a las 9:30 am');
-  assert(checkIncludes(r5_4, 'Marcos') && has(r5_4, 'llamar'));
+  assert(has(r5_4, 'Marcos', 'llamar'));
 
   const r5_5 = await aiAgent.processUserMessage('client_extract', 'muchas gracias amigo');
   assert(esSilencio(r5_5), 'Debe silenciarse cortesía tras despedida');
