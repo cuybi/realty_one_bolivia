@@ -703,7 +703,13 @@ async function startWhatsAppClient() {
             ''
           ).trim();
 
-          if (!messageText) continue;
+          if (!messageText) {
+  const tieneMultimedia = msg.message?.audioMessage || msg.message?.imageMessage || msg.message?.stickerMessage || msg.message?.videoMessage;
+  if (tieneMultimedia) {
+    await sock.sendMessage(targetJid, { text: 'Por este medio solo puedo leer mensajes escritos 😊 ¿Me lo podrías escribir, por favor?' });
+  }
+  continue;
+}
 
           // Registrar lastInbound para diagnóstico en vivo desde /api/health
           lastInbound = {
@@ -732,7 +738,14 @@ async function startWhatsAppClient() {
 
           if (aiAgent && aiAgent.processUserMessage) {
             try {
-              const botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+              let botReply = null;
+try {
+  botReply = await aiAgent.processUserMessage(senderPhone, messageText, referralData);
+} catch (e) {
+  console.error('[AI Agent Error]', e.message);
+  botReply = '¡Hola! 😊 Un agente te contactará pronto. ¿Me compartes tu *nombre, teléfono y correo*? 📲';
+}
+if (!botReply || botReply === '[SILENCIO]') continue;
               if (botReply && typeof botReply === 'string' && botReply.trim()) {
                 // Si el cliente pide fotos de Mar Adentro, Parque Industrial o Departamentos
                 const normMsg = messageText.toLowerCase();

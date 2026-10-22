@@ -60,3 +60,6 @@ __pycache__/
 westgate_brochure.pdf
 *.pdf
 
+
+# Respaldos del editor
+*.RESPALDO
