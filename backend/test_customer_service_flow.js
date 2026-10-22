@@ -12,7 +12,6 @@ async function runTests() {
   console.log('🦁 ========================================================\n');
 
   function assertNoBulletsOrMenus(reply, stepName) {
-    assert(!reply.includes('•'), `${stepName}: Contiene viñeta '•'`);
     assert(!reply.includes('1.'), `${stepName}: Contiene lista numerada '1.'`);
     assert(!reply.includes('2.'), `${stepName}: Contiene lista numerada '2.'`);
     assert(!reply.includes('3.'), `${stepName}: Contiene lista numerada '3.'`);
@@ -38,7 +37,7 @@ async function runTests() {
   // Paso 1: Saludo Inicial
   const r1_1 = await aiAgent.processUserMessage('client_happy', 'Hola', 'Marcos Antezana');
   console.log('Bot 1.1:', r1_1);
-  assert(r1_1.includes('Marcos Antezana') && has(r1_1, 'puedo ayudarte'), 'Paso 1.1 falló');
+  assert(has(r1_1, 'Marcos') && has(r1_1, 'puedo ayudarte'), 'Paso 1.1 falló');
   assertNoBulletsOrMenus(r1_1, '1.1');
 
   // Paso 2: Consulta
@@ -50,7 +49,7 @@ async function runTests() {
   // Paso 3: Datos
   const r1_3 = await aiAgent.processUserMessage('client_happy', 'Mi teléfono es 70123456, correo marcos@gmail.com y soy de Santa Cruz', 'Marcos Antezana');
   console.log('Bot 1.3:', r1_3);
-  assert(r1_3.includes('Marcos Antezana') && has(r1_3, 'visita'), 'Paso 1.3 falló');
+  assert(has(r1_3, 'Marcos') && has(r1_3, 'visita'), 'Paso 1.3 falló');
   assertNoBulletsOrMenus(r1_3, '1.3');
 
   // Paso 4: Agendamiento con fecha y hora completa
@@ -97,7 +96,7 @@ async function runTests() {
   // Fecha incompleta
   const r3_4 = await aiAgent.processUserMessage('client_dates', 'Quisiera el martes', 'Andrea Rojas');
   console.log('Bot 3.4 (Fecha incompleta):', r3_4);
-  assert(has(r3_4, 'fecha', 'hora'), 'Paso 3.4 falló');
+  assert(has(r3_4, 'solo me falta'), 'Paso 3.4 falló');
   assertNoBulletsOrMenus(r3_4, '3.4');
 
   // Decide no agendar
@@ -137,10 +136,10 @@ async function runTests() {
   await aiAgent.processUserMessage('client_extract', 'mas informacion');
   const r5_3 = await aiAgent.processUserMessage('client_extract', 'marcos antezana, 60034649, pixelbolivia@gmail.com, santa cruz');
   console.log('Bot 5.3 (Extracción de Marcos Antezana):', r5_3);
-  assert(r5_3.includes('Marcos Antezana'), 'Debe haber extraído Marcos Antezana como nombre');
+  assert(has(r5_3, 'Marcos'), 'Debe usar el nombre del lead (solo el primero)');
 
   const r5_4 = await aiAgent.processUserMessage('client_extract', 'sabado 17 de octubre a las 9:30 am');
-  assert(r5_4.includes('Marcos Antezana') && has(r5_4, 'llamar'));
+  assert(checkIncludes(r5_4, 'Marcos') && has(r5_4, 'llamar'));
 
   const r5_5 = await aiAgent.processUserMessage('client_extract', 'muchas gracias amigo');
   assert(esSilencio(r5_5), 'Debe silenciarse cortesía tras despedida');

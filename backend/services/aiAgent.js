@@ -31,12 +31,20 @@ const cleanupTimer = setInterval(() => {
 }, 60 * 60 * 1000);
 if (cleanupTimer.unref) cleanupTimer.unref();
 
-// Adaptacion Horaria
+// Adaptacion Horaria (Bolivia, UTC-4)
 function getGreeting() {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'buenos dias';
+  if (h >= 5 && h < 12) return 'buenos días';
   if (h >= 12 && h < 19) return 'buenas tardes';
   return 'buenas noches';
+}
+
+// Despedida segun la franja horaria
+function getFarewell() {
+  const h = new Date().getHours();
+  if (h >= 5 && h < 12) return '¡Que tengas un excelente día!';
+  if (h >= 12 && h < 19) return '¡Que tengas una excelente tarde!';
+  return '¡Que tengas una excelente noche!';
 }
 
 // Normalizacion
@@ -52,7 +60,7 @@ function detectIntent(msg) {
     return 'anticretico';
   if (/\b(alquil|arrend|rent|alquiler)\b/.test(n))
     return 'alquilar';
-  if (/\b(compr|adquir|casa|departamento|depto|lote|terreno|inmueble|propiedad|inversion|oficina|local|locales|bodega|proyecto|finca|edificio|vivienda|apartamento)\b/.test(n))
+  if (/\b(compr|adquir|casa|casas|departamento|departamentos|depto|lote|lotes|terreno|terrenos|inmueble|propiedad|inversion|oficina|oficinas|local|locales|bodega|proyecto|finca|edificio|vivienda|apartamento)\b/.test(n))
     return 'comprar';
   return null;
 }
@@ -232,6 +240,22 @@ function hasDateTime(text) {
   return (hasDay || hasMonth || hasDateNum) && hasTime;
 }
 
+// Que parte de la fecha/hora falta en un mensaje parcial ("el martes", "a las 3").
+function missingDateParts(text) {
+  const rawLo = norm(text || '').trim();
+  const hasDay = /\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy|pasado manana)\b/.test(rawLo);
+  const hasMonth = /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\b/.test(rawLo);
+  const hasDateNum = /\b\d{1,2}[\/\.-]\d{1,2}\b/.test(rawLo) || (/\b\d{1,2}\b/.test(rawLo) && hasMonth);
+  const hasTime = /\b\d{1,2}:\d{2}\b/.test(rawLo)
+    || /\b\d{1,2}\s*(am|pm|hrs|horas)\b/.test(rawLo)
+    || /\ba\s+las?\s+\d{1,2}\b/.test(rawLo)
+    || /\b(en\s+la\s+tarde|en\s+la\s+manana|al\s+mediodia)\b/.test(rawLo);
+  const falta = [];
+  if (!hasDay && !hasMonth && !hasDateNum) falta.push('el día');
+  if (!hasTime) falta.push('la hora');
+  return falta;
+}
+
 // Verificacion de Completitud de los 4 Datos
 function getMissingData(session) {
   const missing = [];
@@ -249,53 +273,88 @@ function isFormComplete(session) {
   return getMissingData(session).length === 0;
 }
 
-// Nombres de Display
+// Nombres de Display: solo el primer nombre, y una vez por mensaje.
+function firstNameOnly(name) {
+  if (!name) return '';
+  const parts = String(name).trim().split(/\s+/);
+  return parts[0] || '';
+}
+
+function nombreCliente(session) {
+  return firstNameOnly(session.nombre || session.nombre_perfil || '');
+}
+
 function displayName(session, prefix) {
   prefix = prefix !== undefined ? prefix : ' ';
-  const n = session.nombre || session.nombre_perfil || '';
+  const n = nombreCliente(session);
   return n ? (prefix + n) : '';
 }
 
 function displayNameComma(session) {
-  const n = session.nombre || session.nombre_perfil || '';
+  const n = nombreCliente(session);
   return n ? (', ' + n) : '';
 }
 
 // Constructores de Mensajes
 function buildDataRequestMessage(session) {
-  const greeting = getGreeting();
-  const np = displayName(session);
-  const intent = session.intent;
-  let intro;
-  if (intent === 'vender') {
-    intro = `!Muy ${greeting}${np}! Sera un placer ayudarte. En *Realty ONE Group Bolivia* contamos con el equipo ideal para comercializar tu propiedad de forma segura y efectiva. Edificio\nEn breve, un agente especializado se comunicara contigo para asesorarte. Para coordinarlo, me ayudas por favor con estos datos?`;
-  } else {
-    intro = `!Muy ${greeting}${np}! !Claro que si! Contamos con una excelente variedad de opciones disponibles que se adaptan a lo que buscas.\nEn breve, uno de nuestros agentes especializados se pondra en contacto contigo para mostrarte las mejores alternativas. Para coordinarlo, me compartes por favor los siguientes datos?`;
+  const np = displayNameComma(session);
+  if (session.intent === 'vender') {
+    return (
+      `¡Será un placer ayudarte${np}! 🏡✨ En *Realty ONE Group Bolivia* contamos con el equipo ideal para comercializar tu propiedad de forma segura y efectiva. Un agente especializado se comunicará contigo para asesorarte.\n` +
+      `Para coordinarlo, ¿me ayudas con estos datos? 📲\n` +
+      `• *Nombre y apellido*\n• *Teléfono o WhatsApp*\n• *Correo electrónico*\n• *Ciudad*`
+    );
   }
-  return `${intro}\n- *Nombre y apellido:*\n- *Numero de telefono o WhatsApp:*\n- *Correo electronico:*\n- *Ciudad:*`;
+  return (
+    `¡Claro que sí${np}! 🏡✨ Tenemos una excelente variedad de opciones. Un agente especializado se pondrá en contacto contigo para confirmarte los detalles y mostrarte las mejores alternativas.\n` +
+    `Para coordinarlo, ¿me compartes por favor estos datos? 📲\n` +
+    `• *Nombre y apellido*\n• *Teléfono o WhatsApp*\n• *Correo electrónico*\n• *Ciudad*`
+  );
 }
 
-function buildIncompleteDataMessage(session) {
-  const missing = getMissingData(session);
-  const nom = session.nombre || session.nombre_perfil || '';
-  const nomStr = nom ? `!Gracias, ${nom}! ` : '!Gracias! ';
+// Solo se pide lo que falta, con las mismas etiquetas de la peticion.
+const ETIQUETA_DATO = {
+  '*nombre y apellido*': '*Nombre y apellido*',
+  '*numero de telefono o WhatsApp*': '*Teléfono o WhatsApp*',
+  '*correo electronico*': '*Correo electrónico*',
+  '*ciudad*': '*Ciudad*',
+};
+
+function buildIncompleteDataMessage(session, opciones) {
+  const sinNombre = Boolean(opciones && opciones.sinNombre);
+  const missing = getMissingData(session).map((d) => ETIQUETA_DATO[d] || d);
+  const np = sinNombre ? '' : displayNameComma(session);
   if (missing.length === 1) {
-    return `${nomStr}Para dejar tu registro completo y asignarte al agente de tu zona, solo me faltaria que me indiques tu ${missing[0]}.`;
+    return `¡Gracias${np}! 😊 Para dejar tu registro completo, solo me falta tu ${missing[0]}. 📲`;
   }
   const lista = missing.join(', ');
-  return `${nomStr}Para dejar tu registro completo y asignarte al agente de tu zona, me faltarian: ${lista}.`;
+  return `¡Gracias${np}! 😊 Para dejar tu registro completo, solo me falta tu ${lista}. 📲`;
+}
+
+// Propuesta de visita (Fase 3)
+function buildVisitProposal(session) {
+  const np = displayNameComma(session);
+  return (
+    `¡Perfecto${np}! 🎉 Ya tengo tus datos y nuestro agente los está recibiendo.\n` +
+    `Si ya tienes clara tu decisión y quieres adelantar camino, ¿te gustaría agendar una visita o reunión? 🗓️\n` +
+    `Indícame por favor el *día, fecha y hora* que mejor te convenga. 🤝`
+  );
 }
 
 function buildFarewellScheduled(session, fechaHora) {
-  const greeting = getGreeting();
-  const nom = displayName(session);
-  return `!Excelente${nom}! Queda registrada tu solicitud para el *${fechaHora}*.\n!Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Cualquier duda o inquietud adicional, no dudes en llamarnos. !Que tengas ${greeting}!`;
+  const np = displayNameComma(session);
+  return (
+    `¡Excelente${np}! Quedó registrada tu solicitud para el *${fechaHora}*. 🗓️✨ El agente la confirmará contigo.\n` +
+    `¡Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! 😊 Cualquier duda o inquietud, no dudes en llamarnos. ${getFarewell()} 📞🤝`
+  );
 }
 
 function buildFarewellNoSchedule(session) {
-  const greeting = getGreeting();
-  const nom = displayNameComma(session);
-  return `!Comprendo perfectamente${nom}! No te preocupes.\n!Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos y con gusto te atenderemos cuando lo decidas. Cualquier duda o inquietud, no dudes en llamarnos. !Que tengas ${greeting}!`;
+  const np = displayNameComma(session);
+  return (
+    `¡Comprendo perfectamente${np}! No te preocupes. 😊\n` +
+    `¡Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos y con gusto te atenderemos cuando lo decidas. Cualquier duda o inquietud, no dudes en llamarnos. ${getFarewell()} 📞🤝`
+  );
 }
 
 // Getters de Session
@@ -312,7 +371,7 @@ function isSessionActive(userId) {
 // Disparadores Legado (Westgate / Ads)
 function hasActivationTrigger(msg, referralData) {
   const nMsg = norm(msg || '');
-  if (nMsg.includes('quiero mas informacion')) return true;
+  if (nMsg.includes('quiero mas informacion') || nMsg.includes('mas informacion') || nMsg.includes('quiero info')) return true;
   if (nMsg.includes('westgate tower')) return true;
   if (nMsg.includes('fb.me')) return true;
   if (referralData) {
@@ -355,20 +414,20 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
 
   // FASE 5: INACTIVIDAD
   if (specialEvent === 'INACTIVIDAD_1' && session) {
-    const nom = displayName(session);
+    const np = displayNameComma(session);
     if (session.state === 'ESPERANDO_DATOS') {
-      return `Hola de nuevo${nom}! Se que a veces estamos a mil en el dia. Te escribo rapidito por si aun deseas que un agente de *Realty ONE Group Bolivia* te contacte. Cuando tengas un minutito, comparteme tu *nombre y apellido, telefono, correo y ciudad* para asignarte al asesor de tu zona.`;
+      return `¡Hola de nuevo${np}! 😊 Sé que a veces estamos a mil en el día. Cuando tengas un minutito, compárteme tu *nombre y apellido, teléfono, correo y ciudad* para asignarte al asesor de tu zona. 🏡📲`;
     }
     if (session.state === 'ESPERANDO_CONFIRMACION_VISITA' || session.state === 'ESPERANDO_FECHA_HORA') {
-      return `Hola${nom}! Solo paso a avisarte que tus datos ya estan en manos de nuestro agente especializado. Si prefieres conversar primero con el antes de fijar un dia y hora para la visita, no hay ningun problema! Lo dejamos asi por ahora o te gustaria anotar una fecha tentativa?`;
+      return `¡Hola${np}! 😊 Tus datos ya están en manos de nuestro agente especializado. Si prefieres conversar primero con él antes de fijar día y hora, ¡no hay problema! ¿Lo dejamos así por ahora o anotamos una fecha tentativa? 🗓️🤝`;
     }
-    return null;
+    return `¡Hola de nuevo${np}! 😊 Por si te quedó alguna duda: ¿buscas comprar, alquilar, anticrético o vender una propiedad? Con gusto te ayudo. 🏡`;
   }
 
   if (specialEvent === 'INACTIVIDAD_2' && session) {
-    const greeting = getGreeting();
-    const nom = displayName(session);
-    const rep = `Hola${nom}! Para no interrumpir tus actividades, dejare nuestra conversacion en pausa por ahora. !Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos para atenderte con mucho gusto cuando estes listo. Cualquier duda o inquietud, no dudes en llamarnos. !Que tengas ${greeting}!`;
+    const np = displayNameComma(session);
+    const rep =
+      `¡Hola${np}! 😊 Para no interrumpir tus actividades, dejaré nuestra conversación en pausa por ahora. ¡Muchas gracias por habernos elegido y por comunicarte con *Realty ONE Group Bolivia*! Estaremos atentos para atenderte con gusto cuando estés listo. Cualquier duda o inquietud, no dudes en llamarnos. ${getFarewell()} 📞🤝`;
     if (session) session.state = 'FINALIZADO';
     return rep;
   }
@@ -411,8 +470,6 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     };
     sessions.set(userId, newSession);
 
-    const np = cleanPush ? ` ${cleanPush}` : '';
-
     // Escenario B: tiene intencion directa
     if (intent || isTrigger) {
       newSession.state = 'ESPERANDO_DATOS';
@@ -426,9 +483,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
       return rep;
     }
 
-    // Escenario A: saludo generico
+    // Escenario A: saludo generico (Fase 1 del prompt oficial)
     newSession.state = 'BIENVENIDA';
-    const rep = `Hola${np}! Soy tu asistente virtual de *Realty ONE Group Bolivia*.\n\n!Muy ${greeting}${np}! Que gusto saludarte. En que puedo ayudarte hoy? Cuentame si estas buscando *comprar, alquilar, tomar en anticretico* o si deseas *vender o comercializar* una propiedad.`;
+    const np = cleanPush ? `, ${firstNameOnly(cleanPush)}` : '';
+    const rep =
+      `¡Muy ${greeting}${np}! 👋😊 Soy tu asistente virtual de *Realty ONE Group Bolivia*. Gracias por escribirnos.\n` +
+      `¿En qué puedo ayudarte hoy? Cuéntame si buscas *comprar, alquilar o anticrético*, o si quieres *vender o poner en alquiler* tu propiedad. 🏡✨`;
     leadClassifier.trackAndClassifyLead(userId, raw, rep, {
       campana: 'Bienvenida Chat',
       canal: 'WhatsApp Bot',
@@ -462,9 +522,14 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     // Un clic en anuncio (CTWA) ya es intencion: se pasa a pedir los datos.
     const isTrigger = hasActivationTrigger(raw, referralData);
 
-    if (!intent && !isGenericGreeting(raw) && !hayDatos && !isTrigger) {
-      const nom = displayNameComma(session);
-      return `Entiendo${nom}. Me podrias contar si estas buscando *comprar, alquilar, anticretico* o si deseas *vender/comercializar* una propiedad? Asi te conecto con el agente ideal.`;
+    // Regla 1 del prompt: si preguntan por precio, zona o disponibilidad, no
+    // inventamos: el agente especializado confirma los detalles y seguimos.
+    const pideDetalles =
+      /\b(precio|cuanto cuesta|cuanto sale|cuanto vale|valores?|cuotas|disponib|sigue disponible|financiamiento|comisiones?|documentos?)\b/.test(lo);
+
+    if (!intent && !isGenericGreeting(raw) && !hayDatos && !isTrigger && !pideDetalles) {
+      const np = displayNameComma(session);
+      return `¡Gracias${np}! 😊 ¿En qué puedo ayudarte hoy? Cuéntame si buscas *comprar, alquilar o anticrético*, o si quieres *vender o poner en alquiler* tu propiedad. 🏡✨`;
     }
 
     if (intent) session.intent = intent;
@@ -479,7 +544,14 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     if (nombreNuevo && !session.nombre) session.nombre = nombreNuevo;
 
     session.state = 'ESPERANDO_DATOS';
-    const rep = hayDatos ? buildIncompleteDataMessage(session) : buildDataRequestMessage(session);
+    let rep = hayDatos
+      ? buildIncompleteDataMessage(session, { sinNombre: pideDetalles })
+      : buildDataRequestMessage(session);
+    if (pideDetalles) {
+      const np = displayNameComma(session);
+      rep =
+        `¡Claro${np}! 😊 Un agente especializado le confirmará los detalles y le mostrará las mejores alternativas.\n` + rep;
+    }
     leadClassifier.trackAndClassifyLead(userId, raw, rep, {
       campana: intent ? `Busqueda: ${intent}` : 'Consulta General',
       canal: 'WhatsApp Bot',
@@ -534,8 +606,7 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     if (hasAnyData) {
       if (isFormComplete(session)) {
         session.state = 'ESPERANDO_CONFIRMACION_VISITA';
-        const nom = displayName(session);
-        const rep = `!Perfecto${nom}! Ya tengo tus datos principales registrados y nuestro agente los esta recibiendo.\nSi ya tienes clara tu decision y te gustaria adelantar camino, quieres que agendemos una visita o reunion?\nPor favor, indicame el *dia, fecha y hora* que mejor te convenga.`;
+        const rep = buildVisitProposal(session);
         leadClassifier.trackAndClassifyLead(userId, raw, rep, {
           campana: 'Datos Completos Capturados',
           canal: 'WhatsApp Bot',
@@ -594,7 +665,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
     }
 
     session.state = 'ESPERANDO_FECHA_HORA';
-    return `!Genial${nom}! Para agendar tu visita, indicame el *dia, la fecha y la hora* que te queden mejor (por ejemplo: Lunes 15 de marzo a las 10:00 AM).`;
+    const np = displayNameComma(session);
+    const falta = missingDateParts(raw);
+    const pide = falta.length
+      ? `solo me falta ${falta.join(' y ')}`
+      : 'indicame el *día, fecha y hora*';
+    return `¡Genial${np}! Para agendar tu visita, ${pide} (por ejemplo: Lunes 15 de marzo a las 10:00 AM). 🤝`;
   }
 
   // ESTADO: ESPERANDO_FECHA_HORA
@@ -635,7 +711,12 @@ async function processUserMessage(userId, userMessage, referralOrPushName, extra
       return rep;
     }
 
-    return `Entendido${nomComa}. Para confirmar tu cita, necesito el *dia, fecha y hora* exactos (ej: Martes 28 de octubre a las 3:00 PM).`;
+    const falta = missingDateParts(raw);
+    const np = displayNameComma(session);
+    if (falta.length === 1) {
+      return `¡Entendido${np}! Para confirmar tu cita, solo me falta ${falta[0]} (ej: Martes 28 de octubre a las 3:00 PM). 🤝`;
+    }
+    return `¡Entendido${np}! Para confirmar tu cita, necesito el *día, fecha y hora* exactos (ej: Martes 28 de octubre a las 3:00 PM). 🤝`;
   }
 
   return null;
